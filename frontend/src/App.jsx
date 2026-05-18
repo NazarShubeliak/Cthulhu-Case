@@ -6,6 +6,9 @@ import RegisterPage from './pages/Auth/RegisterPage.jsx'
 import CharacterListPage from './pages/Characters/CharacterListPage.jsx'
 import CharacterSheetPage from './pages/Characters/CharacterSheetPage.jsx'
 import ProfilePage from './pages/Profile/ProfilePage.jsx'
+import SessionListPage from './pages/Sessions/SessionListPage.jsx'
+import LobbyPage from './pages/Sessions/LobbyPage.jsx'
+import TablePage from './pages/Table/TablePage.jsx'
 
 function ProtectedLayout() {
   const accessToken = useAuthStore((s) => s.accessToken)
@@ -21,7 +24,10 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<ProtectedLayout />}>
-        <Route index element={<Navigate to="/characters" replace />} />
+        <Route index element={<Navigate to="/sessions" replace />} />
+        <Route path="/sessions" element={<SessionListPage />} />
+        <Route path="/sessions/:id" element={<LobbyPage />} />
+        <Route path="/table/:id" element={<TablePage />} />
         <Route path="/characters" element={<CharacterListPage />} />
         <Route path="/characters/:id" element={<CharacterSheetPage />} />
         <Route path="/profile" element={<ProfilePage />} />

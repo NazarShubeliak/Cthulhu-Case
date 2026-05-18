@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'channels',
     'apps.users',
     'apps.characters',
+    'apps.sessions',
 ]
 
 MIDDLEWARE = [

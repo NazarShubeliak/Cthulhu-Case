@@ -1,12 +1,6 @@
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
 
-const NAV_LINKS = [
-  { to: '/characters', num: 'i', label: 'Вестибюль' },
-  { to: '/characters', num: 'ii', label: 'Дослідники' },
-  { to: '/profile', num: 'iii', label: 'Профіль' },
-]
-
 // Octopus-like SVG glyph for brand
 function OctGlyph() {
   return (
@@ -28,6 +22,9 @@ function OctGlyph() {
 }
 
 function getBreadcrumb(pathname) {
+  if (pathname.startsWith('/table/')) return ['сесії', 'стіл']
+  if (pathname.startsWith('/sessions/')) return ['сесії', 'лобі']
+  if (pathname === '/sessions') return ['сесії']
   if (pathname.startsWith('/characters/')) return ['дослідники', 'картка']
   if (pathname === '/characters') return ['дослідники']
   if (pathname === '/profile') return ['профіль']
@@ -43,7 +40,7 @@ export default function AppLayout() {
   return (
     <div className="shell">
       <nav className="nav">
-        <div className="nav__brand" onClick={() => navigate('/characters')}>
+        <div className="nav__brand" onClick={() => navigate('/sessions')}>
           <div className="nav__brand-mark">
             <OctGlyph />
             <div>
@@ -56,8 +53,7 @@ export default function AppLayout() {
         <div className="nav__section-label">Навігація</div>
 
         <NavLink
-          to="/characters"
-          end
+          to="/sessions"
           className={({ isActive }) =>
             'nav__item' + (isActive ? ' nav__item--active' : '')
           }
@@ -88,7 +84,7 @@ export default function AppLayout() {
 
         <div className="nav__foot">
           <div className="nav__foot-row">
-            <span>Фаза I</span>
+            <span>Фаза II</span>
             <span style={{ color: 'var(--ochre-dim)' }}>Реліз</span>
           </div>
           <div className="nav__foot-row">

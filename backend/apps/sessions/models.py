@@ -1,0 +1,83 @@
+from django.db import models
+from django.conf import settings
+
+
+class Session(models.Model):
+    STATUS_CHOICES = [
+        ('lobby', 'Лобі'),
+        ('active', 'Активна'),
+        ('closed', 'Закрита'),
+    ]
+    name = models.CharField(max_length=200)
+    master = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='mastered_sessions'
+    )
+    players = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name='joined_sessions', blank=True
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='lobby')
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'sessions'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+    def is_participant(self, user):
+        return self.master == user or self.players.filter(pk=user.pk).exists()
+
+
+class Card(models.Model):
+    CARD_TYPES = [
+        ('document', 'Документ'),
+        ('photo', 'Фото'),
+        ('note', 'Нотатка'),
+        ('npc', 'НПС'),
+        ('location', 'Локація'),
+    ]
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='cards')
+    type = models.CharField(max_length=20, choices=CARD_TYPES, default='document')
+    title = models.CharField(max_length=200)
+    content = models.TextField(blank=True)
+    image = models.ImageField(upload_to='cards/', null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_cards'
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='owned_cards'
+    )
+    is_public = models.BooleanField(default=False)
+    pos_x = models.FloatField(default=0)
+    pos_y = models.FloatField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'cards'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.title
+
+
+class Note(models.Model):
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='notes')
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notes'
+    )
+    content = models.TextField()
+    is_private = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'notes'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Note by {self.author} in {self.session}'
