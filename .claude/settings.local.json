@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(curl -s -o $null -w \"%{http_code}\" http://localhost:8000/api/auth/register/ 2>&1)",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:8000/api/auth/register/\" -Method POST -ErrorAction Stop; $r.StatusCode } catch { $_.Exception.Response.StatusCode.value__ })",
+      "PowerShell(docker exec cthulhu-case-web-1 *)"
+    ]
+  }
+}
