@@ -1,0 +1,999 @@
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { getCharacter, updateCharacter, rollDice } from '../../api/characters.js'
+import useDebounce from '../../hooks/useDebounce.js'
+
+// ── Stat definitions ─────────────────────────────────────────────────────────
+
+const STAT_DEFS = [
+  { key: 'str_stat', abbr: 'STR', uk: 'Сила',       lat: 'Vis' },
+  { key: 'con_stat', abbr: 'CON', uk: 'Тіло',       lat: 'Soma' },
+  { key: 'siz_stat', abbr: 'SIZ', uk: 'Зріст',      lat: 'Statura' },
+  { key: 'dex_stat', abbr: 'DEX', uk: 'Спритність', lat: 'Manus' },
+  { key: 'app_stat', abbr: 'APP', uk: 'Подоба',     lat: 'Forma' },
+  { key: 'int_stat', abbr: 'INT', uk: 'Розум',      lat: 'Mens' },
+  { key: 'pow_stat', abbr: 'POW', uk: 'Воля',       lat: 'Voluntas' },
+  { key: 'edu_stat', abbr: 'EDU', uk: 'Освіта',     lat: 'Doctrina' },
+]
+
+const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100']
+
+const TIER_LABELS = {
+  critical: 'Критичний успіх',
+  extreme:  'Екстремальний',
+  hard:     'Складний успіх',
+  regular:  'Успіх',
+  failure:  'Провал',
+  fumble:   'Провальний кидок',
+}
+
+// ── Helper: derive frontend stats from raw ───────────────────────────────────
+
+function derivedFromChar(ch) {
+  return {
+    hp_max: Math.max(1, Math.floor((ch.con_stat + ch.siz_stat) / 10)),
+    mp_max: Math.max(1, Math.floor(ch.pow_stat / 5)),
+  }
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function PaperField({ label, value, onChange, multiline = false, colSpan = 1 }) {
+  return (
+    <div style={{ gridColumn: `span ${colSpan}` }} className="paper-field">
+      <div className="paper-field__label">{label}</div>
+      {multiline ? (
+        <textarea
+          className="paper-field__input"
+          style={{
+            resize: 'vertical',
+            minHeight: 100,
+            fontFamily: 'var(--font-body)',
+            fontStyle: 'italic',
+            fontSize: 15,
+            lineHeight: 1.6,
+            background: 'rgba(255,255,255,0.25)',
+            border: '1px dashed #7a6440',
+            padding: '8px 10px',
+          }}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <input
+          className="paper-field__input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </div>
+  )
+}
+
+function VitalCounter({ label, current, max, onChange, color }) {
+  const pct = max > 0 ? Math.min(100, (current / max) * 100) : 0
+  return (
+    <div className="vital-gauge">
+      <div
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 9.5,
+          letterSpacing: '0.24em',
+          textTransform: 'uppercase',
+          color: '#7a6440',
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          marginTop: 6,
+        }}
+      >
+        <button
+          onClick={() => onChange(Math.max(0, current - 1))}
+          style={{
+            background: 'none',
+            border: '1px solid #7a6440',
+            color: '#7a6440',
+            width: 22,
+            height: 22,
+            cursor: 'pointer',
+            fontSize: 14,
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          −
+        </button>
+        <input
+          type="number"
+          value={current}
+          min={0}
+          max={max}
+          onChange={(e) => {
+            const v = parseInt(e.target.value, 10)
+            if (!isNaN(v)) onChange(Math.min(max, Math.max(0, v)))
+          }}
+          style={{
+            width: 36,
+            background: 'transparent',
+            border: 'none',
+            borderBottom: '1px solid #7a6440',
+            fontFamily: 'var(--font-display)',
+            fontSize: 22,
+            color: '#2a2418',
+            textAlign: 'center',
+            outline: 'none',
+          }}
+        />
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: '#7a6440' }}>
+          / {max}
+        </span>
+        <button
+          onClick={() => onChange(Math.min(max, current + 1))}
+          style={{
+            background: 'none',
+            border: '1px solid #7a6440',
+            color: '#7a6440',
+            width: 22,
+            height: 22,
+            cursor: 'pointer',
+            fontSize: 14,
+            lineHeight: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          +
+        </button>
+      </div>
+      <div
+        style={{
+          marginTop: 8,
+          height: 4,
+          background: 'rgba(0,0,0,0.1)',
+          position: 'relative',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: `${pct}%`,
+            background: color,
+            opacity: 0.7,
+            transition: 'width 0.3s',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function StatBox({ stat, value, onChange }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(value))
+
+  const half = Math.floor(value / 2)
+  const fifth = Math.floor(value / 5)
+
+  const commit = () => {
+    const v = parseInt(draft, 10)
+    if (!isNaN(v) && v >= 1 && v <= 99) {
+      onChange(v)
+    } else {
+      setDraft(String(value))
+    }
+    setEditing(false)
+  }
+
+  return (
+    <div className="stat-box" onClick={() => !editing && setEditing(true)}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              letterSpacing: '0.24em',
+              color: '#7a6440',
+            }}
+          >
+            {stat.abbr}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 14,
+              fontStyle: 'italic',
+              color: '#2a2418',
+              marginTop: 1,
+            }}
+          >
+            {stat.uk}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontStyle: 'italic',
+              fontSize: 11,
+              color: '#7a6440',
+            }}
+          >
+            {stat.lat}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          {editing ? (
+            <input
+              type="number"
+              value={draft}
+              autoFocus
+              min={1}
+              max={99}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => e.key === 'Enter' && commit()}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: 48,
+                background: 'transparent',
+                border: '1px solid #7a6440',
+                fontFamily: 'var(--font-display)',
+                fontSize: 24,
+                color: '#2a2418',
+                textAlign: 'center',
+                outline: 'none',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 28,
+                lineHeight: 1,
+                color: '#2a2418',
+              }}
+            >
+              {value}
+            </div>
+          )}
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              color: '#7a6440',
+              marginTop: 4,
+            }}
+          >
+            {half} · {fifth}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SkillRow({ skill, onUpdate }) {
+  const half = Math.floor(skill.current_value / 2)
+  const fifth = Math.floor(skill.current_value / 5)
+
+  return (
+    <div className="skill-row">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input
+          type="checkbox"
+          checked={skill.checked}
+          onChange={(e) => onUpdate({ ...skill, checked: e.target.checked })}
+          style={{ accentColor: 'var(--ochre)', cursor: 'pointer' }}
+          title="Позначити для підвищення"
+        />
+        <span
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontStyle: 'italic',
+            fontSize: 15,
+            color: 'var(--cream)',
+          }}
+        >
+          {skill.name}
+        </span>
+      </div>
+      <div
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          letterSpacing: '0.12em',
+          color: 'var(--moss-pale)',
+        }}
+      >
+        {half}·{fifth}
+      </div>
+      <input
+        type="number"
+        value={skill.current_value}
+        min={0}
+        max={100}
+        onChange={(e) => {
+          const v = parseInt(e.target.value, 10)
+          if (!isNaN(v)) onUpdate({ ...skill, current_value: Math.min(100, Math.max(0, v)) })
+        }}
+        style={{
+          width: 42,
+          background: 'transparent',
+          border: '1px solid var(--ochre-deep)',
+          color: 'var(--ochre-bright)',
+          textAlign: 'center',
+          padding: '4px 0',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 13,
+          outline: 'none',
+        }}
+      />
+    </div>
+  )
+}
+
+function DicePanel({ characterId, skills }) {
+  const [diceType, setDiceType] = useState('d100')
+  const [diceCount, setDiceCount] = useState(1)
+  const [selectedSkillId, setSelectedSkillId] = useState('')
+  const [visibleToAll, setVisibleToAll] = useState(true)
+  const [result, setResult] = useState(null)
+  const [rolling, setRolling] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleRoll = async () => {
+    setError('')
+    setRolling(true)
+    try {
+      const payload = {
+        dice_type: diceType,
+        dice_count: diceCount,
+        visible_to_all: visibleToAll,
+      }
+      if (selectedSkillId) payload.skill_id = parseInt(selectedSkillId, 10)
+      const res = await rollDice(characterId, payload)
+      setResult(res.data)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Помилка кидка.')
+    } finally {
+      setRolling(false)
+    }
+  }
+
+  return (
+    <div className="dice-panel">
+      <div
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 9,
+          letterSpacing: '0.28em',
+          textTransform: 'uppercase',
+          color: 'var(--moss-pale)',
+          marginBottom: 14,
+        }}
+      >
+        Кубики · Dice Roller
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        {DICE_TYPES.map((d) => (
+          <button
+            key={d}
+            onClick={() => setDiceType(d)}
+            className={diceType === d ? 'btn btn--primary' : 'btn btn--ghost'}
+            style={{ padding: '4px 10px', fontSize: 11 }}
+          >
+            {d}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="eyebrow" style={{ fontSize: 9 }}>Кількість:</span>
+          <input
+            type="number"
+            value={diceCount}
+            min={1}
+            max={20}
+            onChange={(e) => setDiceCount(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))}
+            style={{
+              width: 42,
+              background: 'var(--ink-2)',
+              border: '1px solid var(--ochre-deep)',
+              color: 'var(--cream)',
+              padding: '4px 6px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 13,
+              outline: 'none',
+              textAlign: 'center',
+            }}
+          />
+        </div>
+
+        {diceType === 'd100' && skills.length > 0 && (
+          <div style={{ flex: 1 }}>
+            <select
+              value={selectedSkillId}
+              onChange={(e) => setSelectedSkillId(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'var(--ink-2)',
+                border: '1px solid var(--ochre-deep)',
+                color: 'var(--cream)',
+                padding: '5px 8px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                outline: 'none',
+              }}
+            >
+              <option value="">— навичка —</option>
+              {skills.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.current_value}%)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={visibleToAll}
+            onChange={(e) => setVisibleToAll(e.target.checked)}
+            style={{ accentColor: 'var(--ochre)' }}
+          />
+          <span className="eyebrow" style={{ fontSize: 9, cursor: 'pointer' }}>
+            Публічний кидок
+          </span>
+        </label>
+        <button
+          className="btn btn--primary"
+          onClick={handleRoll}
+          disabled={rolling}
+          style={{ marginLeft: 'auto', padding: '6px 18px' }}
+        >
+          {rolling ? '...' : 'Кинути'}
+        </button>
+      </div>
+
+      {error && (
+        <div
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            color: 'var(--blood-bright)',
+            marginBottom: 8,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <div
+          style={{
+            borderTop: '1px solid var(--ochre-deep)',
+            paddingTop: 14,
+            textAlign: 'center',
+          }}
+        >
+          <div className="dice-result">{result.total}</div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              color: 'var(--moss-pale)',
+              letterSpacing: '0.18em',
+              marginBottom: 8,
+            }}
+          >
+            {result.dice_count}{result.dice_type}
+            {result.results.length > 1 && (
+              <span style={{ color: 'var(--ochre-dim)' }}>
+                {' '}({result.results.join(' + ')})
+              </span>
+            )}
+          </div>
+          {result.tier && (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div className={`dice-tier dice-tier--${result.tier}`}>
+                {TIER_LABELS[result.tier] ?? result.tier}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+export default function CharacterSheetPage() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+
+  const [char, setChar] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [saveStatus, setSaveStatus] = useState('') // 'saving' | 'saved' | ''
+  const pendingRef = useRef({})
+
+  // Load character
+  useEffect(() => {
+    getCharacter(id)
+      .then((res) => setChar(res.data))
+      .catch(() => navigate('/characters'))
+      .finally(() => setLoading(false))
+  }, [id])
+
+  // Debounced auto-save
+  const doSave = useCallback(
+    async (patch) => {
+      setSaveStatus('saving')
+      try {
+        const res = await updateCharacter(id, patch)
+        setChar(res.data)
+        setSaveStatus('saved')
+        setTimeout(() => setSaveStatus(''), 2000)
+      } catch {
+        setSaveStatus('')
+      }
+    },
+    [id],
+  )
+
+  const debouncedSave = useDebounce(doSave, 800)
+
+  // Field change handler — merges into state and schedules save
+  const handleChange = (field, value) => {
+    setChar((prev) => {
+      const next = { ...prev, [field]: value }
+      // Derive frontend hp/mp max for display
+      if (['con_stat', 'siz_stat', 'pow_stat'].includes(field)) {
+        const derived = derivedFromChar(next)
+        Object.assign(next, derived)
+      }
+      pendingRef.current = { ...pendingRef.current, [field]: value }
+      debouncedSave(pendingRef.current)
+      return next
+    })
+  }
+
+  const handleSkillChange = (updatedSkill) => {
+    setChar((prev) => ({
+      ...prev,
+      skills: prev.skills.map((s) => (s.id === updatedSkill.id ? updatedSkill : s)),
+    }))
+    // Skill updates go directly (no debounce needed for single field)
+    updateCharacter(id, {
+      // We can't patch skills inline with this endpoint; skills need their own endpoint.
+      // For Phase 1 we update character fields only.
+      // Skill updates will be handled separately in Phase 2.
+    })
+  }
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          padding: 60,
+          textAlign: 'center',
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--moss-pale)',
+          letterSpacing: '0.2em',
+        }}
+      >
+        Завантаження досьє...
+      </div>
+    )
+  }
+
+  if (!char) return null
+
+  return (
+    <div className="page" style={{ maxWidth: 1300 }}>
+      <header className="page-header">
+        <div className="page-header__eyebrow">
+          № ii · картка дослідника · investigator dossier
+        </div>
+        <h1 className="page-header__title">
+          Дослідник:{' '}
+          <em style={{ color: 'var(--ochre-bright)', fontStyle: 'italic' }}>
+            {char.name || '—'}
+          </em>
+        </h1>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+          }}
+        >
+          <p className="page-header__sub">
+            Заповнюйте поля, наче складаєте офіційне досьє для Міскатонікської ради
+            опікунів.
+          </p>
+          {saveStatus === 'saving' && (
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.18em',
+                color: 'var(--ochre-dim)',
+              }}
+            >
+              зберігається...
+            </span>
+          )}
+          {saveStatus === 'saved' && (
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.18em',
+                color: 'var(--moss-pale)',
+              }}
+            >
+              збережено
+            </span>
+          )}
+        </div>
+      </header>
+
+      <div className="sheet-grid">
+        {/* ──────────── LEFT: Paper dossier ──────────── */}
+        <div
+          className="card card--paper"
+          style={{ padding: '44px 48px', position: 'relative' }}
+        >
+          <div className="stamp" style={{ top: 32, right: 32 }}>
+            конфіденційно
+          </div>
+
+          {/* Dossier header */}
+          <div
+            style={{
+              borderBottom: '2px double #7a6440',
+              paddingBottom: 16,
+              marginBottom: 24,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9.5,
+                letterSpacing: '0.32em',
+                textTransform: 'uppercase',
+                color: '#7a6440',
+                marginBottom: 4,
+              }}
+            >
+              Університет Міскатонік · реєстраційна картка дослідника
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 32,
+                fontStyle: 'italic',
+                color: '#2a2418',
+                lineHeight: 1.1,
+              }}
+            >
+              форма 7 — досьє слідчого
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: 8,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                letterSpacing: '0.18em',
+                color: '#7a6440',
+              }}
+            >
+              <span>№ архіву {String(char.id).padStart(4, '0')}-c</span>
+              <span>оновлено: {new Date(char.updated_at).toLocaleDateString('uk-UA')}</span>
+            </div>
+          </div>
+
+          {/* Identity fields */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '20px 28px',
+              marginBottom: 32,
+            }}
+          >
+            <PaperField
+              label="Ім'я"
+              value={char.name}
+              onChange={(v) => handleChange('name', v)}
+            />
+            <PaperField
+              label="Професія"
+              value={char.occupation}
+              onChange={(v) => handleChange('occupation', v)}
+            />
+            <PaperField
+              label="Вік"
+              value={char.age != null ? String(char.age) : ''}
+              onChange={(v) => {
+                const n = parseInt(v, 10)
+                handleChange('age', isNaN(n) ? null : n)
+              }}
+            />
+            <PaperField
+              label="Місце проживання"
+              value={char.residence}
+              onChange={(v) => handleChange('residence', v)}
+            />
+            <PaperField
+              label="Місце народження"
+              value={char.birthplace}
+              onChange={(v) => handleChange('birthplace', v)}
+              colSpan={2}
+            />
+          </div>
+
+          {/* Core stats on paper */}
+          <div style={{ marginBottom: 28 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end',
+                marginBottom: 14,
+                paddingBottom: 8,
+                borderBottom: '1px solid #7a6440',
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 22,
+                  fontStyle: 'italic',
+                  color: '#2a2418',
+                }}
+              >
+                Характеристики
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 9.5,
+                  letterSpacing: '0.28em',
+                  textTransform: 'uppercase',
+                  color: '#7a6440',
+                }}
+              >
+                клацніть значення, щоб змінити
+              </div>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '16px 18px',
+              }}
+            >
+              {STAT_DEFS.map((s) => (
+                <StatBox
+                  key={s.key}
+                  stat={s}
+                  value={char[s.key]}
+                  onChange={(v) => handleChange(s.key, v)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Vital gauges */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 16,
+              marginBottom: 28,
+            }}
+          >
+            <VitalCounter
+              label="Здоров'я"
+              current={char.hp_current}
+              max={char.hp_max}
+              onChange={(v) => handleChange('hp_current', v)}
+              color="#7a2a25"
+            />
+            <VitalCounter
+              label="Санітет"
+              current={char.sanity_current}
+              max={char.sanity_max}
+              onChange={(v) => handleChange('sanity_current', v)}
+              color="#3b5a45"
+            />
+            <VitalCounter
+              label="Магія"
+              current={char.mp_current}
+              max={char.mp_max}
+              onChange={(v) => handleChange('mp_current', v)}
+              color="#5d3f6e"
+            />
+            <VitalCounter
+              label="Везіння"
+              current={char.luck_current}
+              max={char.luck_max}
+              onChange={(v) => handleChange('luck_current', v)}
+              color="#7a6440"
+            />
+          </div>
+
+          {/* Backstory */}
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 22,
+                fontStyle: 'italic',
+                color: '#2a2418',
+                marginBottom: 4,
+              }}
+            >
+              Передісторія
+            </div>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 9.5,
+                letterSpacing: '0.24em',
+                textTransform: 'uppercase',
+                color: '#7a6440',
+                marginBottom: 12,
+              }}
+            >
+              біографія / зачіпки / страхи
+            </div>
+            <PaperField
+              label=""
+              value={char.backstory}
+              onChange={(v) => handleChange('backstory', v)}
+              multiline
+              colSpan={1}
+            />
+          </div>
+
+          {/* Signature */}
+          <div
+            style={{
+              marginTop: 36,
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 30,
+            }}
+          >
+            <div
+              style={{
+                borderBottom: '1px solid #2a2418',
+                fontFamily: 'var(--font-display)',
+                fontStyle: 'italic',
+                fontSize: 20,
+                paddingBottom: 4,
+                color: '#2a2418',
+              }}
+            >
+              <em>{char.name || '—'}</em>
+            </div>
+            <div
+              style={{
+                borderBottom: '1px solid #2a2418',
+                fontFamily: 'var(--font-display)',
+                fontStyle: 'italic',
+                fontSize: 20,
+                paddingBottom: 4,
+                color: '#7a6440',
+              }}
+            >
+              підпис хранителя
+            </div>
+          </div>
+          <div
+            style={{
+              marginTop: 6,
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 30,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 9,
+              letterSpacing: '0.28em',
+              textTransform: 'uppercase',
+              color: '#7a6440',
+            }}
+          >
+            <span>підпис дослідника</span>
+            <span>підпис хранителя</span>
+          </div>
+        </div>
+
+        {/* ──────────── RIGHT: Stats + Skills + Dice ──────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+          {/* Skills */}
+          <div className="card" style={{ padding: 24 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end',
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 6 }}>Навички</div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 20,
+                    fontStyle: 'italic',
+                  }}
+                >
+                  Те, що дослідник вміє
+                </div>
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  color: 'var(--ochre-dim)',
+                }}
+              >
+                {char.skills?.length ?? 0} навичок
+              </div>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: 400,
+                overflowY: 'auto',
+              }}
+            >
+              {(char.skills ?? []).map((skill) => (
+                <SkillRow
+                  key={skill.id}
+                  skill={skill}
+                  onUpdate={handleSkillChange}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Dice panel */}
+          <DicePanel characterId={id} skills={char.skills ?? []} />
+
+          {/* Back button */}
+          <button
+            className="btn btn--ghost"
+            onClick={() => navigate('/characters')}
+            style={{ alignSelf: 'flex-start' }}
+          >
+            ← Назад до архіву
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
