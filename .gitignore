@@ -216,3 +216,17 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+CLAUDE.md
+tmp/
+
+# Scripts backups
+scripts/backups/*.sql
+
+# Node
+node_modules/
+frontend/dist/
+
+# Django
+backend/media/
+backend/staticfiles/
