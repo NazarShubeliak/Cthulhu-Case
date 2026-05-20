@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
-import { getSession, startSession, closeSession, leaveSession } from '../../api/sessions.js'
+import { getSession, startSession, deleteSession, leaveSession } from '../../api/sessions.js'
 
 const STATUS_LABELS = {
   lobby: 'Лобі',
@@ -65,13 +65,13 @@ export default function LobbyPage() {
   }
 
   async function handleClose() {
-    if (!window.confirm('Закрити сесію? Гравці більше не зможуть приєднатись.')) return
+    if (!window.confirm('Видалити сесію? Це незворотня дія.')) return
     setActionLoading(true)
     try {
-      await closeSession(id)
+      await deleteSession(id)
       navigate('/sessions')
     } catch (err) {
-      setError(err.response?.data?.error || 'Помилка закриття сесії.')
+      setError(err.response?.data?.error || 'Помилка видалення сесії.')
       setActionLoading(false)
     }
   }

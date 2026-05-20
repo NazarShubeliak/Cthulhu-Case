@@ -85,7 +85,6 @@ export default function SessionListPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [joiningId, setJoiningId] = useState(null)
-  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -145,100 +144,69 @@ export default function SessionListPage() {
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--moss-pale)', letterSpacing: '0.2em', padding: '40px 0' }}>
           Завантаження...
         </div>
-      ) : (() => {
-        const active = sessions.filter((s) => s.status !== 'closed')
-        const archived = sessions.filter((s) => s.status === 'closed')
-
-        const renderCard = (session) => {
-          const participant = isParticipant(session)
-          return (
-            <div key={session.id} className="session-card">
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                <div className="session-card__name">{session.name}</div>
-                <StatusChip status={session.status} />
-              </div>
-              <div className="session-card__meta">
-                Майстер: {session.master?.username ?? '—'} · {session.player_count ?? 0} гравців
-              </div>
-              {session.description && (
-                <p className="session-card__desc">
-                  {session.description.length > 120
-                    ? session.description.slice(0, 120) + '…'
-                    : session.description}
-                </p>
-              )}
-              <div style={{ marginTop: 'auto', paddingTop: 12 }}>
-                {session.status === 'closed' ? (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--moss)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                    Закрито
-                  </span>
-                ) : participant ? (
-                  <button className="btn btn--primary" onClick={() => navigate(`/sessions/${session.id}`)}>
-                    Відкрити
-                  </button>
-                ) : session.status === 'lobby' ? (
-                  <button className="btn" disabled={joiningId === session.id} onClick={() => handleJoin(session.id)}>
-                    {joiningId === session.id ? 'Приєднання...' : 'Приєднатись'}
-                  </button>
-                ) : (
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--moss)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
-                    Доступ закрито
-                  </span>
+      ) : sessions.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state__title">Зали порожні</div>
+          <div className="empty-state__sub">Жодних розслідувань не розпочато · Nulla Investigatio</div>
+          <button className="btn btn--primary" onClick={() => setShowModal(true)}>
+            Відкрити Перший Облік
+          </button>
+        </div>
+      ) : (
+        <div className="session-grid">
+          {sessions.map((session) => {
+            const participant = isParticipant(session)
+            return (
+              <div key={session.id} className="session-card">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                  <div className="session-card__name">{session.name}</div>
+                  <StatusChip status={session.status} />
+                </div>
+                <div className="session-card__meta">
+                  Майстер: {session.master?.username ?? '—'} · {session.player_count ?? 0} гравців
+                </div>
+                {session.description && (
+                  <p className="session-card__desc">
+                    {session.description.length > 120
+                      ? session.description.slice(0, 120) + '…'
+                      : session.description}
+                  </p>
                 )}
+                <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+                  {participant ? (
+                    <button
+                      className="btn btn--primary"
+                      onClick={() => navigate(`/sessions/${session.id}`)}
+                    >
+                      Відкрити
+                    </button>
+                  ) : session.status === 'lobby' ? (
+                    <button
+                      className="btn"
+                      disabled={joiningId === session.id}
+                      onClick={() => handleJoin(session.id)}
+                    >
+                      {joiningId === session.id ? 'Приєднання...' : 'Приєднатись'}
+                    </button>
+                  ) : (
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 10,
+                        color: 'var(--moss)',
+                        letterSpacing: '0.2em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Доступ закрито
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          )
-        }
-
-        return (
-          <>
-            {active.length === 0 && archived.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state__title">Зали порожні</div>
-                <div className="empty-state__sub">Жодних розслідувань не розпочато · Nulla Investigatio</div>
-                <button className="btn btn--primary" onClick={() => setShowModal(true)}>
-                  Відкрити Перший Облік
-                </button>
-              </div>
-            ) : active.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-state__title">Активних сесій немає</div>
-                <div className="empty-state__sub">Всі розслідування завершено</div>
-                <button className="btn btn--primary" onClick={() => setShowModal(true)}>
-                  Нова кампанія
-                </button>
-              </div>
-            ) : (
-              <div className="session-grid">
-                {active.map(renderCard)}
-              </div>
-            )}
-
-            {archived.length > 0 && (
-              <div style={{ marginTop: 40 }}>
-                <button
-                  onClick={() => setShowArchived((v) => !v)}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    fontFamily: 'var(--font-mono)', fontSize: 9,
-                    letterSpacing: '0.28em', textTransform: 'uppercase',
-                    color: 'var(--moss)', padding: '0 0 12px 0',
-                  }}
-                >
-                  <span>{showArchived ? '▾' : '▸'}</span>
-                  Архів · {archived.length} кампані{archived.length === 1 ? 'я' : 'ї'}
-                </button>
-                {showArchived && (
-                  <div className="session-grid">
-                    {archived.map(renderCard)}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )
-      })()}
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

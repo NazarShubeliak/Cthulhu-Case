@@ -5,6 +5,7 @@ export const getSession = (id) => api.get(`/sessions/${id}/`)
 export const createSession = (data) => api.post('/sessions/', data)
 export const joinSession = (id) => api.post(`/sessions/${id}/join/`)
 export const leaveSession = (id) => api.post(`/sessions/${id}/leave/`)
+export const deleteSession = (id) => api.delete(`/sessions/${id}/`)
 export const startSession = (id) => api.post(`/sessions/${id}/start/`)
 export const closeSession = (id) => api.post(`/sessions/${id}/close/`)
 
