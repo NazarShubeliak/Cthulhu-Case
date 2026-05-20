@@ -85,6 +85,8 @@ export default function SessionListPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [joiningId, setJoiningId] = useState(null)
+  const [codeInput, setCodeInput] = useState('')
+  const [codeError, setCodeError] = useState('')
 
   useEffect(() => {
     setLoading(true)
@@ -105,8 +107,26 @@ export default function SessionListPage() {
       await joinSession(sessionId)
       navigate(`/sessions/${sessionId}`)
     } catch {
-      // silently ignore — may already be joined
       navigate(`/sessions/${sessionId}`)
+    } finally {
+      setJoiningId(null)
+    }
+  }
+
+  async function handleJoinByCode(e) {
+    e.preventDefault()
+    const id = parseInt(codeInput.trim(), 10)
+    if (!id) { setCodeError('Введіть числовий код сесії.'); return }
+    setCodeError('')
+    setJoiningId(id)
+    try {
+      await joinSession(id)
+      navigate(`/sessions/${id}`)
+    } catch (err) {
+      const status = err.response?.status
+      if (status === 404) setCodeError('Сесію не знайдено.')
+      else if (status === 400) navigate(`/sessions/${id}`)
+      else setCodeError('Помилка підключення.')
     } finally {
       setJoiningId(null)
     }
@@ -134,9 +154,30 @@ export default function SessionListPage() {
               відкрийте нові двері в темряву.
             </p>
           </div>
-          <button className="btn btn--primary" onClick={() => setShowModal(true)}>
-            + Нова Кампанія
-          </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <form onSubmit={handleJoinByCode} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div>
+                <input
+                  className="form-input"
+                  value={codeInput}
+                  onChange={(e) => { setCodeInput(e.target.value); setCodeError('') }}
+                  placeholder="Код сесії (#)"
+                  style={{ width: 140, padding: '7px 10px' }}
+                />
+                {codeError && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--blood-bright)', marginTop: 3 }}>
+                    {codeError}
+                  </div>
+                )}
+              </div>
+              <button type="submit" className="btn" disabled={joiningId !== null || !codeInput.trim()}>
+                {joiningId && parseInt(codeInput) === joiningId ? 'Вхід...' : 'Увійти'}
+              </button>
+            </form>
+            <button className="btn btn--primary" onClick={() => setShowModal(true)}>
+              + Нова Кампанія
+            </button>
+          </div>
         </div>
       </div>
 

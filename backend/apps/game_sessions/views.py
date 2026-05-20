@@ -28,7 +28,7 @@ class SessionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         return Session.objects.filter(
-            Q(master=user) | Q(players=user)
+            Q(master=user) | Q(players=user) | Q(status='lobby')
         ).distinct().prefetch_related('players').select_related('master')
 
     def get_serializer_class(self):
