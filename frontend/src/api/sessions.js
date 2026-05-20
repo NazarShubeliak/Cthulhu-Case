@@ -14,6 +14,13 @@ export const updateCard = (sessionId, cardId, data) => api.patch(`/sessions/${se
 export const deleteCard = (sessionId, cardId) => api.delete(`/sessions/${sessionId}/cards/${cardId}/`)
 export const publishCard = (sessionId, cardId) => api.post(`/sessions/${sessionId}/cards/${cardId}/publish/`)
 
+export const moveCard = (sessionId, cardId, pos_x, pos_y) =>
+  api.patch(`/sessions/${sessionId}/cards/${cardId}/`, { pos_x, pos_y })
+
+export const getThreads = (sessionId) => api.get(`/sessions/${sessionId}/threads/`)
+export const createThread = (sessionId, data) => api.post(`/sessions/${sessionId}/threads/`, data)
+export const deleteThread = (sessionId, threadId) => api.delete(`/sessions/${sessionId}/threads/${threadId}/`)
+
 export const getNotes = (sessionId) => api.get(`/sessions/${sessionId}/notes/`)
 export const createNote = (sessionId, data) => api.post(`/sessions/${sessionId}/notes/`, data)
 export const updateNote = (sessionId, noteId, data) => api.patch(`/sessions/${sessionId}/notes/${noteId}/`, data)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Session, Card, Note
+from .models import Session, Card, Note, Thread
 
 
 class CardInline(admin.TabularInline):
@@ -40,3 +40,9 @@ class NoteAdmin(admin.ModelAdmin):
     list_display = ('author', 'session', 'is_private', 'created_at')
     list_filter = ('is_private',)
     search_fields = ('content', 'author__username')
+
+
+@admin.register(Thread)
+class ThreadAdmin(admin.ModelAdmin):
+    list_display = ('card_from', 'card_to', 'session', 'label', 'created_by')
+    search_fields = ('label',)

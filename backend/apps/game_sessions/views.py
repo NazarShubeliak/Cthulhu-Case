@@ -1,18 +1,25 @@
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
-from .models import Session, Card, Note
+from .models import Session, Card, Note, Thread
 from .serializers import (
     SessionListSerializer, SessionDetailSerializer, SessionCreateSerializer,
-    CardSerializer, NoteSerializer,
+    CardSerializer, NoteSerializer, ThreadSerializer,
 )
 
 User = get_user_model()
+
+
+def broadcast(session_id, message):
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(f'session_{session_id}', message)
 
 
 class SessionViewSet(viewsets.ModelViewSet):
@@ -42,6 +49,11 @@ class SessionViewSet(viewsets.ModelViewSet):
         if session.master == request.user:
             return Response({'error': 'Ви майстер цієї сесії.'}, status=status.HTTP_400_BAD_REQUEST)
         session.players.add(request.user)
+        broadcast(session.id, {
+            'type': 'player.joined',
+            'user_id': request.user.id,
+            'username': request.user.username,
+        })
         return Response(SessionDetailSerializer(session, context={'request': request}).data)
 
     @action(detail=True, methods=['post'])
@@ -91,7 +103,6 @@ class CardViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if session.master == user:
             return Card.objects.filter(session=session).select_related('created_by', 'owner')
-        # Players: see public cards + their own private cards
         return Card.objects.filter(
             Q(session=session, is_public=True) |
             Q(session=session, owner=user)
@@ -99,18 +110,80 @@ class CardViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         session = self.get_session()
-        serializer.save(session=session, created_by=self.request.user)
+        card = serializer.save(session=session, created_by=self.request.user)
+        if card.is_public:
+            broadcast(session.id, {
+                'type': 'card.created',
+                'card': CardSerializer(card, context={'request': self.request}).data,
+            })
+
+    def perform_update(self, serializer):
+        card = serializer.save()
+        session = card.session
+        # Broadcast move if pos changed
+        broadcast(session.id, {
+            'type': 'card.moved',
+            'card_id': card.id,
+            'pos_x': card.pos_x,
+            'pos_y': card.pos_y,
+            'moved_by': self.request.user.id,
+        })
+
+    def perform_destroy(self, instance):
+        session_id = instance.session_id
+        card_id = instance.id
+        instance.delete()
+        broadcast(session_id, {'type': 'card.deleted', 'card_id': card_id})
 
     @action(detail=True, methods=['post'])
     def publish(self, request, session_pk=None, pk=None):
         card = self.get_object()
         session = self.get_session()
-        # Only master or card owner can publish
         if request.user != session.master and request.user != card.owner:
             return Response({'error': 'Недостатньо прав.'}, status=status.HTTP_403_FORBIDDEN)
         card.is_public = True
         card.save()
-        return Response(CardSerializer(card, context={'request': request}).data)
+        data = CardSerializer(card, context={'request': request}).data
+        broadcast(session.id, {'type': 'card.published', 'card': data})
+        return Response(data)
+
+
+class ThreadViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ThreadSerializer
+
+    def get_session(self):
+        session_pk = self.kwargs['session_pk']
+        user = self.request.user
+        try:
+            session = Session.objects.get(pk=session_pk)
+        except Session.DoesNotExist:
+            raise NotFound('Сесію не знайдено.')
+        if not session.is_participant(user):
+            raise PermissionDenied('Ви не учасник цієї сесії.')
+        return session
+
+    def get_queryset(self):
+        session = self.get_session()
+        return Thread.objects.filter(session=session).select_related('created_by', 'card_from', 'card_to')
+
+    def perform_create(self, serializer):
+        from django.db import IntegrityError
+        session = self.get_session()
+        try:
+            thread = serializer.save(session=session, created_by=self.request.user)
+        except IntegrityError:
+            raise ValidationError({'detail': 'Нитка між цими картками вже існує.'})
+        broadcast(session.id, {
+            'type': 'thread.created',
+            'thread': ThreadSerializer(thread).data,
+        })
+
+    def perform_destroy(self, instance):
+        session_id = instance.session_id
+        thread_id = instance.id
+        instance.delete()
+        broadcast(session_id, {'type': 'thread.deleted', 'thread_id': thread_id})
 
 
 class NoteViewSet(viewsets.ModelViewSet):
@@ -131,7 +204,6 @@ class NoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         session = self.get_session()
         user = self.request.user
-        # See public notes + own private notes (master does NOT see private player notes)
         return Note.objects.filter(
             Q(session=session, is_private=False) |
             Q(session=session, is_private=True, author=user)
@@ -139,7 +211,12 @@ class NoteViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         session = self.get_session()
-        serializer.save(session=session, author=self.request.user)
+        note = serializer.save(session=session, author=self.request.user)
+        if not note.is_private:
+            broadcast(session.id, {
+                'type': 'note.created',
+                'note': NoteSerializer(note).data,
+            })
 
     def update(self, request, *args, **kwargs):
         note = self.get_object()

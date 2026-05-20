@@ -65,6 +65,24 @@ class Card(models.Model):
         return self.title
 
 
+class Thread(models.Model):
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='threads')
+    card_from = models.ForeignKey(Card, on_delete=models.CASCADE, related_name='threads_from')
+    card_to = models.ForeignKey(Card, on_delete=models.CASCADE, related_name='threads_to')
+    label = models.CharField(max_length=200, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='created_threads'
+    )
+
+    class Meta:
+        db_table = 'threads'
+        unique_together = [['card_from', 'card_to']]
+        ordering = ['id']
+
+    def __str__(self):
+        return f'Thread {self.card_from_id} → {self.card_to_id}'
+
+
 class Note(models.Model):
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='notes')
     author = models.ForeignKey(

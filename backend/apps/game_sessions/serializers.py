@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from apps.users.serializers import UserSerializer
-from .models import Session, Card, Note
+from .models import Session, Card, Note, Thread
 
 User = get_user_model()
 
@@ -66,6 +66,22 @@ class CardSerializer(serializers.ModelSerializer):
                   'created_by', 'owner', 'owner_id', 'is_public',
                   'pos_x', 'pos_y', 'created_at', 'updated_at']
         read_only_fields = ['session', 'created_by', 'created_at', 'updated_at']
+
+
+class ThreadSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    card_from_id = serializers.PrimaryKeyRelatedField(
+        queryset=Card.objects.all(), source='card_from', write_only=True
+    )
+    card_to_id = serializers.PrimaryKeyRelatedField(
+        queryset=Card.objects.all(), source='card_to', write_only=True
+    )
+
+    class Meta:
+        model = Thread
+        fields = ['id', 'session', 'card_from', 'card_to', 'card_from_id', 'card_to_id',
+                  'label', 'created_by']
+        read_only_fields = ['session', 'created_by', 'card_from', 'card_to']
 
 
 class NoteSerializer(serializers.ModelSerializer):
