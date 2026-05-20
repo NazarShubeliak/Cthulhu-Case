@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cthulhu}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cthulhu} -d ${DB_NAME:-cthulhu_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -61,6 +61,7 @@ services:
       - "3000:3000"
     environment:
       - VITE_BACKEND_URL=http://web:8000
+      - VITE_API_URL=http://web:8000
 
 volumes:
   postgres_data:
