@@ -38,8 +38,14 @@ class SessionViewSet(viewsets.ModelViewSet):
             return SessionListSerializer
         return SessionDetailSerializer
 
-    def perform_create(self, serializer):
-        serializer.save(master=self.request.user)
+    def create(self, request, *args, **kwargs):
+        serializer = SessionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        session = serializer.save(master=request.user)
+        return Response(
+            SessionDetailSerializer(session, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=['post'])
     def join(self, request, pk=None):
