@@ -89,7 +89,7 @@ export default function SessionListPage() {
   useEffect(() => {
     setLoading(true)
     getSessions()
-      .then((res) => setSessions(res.data.results ?? res.data))
+      .then((res) => setSessions((res.data.results ?? res.data).filter((s) => s.status !== 'closed')))
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
