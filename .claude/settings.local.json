@@ -6,7 +6,8 @@
       "PowerShell(docker exec cthulhu-case-web-1 *)",
       "PowerShell(docker rm cthulhu-case-frontend-1; docker volume ls --filter dangling=true)",
       "PowerShell(docker volume prune *)",
-      "PowerShell(Measure-Object -InputObject \\(Get-Content -Path \"D:\\\\code\\\\Cthulhu-Case\\\\frontend\\\\src\\\\api\\\\client.js\" | Select-Object\\) -Line)"
+      "PowerShell(Measure-Object -InputObject \\(Get-Content -Path \"D:\\\\code\\\\Cthulhu-Case\\\\frontend\\\\src\\\\api\\\\client.js\" | Select-Object\\) -Line)",
+      "PowerShell(docker exec cthulhu-case-frontend-1 *)"
     ]
   }
 }
