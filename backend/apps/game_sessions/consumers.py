@@ -68,6 +68,12 @@ class TableConsumer(AsyncWebsocketConsumer):
     async def note_created(self, event):
         await self.send(text_data=json.dumps({'type': 'note.created', 'note': event['note']}))
 
+    async def note_updated(self, event):
+        await self.send(text_data=json.dumps({'type': 'note.updated', 'note': event['note']}))
+
+    async def note_deleted(self, event):
+        await self.send(text_data=json.dumps({'type': 'note.deleted', 'note_id': event['note_id']}))
+
     async def player_joined(self, event):
         await self.send(text_data=json.dumps({
             'type': 'player.joined',

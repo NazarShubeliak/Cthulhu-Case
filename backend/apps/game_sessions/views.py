@@ -118,9 +118,11 @@ class CardViewSet(viewsets.ModelViewSet):
             })
 
     def perform_update(self, serializer):
+        session = self.get_session()
+        if (serializer.instance.created_by != self.request.user
+                and session.master != self.request.user):
+            raise PermissionDenied('Недостатньо прав для редагування цієї картки.')
         card = serializer.save()
-        session = card.session
-        # Broadcast move if pos changed
         broadcast(session.id, {
             'type': 'card.moved',
             'card_id': card.id,
@@ -130,6 +132,10 @@ class CardViewSet(viewsets.ModelViewSet):
         })
 
     def perform_destroy(self, instance):
+        session = self.get_session()
+        if (instance.created_by != self.request.user
+                and session.master != self.request.user):
+            raise PermissionDenied('Недостатньо прав для видалення цієї картки.')
         session_id = instance.session_id
         card_id = instance.id
         instance.delete()
@@ -180,6 +186,10 @@ class ThreadViewSet(viewsets.ModelViewSet):
         })
 
     def perform_destroy(self, instance):
+        session = self.get_session()
+        if (instance.created_by != self.request.user
+                and session.master != self.request.user):
+            raise PermissionDenied('Недостатньо прав для видалення цієї нитки.')
         session_id = instance.session_id
         thread_id = instance.id
         instance.delete()
@@ -224,8 +234,24 @@ class NoteViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Ви не автор цієї нотатки.'}, status=status.HTTP_403_FORBIDDEN)
         return super().update(request, *args, **kwargs)
 
+    def perform_update(self, serializer):
+        note = serializer.save()
+        if not note.is_private:
+            broadcast(note.session_id, {
+                'type': 'note.updated',
+                'note': NoteSerializer(note).data,
+            })
+
     def destroy(self, request, *args, **kwargs):
         note = self.get_object()
         if note.author != request.user:
             return Response({'error': 'Ви не автор цієї нотатки.'}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
+
+    def perform_destroy(self, instance):
+        session_id = instance.session_id
+        note_id = instance.id
+        is_public = not instance.is_private
+        instance.delete()
+        if is_public:
+            broadcast(session_id, {'type': 'note.deleted', 'note_id': note_id})

@@ -1,12 +1,13 @@
 import random
-from rest_framework import viewsets, status
+from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
+from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import Character, Skill, DiceRoll
 from .serializers import (
-    CharacterSerializer, CharacterListSerializer, DiceRollSerializer,
+    CharacterSerializer, CharacterListSerializer, DiceRollSerializer, SkillSerializer,
 )
 
 DEFAULT_SKILLS = [
@@ -203,3 +204,14 @@ class CharacterViewSet(viewsets.ModelViewSet):
         data = DiceRollSerializer(dice_roll).data
         data['tier'] = tier
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class SkillViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SkillSerializer
+
+    def get_queryset(self):
+        character = get_object_or_404(
+            Character, pk=self.kwargs['character_pk'], user=self.request.user
+        )
+        return Skill.objects.filter(character=character)

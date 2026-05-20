@@ -20,6 +20,7 @@ const useTableStore = create((set) => ({
   removeThread: (threadId) => set((s) => ({ threads: s.threads.filter((t) => t.id !== threadId) })),
 
   addNote: (note) => set((s) => ({ notes: [note, ...s.notes] })),
+  updateNote: (note) => set((s) => ({ notes: s.notes.map((n) => (n.id === note.id ? note : n)) })),
   removeNote: (noteId) => set((s) => ({ notes: s.notes.filter((n) => n.id !== noteId) })),
 
   addConnectedUser: (user) =>

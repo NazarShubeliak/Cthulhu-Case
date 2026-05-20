@@ -39,6 +39,20 @@ class NPCSerializer(serializers.ModelSerializer):
                   'portrait_image', 'scenes', 'scene_ids']
         read_only_fields = ['campaign']
 
+    def create(self, validated_data):
+        scenes = validated_data.pop('scenes', [])
+        npc = NPC.objects.create(**validated_data)
+        if scenes:
+            npc.scenes.set(scenes)
+        return npc
+
+    def update(self, instance, validated_data):
+        scenes = validated_data.pop('scenes', None)
+        instance = super().update(instance, validated_data)
+        if scenes is not None:
+            instance.scenes.set(scenes)
+        return instance
+
 
 class SceneSerializer(serializers.ModelSerializer):
     npcs = NPCSerializer(many=True, read_only=True)

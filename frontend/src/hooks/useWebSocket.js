@@ -5,14 +5,18 @@ import useTableStore from '../store/tableStore'
 export default function useWebSocket(sessionId, currentUserId) {
   const wsRef = useRef(null)
   const accessToken = useAuthStore((s) => s.accessToken)
-  const { addCard, updateCard, moveCard, removeCard, addThread, removeThread, addNote, addConnectedUser } =
-    useTableStore()
+  const {
+    addCard, updateCard, moveCard, removeCard,
+    addThread, removeThread,
+    addNote, updateNote, removeNote,
+    addConnectedUser,
+  } = useTableStore()
 
   useEffect(() => {
     if (!sessionId || !accessToken) return
 
-    const host = window.location.hostname
-    const wsUrl = `ws://${host}:8000/ws/session/${sessionId}/?token=${accessToken}`
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${window.location.host}/ws/session/${sessionId}/?token=${accessToken}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
@@ -25,7 +29,6 @@ export default function useWebSocket(sessionId, currentUserId) {
           addCard(msg.card)
           break
         case 'card.moved':
-          // skip own moves — we update locally immediately on drag
           if (msg.moved_by !== currentUserId) {
             moveCard(msg.card_id, msg.pos_x, msg.pos_y)
           }
@@ -45,6 +48,12 @@ export default function useWebSocket(sessionId, currentUserId) {
         case 'note.created':
           addNote(msg.note)
           break
+        case 'note.updated':
+          updateNote(msg.note)
+          break
+        case 'note.deleted':
+          removeNote(msg.note_id)
+          break
         case 'player.joined':
           addConnectedUser({ user_id: msg.user_id, username: msg.username })
           break
@@ -56,7 +65,7 @@ export default function useWebSocket(sessionId, currentUserId) {
     ws.onerror = () => {}
 
     return () => ws.close()
-  }, [sessionId, accessToken]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionId, accessToken, currentUserId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return wsRef
 }
