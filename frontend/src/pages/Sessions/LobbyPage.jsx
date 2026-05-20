@@ -68,11 +68,10 @@ export default function LobbyPage() {
     if (!window.confirm('Закрити сесію? Гравці більше не зможуть приєднатись.')) return
     setActionLoading(true)
     try {
-      const res = await closeSession(id)
-      setSession(res.data)
+      await closeSession(id)
+      navigate('/sessions')
     } catch (err) {
       setError(err.response?.data?.error || 'Помилка закриття сесії.')
-    } finally {
       setActionLoading(false)
     }
   }
