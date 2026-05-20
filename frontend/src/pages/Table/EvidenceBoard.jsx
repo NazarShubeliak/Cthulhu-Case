@@ -109,6 +109,7 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster,
   const color = KIND_COLOR[card.type] ?? KIND_COLOR.document
   const rot = KIND_ROT[card.type] ?? 0
   const isOwn = card.owner?.id === currentUserId
+  const isCreator = card.created_by?.id === currentUserId
   const store = useTableStore()
 
   async function handlePublish(e) {
@@ -217,7 +218,7 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster,
               Винести
             </button>
           )}
-          {(isMaster || isOwn) && (
+          {(isMaster || isCreator) && (
             <button onClick={handleDelete} style={btnStyle('#a04040')}>
               ×
             </button>

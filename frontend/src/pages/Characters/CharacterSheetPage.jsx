@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCharacter, updateCharacter, rollDice } from '../../api/characters.js'
+import { getCharacter, updateCharacter, updateSkill, rollDice } from '../../api/characters.js'
 import useDebounce from '../../hooks/useDebounce.js'
 
 // ── Stat definitions ─────────────────────────────────────────────────────────
@@ -578,12 +578,10 @@ export default function CharacterSheetPage() {
       ...prev,
       skills: prev.skills.map((s) => (s.id === updatedSkill.id ? updatedSkill : s)),
     }))
-    // Skill updates go directly (no debounce needed for single field)
-    updateCharacter(id, {
-      // We can't patch skills inline with this endpoint; skills need their own endpoint.
-      // For Phase 1 we update character fields only.
-      // Skill updates will be handled separately in Phase 2.
-    })
+    updateSkill(id, updatedSkill.id, {
+      current_value: updatedSkill.current_value,
+      checked: updatedSkill.checked,
+    }).catch(() => {})
   }
 
   if (loading) {

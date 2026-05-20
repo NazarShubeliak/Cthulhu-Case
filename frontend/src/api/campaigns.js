@@ -23,7 +23,18 @@ export const deleteScene = (campaignId, actId, sceneId) => api.delete(`/campaign
 // NPCs
 export const getNPCs = (campaignId) => api.get(`/campaigns/${campaignId}/npcs/`)
 export const createNPC = (campaignId, data) => api.post(`/campaigns/${campaignId}/npcs/`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
-export const updateNPC = (campaignId, npcId, data) => api.patch(`/campaigns/${campaignId}/npcs/${npcId}/`, data)
+export const updateNPC = (campaignId, npcId, data) => {
+  if (data.portrait_image instanceof File) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) formData.append(key, value)
+    })
+    return api.patch(`/campaigns/${campaignId}/npcs/${npcId}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  }
+  return api.patch(`/campaigns/${campaignId}/npcs/${npcId}/`, data)
+}
 export const deleteNPC = (campaignId, npcId) => api.delete(`/campaigns/${campaignId}/npcs/${npcId}/`)
 
 // Scene cards
