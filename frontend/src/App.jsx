@@ -9,6 +9,7 @@ import ProfilePage from './pages/Profile/ProfilePage.jsx'
 import SessionListPage from './pages/Sessions/SessionListPage.jsx'
 import LobbyPage from './pages/Sessions/LobbyPage.jsx'
 import TablePage from './pages/Table/TablePage.jsx'
+import StoryEditorPage from './pages/StoryEditor/StoryEditorPage.jsx'
 
 function ProtectedLayout() {
   const accessToken = useAuthStore((s) => s.accessToken)
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/characters" element={<CharacterListPage />} />
         <Route path="/characters/:id" element={<CharacterSheetPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/story-editor" element={<StoryEditorPage />} />
       </Route>
     </Routes>
   )

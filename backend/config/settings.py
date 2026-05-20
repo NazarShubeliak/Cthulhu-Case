@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'apps.users',
     'apps.characters',
     'apps.game_sessions',
+    'apps.campaigns',
 ]
 
 MIDDLEWARE = [

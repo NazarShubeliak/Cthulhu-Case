@@ -28,6 +28,7 @@ function getBreadcrumb(pathname) {
   if (pathname.startsWith('/characters/')) return ['дослідники', 'картка']
   if (pathname === '/characters') return ['дослідники']
   if (pathname === '/profile') return ['профіль']
+  if (pathname === '/story-editor') return ['сюжет']
   return []
 }
 
@@ -80,6 +81,16 @@ export default function AppLayout() {
         >
           <span className="nav__item-num">iii</span>
           <span>Профіль</span>
+        </NavLink>
+
+        <NavLink
+          to="/story-editor"
+          className={({ isActive }) =>
+            'nav__item' + (isActive ? ' nav__item--active' : '')
+          }
+        >
+          <span className="nav__item-num">iv</span>
+          <span>Сюжет</span>
         </NavLink>
 
         <div className="nav__foot">
