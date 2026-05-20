@@ -267,14 +267,16 @@ export default function LobbyPage() {
               marginBottom: 6,
             }}
           >
-            Код сесії
+            Код для входу
           </div>
           <div className="copy-box">
-            <span>#{id}</span>
+            <span style={{ letterSpacing: '0.3em', fontSize: 16, fontFamily: 'var(--font-mono)' }}>
+              {session?.join_code ?? '—'}
+            </span>
             <button
               className="btn btn--ghost"
               style={{ padding: '4px 10px', fontSize: 9 }}
-              onClick={copyId}
+              onClick={() => navigator.clipboard.writeText(session?.join_code ?? '').catch(() => {})}
             >
               Копіювати
             </button>

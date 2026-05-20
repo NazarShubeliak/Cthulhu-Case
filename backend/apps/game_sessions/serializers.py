@@ -32,7 +32,7 @@ class SessionDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Session
         fields = ['id', 'name', 'description', 'status', 'master', 'players',
-                  'is_master', 'is_participant', 'created_at']
+                  'is_master', 'is_participant', 'join_code', 'created_at']
 
     def get_is_master(self, obj):
         request = self.context.get('request')

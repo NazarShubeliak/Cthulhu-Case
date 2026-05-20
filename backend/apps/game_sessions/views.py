@@ -28,7 +28,7 @@ class SessionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         return Session.objects.filter(
-            Q(master=user) | Q(players=user) | Q(status='lobby')
+            Q(master=user) | Q(players=user)
         ).distinct().prefetch_related('players').select_related('master')
 
     def get_serializer_class(self):
@@ -54,6 +54,27 @@ class SessionViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Сесія закрита.'}, status=status.HTTP_400_BAD_REQUEST)
         if session.master == request.user:
             return Response({'error': 'Ви майстер цієї сесії.'}, status=status.HTTP_400_BAD_REQUEST)
+        session.players.add(request.user)
+        broadcast(session.id, {
+            'type': 'player.joined',
+            'user_id': request.user.id,
+            'username': request.user.username,
+        })
+        return Response(SessionDetailSerializer(session, context={'request': request}).data)
+
+    @action(detail=False, methods=['post'], url_path='join-by-code')
+    def join_by_code(self, request):
+        code = request.data.get('code', '').strip().upper()
+        if not code:
+            return Response({'error': 'Введіть код сесії.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            session = Session.objects.get(join_code=code)
+        except Session.DoesNotExist:
+            return Response({'error': 'Сесію з таким кодом не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+        if session.status == 'closed':
+            return Response({'error': 'Сесія закрита.'}, status=status.HTTP_400_BAD_REQUEST)
+        if session.master == request.user:
+            return Response(SessionDetailSerializer(session, context={'request': request}).data)
         session.players.add(request.user)
         broadcast(session.id, {
             'type': 'player.joined',

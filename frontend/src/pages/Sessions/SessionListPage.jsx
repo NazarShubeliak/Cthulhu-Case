@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
-import { getSessions, createSession, joinSession } from '../../api/sessions.js'
+import { getSessions, createSession, joinByCode } from '../../api/sessions.js'
 
 const STATUS_LABELS = {
   lobby: 'Лобі',
@@ -84,9 +84,9 @@ export default function SessionListPage() {
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [joiningId, setJoiningId] = useState(null)
   const [codeInput, setCodeInput] = useState('')
   const [codeError, setCodeError] = useState('')
+  const [joiningByCode, setJoiningByCode] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -101,41 +101,25 @@ export default function SessionListPage() {
     navigate(`/sessions/${session.id}`)
   }
 
-  async function handleJoin(sessionId) {
-    setJoiningId(sessionId)
-    try {
-      await joinSession(sessionId)
-      navigate(`/sessions/${sessionId}`)
-    } catch {
-      navigate(`/sessions/${sessionId}`)
-    } finally {
-      setJoiningId(null)
-    }
-  }
-
   async function handleJoinByCode(e) {
     e.preventDefault()
-    const id = parseInt(codeInput.trim(), 10)
-    if (!id) { setCodeError('Введіть числовий код сесії.'); return }
+    const code = codeInput.trim().toUpperCase()
+    if (!code) { setCodeError('Введіть код сесії.'); return }
     setCodeError('')
-    setJoiningId(id)
+    setJoiningByCode(true)
     try {
-      await joinSession(id)
-      navigate(`/sessions/${id}`)
+      const res = await joinByCode(code)
+      navigate(`/sessions/${res.data.id}`)
     } catch (err) {
-      const status = err.response?.status
-      if (status === 404) setCodeError('Сесію не знайдено.')
-      else if (status === 400) navigate(`/sessions/${id}`)
-      else setCodeError('Помилка підключення.')
+      const msg = err.response?.data?.error
+      setCodeError(msg || 'Сесію не знайдено.')
     } finally {
-      setJoiningId(null)
+      setJoiningByCode(false)
     }
   }
 
-  function isParticipant(session) {
-    if (session.is_master) return true
-    if (!session.players) return false
-    return session.players?.some?.((p) => p.id === user?.id) ?? false
+  function isMasterOf(session) {
+    return session.is_master
   }
 
   return (
@@ -160,9 +144,10 @@ export default function SessionListPage() {
                 <input
                   className="form-input"
                   value={codeInput}
-                  onChange={(e) => { setCodeInput(e.target.value); setCodeError('') }}
-                  placeholder="Код сесії (#)"
-                  style={{ width: 140, padding: '7px 10px' }}
+                  onChange={(e) => { setCodeInput(e.target.value.toUpperCase()); setCodeError('') }}
+                  placeholder="Код сесії"
+                  maxLength={6}
+                  style={{ width: 130, padding: '7px 10px', textTransform: 'uppercase', letterSpacing: '0.2em' }}
                 />
                 {codeError && (
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--blood-bright)', marginTop: 3 }}>
@@ -170,8 +155,8 @@ export default function SessionListPage() {
                   </div>
                 )}
               </div>
-              <button type="submit" className="btn" disabled={joiningId !== null || !codeInput.trim()}>
-                {joiningId && parseInt(codeInput) === joiningId ? 'Вхід...' : 'Увійти'}
+              <button type="submit" className="btn" disabled={joiningByCode || !codeInput.trim()}>
+                {joiningByCode ? 'Вхід...' : 'Увійти'}
               </button>
             </form>
             <button className="btn btn--primary" onClick={() => setShowModal(true)}>
@@ -195,57 +180,33 @@ export default function SessionListPage() {
         </div>
       ) : (
         <div className="session-grid">
-          {sessions.map((session) => {
-            const participant = isParticipant(session)
-            return (
-              <div key={session.id} className="session-card">
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                  <div className="session-card__name">{session.name}</div>
-                  <StatusChip status={session.status} />
-                </div>
-                <div className="session-card__meta">
-                  Майстер: {session.master?.username ?? '—'} · {session.player_count ?? 0} гравців
-                </div>
-                {session.description && (
-                  <p className="session-card__desc">
-                    {session.description.length > 120
-                      ? session.description.slice(0, 120) + '…'
-                      : session.description}
-                  </p>
-                )}
-                <div style={{ marginTop: 'auto', paddingTop: 12 }}>
-                  {participant ? (
-                    <button
-                      className="btn btn--primary"
-                      onClick={() => navigate(`/sessions/${session.id}`)}
-                    >
-                      Відкрити
-                    </button>
-                  ) : session.status === 'lobby' ? (
-                    <button
-                      className="btn"
-                      disabled={joiningId === session.id}
-                      onClick={() => handleJoin(session.id)}
-                    >
-                      {joiningId === session.id ? 'Приєднання...' : 'Приєднатись'}
-                    </button>
-                  ) : (
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 10,
-                        color: 'var(--moss)',
-                        letterSpacing: '0.2em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      Доступ закрито
-                    </span>
-                  )}
-                </div>
+          {sessions.map((session) => (
+            <div key={session.id} className="session-card">
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                <div className="session-card__name">{session.name}</div>
+                <StatusChip status={session.status} />
               </div>
-            )
-          })}
+              <div className="session-card__meta">
+                {isMasterOf(session) ? 'Ви майстер' : `Майстер: ${session.master?.username ?? '—'}`}
+                {' · '}{session.player_count ?? 0} гравців
+              </div>
+              {session.description && (
+                <p className="session-card__desc">
+                  {session.description.length > 120
+                    ? session.description.slice(0, 120) + '…'
+                    : session.description}
+                </p>
+              )}
+              <div style={{ marginTop: 'auto', paddingTop: 12 }}>
+                <button
+                  className="btn btn--primary"
+                  onClick={() => navigate(`/sessions/${session.id}`)}
+                >
+                  Відкрити
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

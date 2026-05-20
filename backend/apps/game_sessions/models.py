@@ -1,5 +1,16 @@
+import random
+import string
+
 from django.db import models
 from django.conf import settings
+
+
+def _generate_join_code():
+    chars = string.ascii_uppercase + string.digits
+    while True:
+        code = ''.join(random.choices(chars, k=6))
+        if not Session.objects.filter(join_code=code).exists():
+            return code
 
 
 class Session(models.Model):
@@ -18,7 +29,13 @@ class Session(models.Model):
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='lobby')
     description = models.TextField(blank=True)
+    join_code = models.CharField(max_length=6, unique=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if not self.join_code:
+            self.join_code = _generate_join_code()
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'sessions'
