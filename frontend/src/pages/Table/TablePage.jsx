@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
 import useTableStore from '../../store/tableStore.js'
 import useWebSocket from '../../hooks/useWebSocket.js'
-import { getSession, getCards, getThreads, getNotes, createCard, createNote, deleteNote, rollDice } from '../../api/sessions.js'
+import { getSession, getCards, getThreads, createCard, rollDice } from '../../api/sessions.js'
 import EvidenceBoard from './EvidenceBoard.jsx'
 
 // ── Constants ──
@@ -223,105 +223,6 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
   )
 }
 
-// ── Notes sidebar ──
-
-function NotesPanel({ sessionId, currentUserId, isMaster, open, onClose }) {
-  const { notes, addNote, removeNote } = useTableStore()
-  const [content, setContent] = useState('')
-  const [isPrivate, setIsPrivate] = useState(false)
-  const [loading, setLoading] = useState(false)
-
-  async function handleAdd(e) {
-    e.preventDefault()
-    if (!content.trim()) return
-    setLoading(true)
-    try {
-      const res = await createNote(sessionId, { content: content.trim(), is_private: isPrivate })
-      addNote(res.data)
-      setContent('')
-    } catch {} finally { setLoading(false) }
-  }
-
-  async function handleDelete(noteId) {
-    try {
-      await deleteNote(sessionId, noteId)
-      removeNote(noteId)
-    } catch {}
-  }
-
-  function timeAgo(d) {
-    const m = Math.floor((Date.now() - new Date(d)) / 60000)
-    if (m < 1) return 'щойно'
-    if (m < 60) return `${m} хв`
-    const h = Math.floor(m / 60)
-    if (h < 24) return `${h} год`
-    return `${Math.floor(h / 24)} дн`
-  }
-
-  if (!open) return null
-
-  return (
-    <div style={{
-      position: 'fixed', right: 0, top: 0, bottom: 0, width: 300, zIndex: 150,
-      background: 'var(--ink-1)', borderLeft: '1px solid var(--ochre-deep)',
-      display: 'flex', flexDirection: 'column', padding: 16,
-      boxShadow: '-4px 0 20px rgba(0,0,0,0.4)',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
-          Нотатки · Notae
-        </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 18 }}>×</button>
-      </div>
-
-      <form onSubmit={handleAdd} style={{ marginBottom: 16, flexShrink: 0 }}>
-        <textarea
-          className="form-input" value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Нотатка..." rows={3} style={{ marginBottom: 8, fontSize: 13 }}
-        />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <label className="toggle">
-            <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
-            <span className="toggle__track"><span className="toggle__thumb" /></span>
-            Приватна
-          </label>
-          <button type="submit" className="btn btn--primary" style={{ padding: '5px 12px' }} disabled={loading || !content.trim()}>
-            {loading ? '...' : 'Додати'}
-          </button>
-        </div>
-      </form>
-
-      <div style={{ overflowY: 'auto', flex: 1 }}>
-        {notes.length === 0 ? (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--moss)', letterSpacing: '0.18em', textAlign: 'center', padding: '24px 0' }}>
-            Нотаток немає
-          </div>
-        ) : notes.map((note) => (
-          <div key={note.id} className="note-item">
-            <div className="note-item__header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span className="note-item__author">{note.author?.username ?? '—'}</span>
-                {note.is_private && <span className="note-item__private">🔒</span>}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)' }}>{timeAgo(note.created_at)}</span>
-                {note.author?.id === currentUserId && (
-                  <button
-                    onClick={() => handleDelete(note.id)}
-                    style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 12 }}
-                  >×</button>
-                )}
-              </div>
-            </div>
-            <div className="note-item__content">{note.content}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ── Dice roller (master only) ──
 
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100']
@@ -403,11 +304,10 @@ export default function TablePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const { setCards, setThreads, setNotes, addCard, addConnectedUser, connectedUsers, reset } = useTableStore()
+  const { setCards, setThreads, addCard, addConnectedUser, connectedUsers, reset } = useTableStore()
 
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [notesOpen, setNotesOpen] = useState(false)
   const [diceToasts, setDiceToasts] = useState([])
   const [createConfig, setCreateConfig] = useState({ open: false, type: 'document', pos: null })
   const toastId = useRef(0)
@@ -423,16 +323,14 @@ export default function TablePage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [sessRes, cardsRes, threadsRes, notesRes] = await Promise.all([
+      const [sessRes, cardsRes, threadsRes] = await Promise.all([
         getSession(id),
         getCards(id),
         getThreads(id),
-        getNotes(id),
       ])
       setSession(sessRes.data)
       setCards(cardsRes.data.results ?? cardsRes.data)
       setThreads(threadsRes.data.results ?? threadsRes.data)
-      setNotes(notesRes.data.results ?? notesRes.data)
 
       // seed connected users from players list
       const players = sessRes.data.players ?? []
@@ -483,13 +381,6 @@ export default function TablePage() {
         </span>
         <div style={{ flex: 1 }} />
         {isMaster && <DiceRoller sessionId={id} />}
-        <button
-          className="btn btn--ghost"
-          style={{ padding: '4px 10px', fontSize: 10 }}
-          onClick={() => setNotesOpen((v) => !v)}
-        >
-          {notesOpen ? 'Закрити нотатки' : 'Нотатки'}
-        </button>
       </div>
 
       {/* Board */}
@@ -522,14 +413,6 @@ export default function TablePage() {
         }}
       />
 
-      {/* Notes sidebar */}
-      <NotesPanel
-        sessionId={id}
-        currentUserId={user?.id}
-        isMaster={isMaster}
-        open={notesOpen}
-        onClose={() => setNotesOpen(false)}
-      />
 
       {/* Dice roll toasts */}
       <div style={{ position: 'fixed', bottom: 80, left: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 8 }}>
