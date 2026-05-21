@@ -19,9 +19,8 @@ const STATUS_LABELS = { lobby: 'Лобі', active: 'Активна', closed: 'З
 
 // ── Create card form (master only) ──
 
-function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated }) {
-  const [open, setOpen] = useState(false)
-  const [type, setType] = useState('document')
+function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated, open, onClose, initialType, initialPos }) {
+  const [type, setType] = useState(initialType ?? 'document')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [imageFile, setImageFile] = useState(null)
@@ -31,6 +30,15 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (open) {
+      setType(initialType ?? 'document')
+      setTitle(''); setContent(''); setImageFile(null); setImagePreview(null)
+      setNpc({ role: '', age: '', status: '', appearance: '', character: '', connections: '', secret: '' })
+      setTarget('public'); setError('')
+    }
+  }, [open, initialType])
+
   function setNpcField(field, value) { setNpc((p) => ({ ...p, [field]: value })) }
 
   function handleImageChange(e) {
@@ -38,12 +46,6 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
     if (!file) return
     setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
-  }
-
-  function resetForm() {
-    setTitle(''); setContent(''); setImageFile(null); setImagePreview(null)
-    setNpc({ role: '', age: '', status: '', appearance: '', character: '', connections: '', secret: '' })
-    setTarget('public'); setType('document')
   }
 
   async function handleSubmit(e) {
@@ -61,6 +63,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
         : content.trim()
       const payload = { type, title: title.trim(), content: finalContent }
       if (imageFile) payload.image = imageFile
+      if (initialPos) { payload.pos_x = initialPos.x; payload.pos_y = initialPos.y }
       if (target === 'public') {
         payload.is_public = true
       } else if (target === 'personal') {
@@ -72,8 +75,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
       }
       const res = await createCard(sessionId, payload)
       onCreated(res.data)
-      resetForm()
-      setOpen(false)
+      onClose()
     } catch (err) {
       setError(err.response?.data?.detail || 'Помилка створення картки.')
     } finally {
@@ -81,31 +83,21 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
     }
   }
 
-  if (!open) {
-    return (
-      <button
-        className="btn btn--primary"
-        style={{ position: 'fixed', bottom: 70, right: 24, zIndex: 100 }}
-        onClick={() => setOpen(true)}
-      >
-        + Картка
-      </button>
-    )
-  }
+  if (!open) return null
 
   return (
     <div style={{
-      position: 'fixed', bottom: 70, right: 24, zIndex: 200,
-      background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
+      position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+      zIndex: 200, background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
       padding: 20, width: 340,
       boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
-      maxHeight: 'calc(100vh - 100px)', overflowY: 'auto',
+      maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
           Нова картка · Nova Charta
         </span>
-        <button onClick={() => { setOpen(false); resetForm() }} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 16 }}>×</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 16 }}>×</button>
       </div>
       {error && <div className="auth-error" style={{ marginBottom: 10 }}>{error}</div>}
       <form onSubmit={handleSubmit}>
@@ -396,6 +388,7 @@ export default function TablePage() {
   const [loading, setLoading] = useState(true)
   const [notesOpen, setNotesOpen] = useState(false)
   const [diceToasts, setDiceToasts] = useState([])
+  const [createConfig, setCreateConfig] = useState({ open: false, type: 'document', pos: null })
   const toastId = useRef(0)
 
   const addDiceToast = useCallback((msg) => {
@@ -486,11 +479,17 @@ export default function TablePage() {
           currentUserId={user?.id}
           connectedUsers={connectedUsers}
           sessionName={session?.name ?? ''}
+          onBoardCreate={(type, boardX, boardY) =>
+            setCreateConfig({ open: true, type, pos: { x: boardX, y: boardY } })
+          }
         />
       </div>
 
-      {/* Floating create button — all participants */}
       <CreateCardForm
+        open={createConfig.open}
+        onClose={() => setCreateConfig((c) => ({ ...c, open: false }))}
+        initialType={createConfig.type}
+        initialPos={createConfig.pos}
         sessionId={id}
         isMaster={isMaster}
         currentUserId={user?.id}

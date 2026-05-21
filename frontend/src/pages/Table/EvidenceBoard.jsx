@@ -652,6 +652,39 @@ function SaveBar({ onSave, onClose, saving, dirty, dark }) {
   )
 }
 
+// ── Board context menu (right-click on empty space) ──
+
+const BOARD_CARD_TYPES = [
+  { value: 'document', label: 'Документ' },
+  { value: 'npc',      label: 'Досьє' },
+  { value: 'note',     label: 'Нотатка' },
+  { value: 'photo',    label: 'Фото' },
+]
+
+function BoardContextMenu({ x, y, onSelect, onClose }) {
+  return (
+    <>
+      <div onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose() }} style={{ position: 'fixed', inset: 0, zIndex: 800 }} />
+      <div style={{
+        position: 'fixed', left: x, top: y, zIndex: 801,
+        background: '#1a1410', border: '1px solid var(--ochre-deep)',
+        boxShadow: '0 8px 28px rgba(0,0,0,0.75)', minWidth: 160, overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '6px 18px 5px', fontFamily: 'var(--font-mono)', fontSize: 8,
+          letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)',
+          borderBottom: '1px solid rgba(184,153,104,0.15)',
+        }}>
+          Додати картку
+        </div>
+        {BOARD_CARD_TYPES.map((t) => (
+          <CtxItem key={t.value} label={t.label} onClick={() => { onSelect(t.value); onClose() }} />
+        ))}
+      </div>
+    </>
+  )
+}
+
 // ── Context menu ──
 
 function CtxItem({ label, onClick, danger }) {
@@ -710,7 +743,7 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, onFullView, onPin
 
 // ── Detail rail (bottom bar) ──
 
-function DetailRail({ card, isMaster, onConnect, connectMode, onCancelConnect, onFullView }) {
+function DetailRail({ card, connectMode, onCancelConnect }) {
   if (!card) {
     return (
       <div style={railStyle}>
@@ -739,25 +772,16 @@ function DetailRail({ card, isMaster, onConnect, connectMode, onCancelConnect, o
           </span>
         )}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={onFullView}>
-          🔍 Переглянути
-        </button>
-        {connectMode ? (
-          <>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--blood)', letterSpacing: '0.18em', alignSelf: 'center' }}>
-              оберіть іншу картку для нитки
-            </span>
-            <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={onCancelConnect}>
-              Скасувати
-            </button>
-          </>
-        ) : (
-          <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={onConnect}>
-            + Нитка
+      {connectMode && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--blood)', letterSpacing: '0.18em' }}>
+            оберіть іншу картку для нитки
+          </span>
+          <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={onCancelConnect}>
+            Скасувати
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -772,7 +796,7 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
-export default function EvidenceBoard({ sessionId, isMaster, currentUserId, connectedUsers, sessionName }) {
+export default function EvidenceBoard({ sessionId, isMaster, currentUserId, connectedUsers, sessionName, onBoardCreate }) {
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
   const [dragging, setDragging] = useState(null)
@@ -783,6 +807,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
   const [fullViewCard, setFullViewCard] = useState(null)
   const [tab, setTab] = useState('public')
   const [contextMenu, setContextMenu] = useState(null)
+  const [boardMenu, setBoardMenu] = useState(null)
   const stageRef = useRef(null)
   const moveTimer = useRef(null)
   const zoomRef = useRef(zoom)
@@ -1032,6 +1057,14 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
       <div
         ref={stageRef}
         onMouseDown={onStageMouseDown}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          if (e.target !== stageRef.current && !e.target.classList.contains('board-inner')) return
+          const rect = stageRef.current.getBoundingClientRect()
+          const boardX = (e.clientX - rect.left - panRef.current.x) / zoomRef.current
+          const boardY = (e.clientY - rect.top - panRef.current.y) / zoomRef.current
+          setBoardMenu({ x: e.clientX, y: e.clientY, boardX, boardY })
+        }}
         style={{
           flex: 1, position: 'relative', overflow: 'hidden',
           cursor: panning ? 'grabbing' : connectMode ? 'crosshair' : 'grab',
@@ -1086,20 +1119,6 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
           <ZoomBtn label="⌂" onClick={() => { setZoom(0.8); setPan({ x: 0, y: 0 }) }} title="Скинути" />
         </div>
 
-        {/* Legend */}
-        <div style={{
-          position: 'absolute', bottom: 20, left: 20,
-          background: 'var(--ink-0)', border: '1px solid var(--ochre-deep)',
-          padding: '8px 12px', fontFamily: 'var(--font-mono)', fontSize: 9,
-          letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--moss-pale)',
-          lineHeight: 2,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="24" height="2"><line x1="0" y1="1" x2="24" y2="1" stroke="var(--blood)" strokeWidth="1.8" /></svg>
-            <span>нитка зв&apos;язку</span>
-          </div>
-        </div>
-
         {/* Empty state */}
         {visibleCards.length === 0 && (
           <div style={{
@@ -1115,11 +1134,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
       {/* ── Detail rail ── */}
       <DetailRail
         card={selectedCard}
-        isMaster={isMaster}
         connectMode={connectMode}
-        onConnect={() => setConnectMode(true)}
         onCancelConnect={() => setConnectMode(false)}
-        onFullView={() => selectedCard && setFullViewCard(selectedCard)}
       />
 
       {/* ── Full view modal ── */}
@@ -1130,6 +1146,16 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
           sessionId={sessionId}
           onClose={() => setFullViewCard(null)}
           onSaved={(updated) => setFullViewCard(updated)}
+        />
+      )}
+
+      {/* ── Board context menu ── */}
+      {boardMenu && (
+        <BoardContextMenu
+          x={boardMenu.x}
+          y={boardMenu.y}
+          onSelect={(type) => onBoardCreate?.(type, boardMenu.boardX, boardMenu.boardY)}
+          onClose={() => setBoardMenu(null)}
         />
       )}
 
