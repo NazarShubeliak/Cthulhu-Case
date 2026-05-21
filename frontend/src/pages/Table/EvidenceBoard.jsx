@@ -253,16 +253,20 @@ function NpcCard({ card, selected, connectMode, isMaster }) {
 
         {/* Photo + name block */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #b8a878' }}>
-          {/* Photo placeholder */}
+          {/* Portrait */}
           <div style={{
             width: 64, height: 80, flexShrink: 0,
-            border: '1px dashed #9a8860',
+            border: '1px solid #9a8860',
             background: 'rgba(0,0,0,0.06)',
+            overflow: 'hidden',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1">
-              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-            </svg>
+            {card.image
+              ? <img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1">
+                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                </svg>
+            }
           </div>
           {/* Name + meta */}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -595,8 +599,11 @@ function CardFullView({ card, isMaster, sessionId, onClose, onSaved }) {
             </div>
             <div style={{ padding: '24px 28px', position: 'relative' }}>
               <div style={{ display: 'flex', gap: 20, marginBottom: 20, paddingBottom: 16, borderBottom: '2px solid #9a8860' }}>
-                <div style={{ width: 100, height: 126, flexShrink: 0, border: '1px dashed #9a8860', background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                <div style={{ width: 100, height: 126, flexShrink: 0, border: '1px solid #9a8860', background: 'rgba(0,0,0,0.06)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {card.image
+                    ? <img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    : <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  }
                 </div>
                 <div style={{ flex: 1 }}>
                   <input value={title} onChange={(e) => setTitle(e.target.value)}

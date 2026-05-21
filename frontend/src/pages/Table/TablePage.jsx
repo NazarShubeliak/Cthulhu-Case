@@ -12,7 +12,7 @@ const CARD_TYPES = [
   { value: 'document', label: 'Документ' },
   { value: 'photo', label: 'Фото' },
   { value: 'note', label: 'Нотатка' },
-  { value: 'npc', label: 'НПС' },
+  { value: 'npc', label: 'Досьє' },
 ]
 
 const STATUS_LABELS = { lobby: 'Лобі', active: 'Активна', closed: 'Закрита' }
@@ -94,30 +94,27 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
       maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
-          Нова картка · Nova Charta
-        </span>
+        <div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 3 }}>
+            Nova Charta
+          </div>
+          <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 18, color: 'var(--ochre)' }}>
+            {CARD_TYPES.find((t) => t.value === type)?.label ?? type}
+          </div>
+        </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 16 }}>×</button>
       </div>
       {error && <div className="auth-error" style={{ marginBottom: 10 }}>{error}</div>}
       <form onSubmit={handleSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Тип</label>
-            <select className="form-input" value={type} onChange={(e) => setType(e.target.value)}>
-              {CARD_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Куди</label>
-            <select className="form-input" value={target} onChange={(e) => setTarget(e.target.value)}>
-              <option value="public">Загальний стіл</option>
-              <option value="personal">Особистий</option>
-              {isMaster && players.map((p) => (
-                <option key={p.id} value={p.id}>→ {p.username}</option>
-              ))}
-            </select>
-          </div>
+        <div className="form-group" style={{ marginBottom: 10 }}>
+          <label className="form-label">Куди</label>
+          <select className="form-input" value={target} onChange={(e) => setTarget(e.target.value)}>
+            <option value="public">Загальний стіл</option>
+            <option value="personal">Особистий</option>
+            {isMaster && players.map((p) => (
+              <option key={p.id} value={p.id}>→ {p.username}</option>
+            ))}
+          </select>
         </div>
 
         <div className="form-group">
@@ -127,6 +124,30 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
 
         {type === 'npc' ? (
           <>
+            {/* Portrait upload */}
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                border: '1px dashed var(--ochre-deep)', padding: '8px 12px', cursor: 'pointer',
+              }}>
+                <div style={{ width: 44, height: 56, flexShrink: 0, background: 'rgba(184,153,104,0.06)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {imagePreview
+                    ? <img src={imagePreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--moss)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  }
+                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                  {imagePreview ? 'Змінити фото' : 'Додати фото (необов\'язково)'}
+                </span>
+                <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+              </label>
+              {imagePreview && (
+                <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
+                  style={{ marginTop: 4, background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 9 }}>
+                  × прибрати фото
+                </button>
+              )}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="form-group" style={{ marginBottom: 10 }}>
                 <label className="form-label">Роль / Посада</label>
