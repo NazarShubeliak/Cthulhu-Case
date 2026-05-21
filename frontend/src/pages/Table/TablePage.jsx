@@ -24,6 +24,8 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
   const [type, setType] = useState('document')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
   const [npc, setNpc] = useState({ role: '', age: '', status: '', appearance: '', character: '', connections: '', secret: '' })
   const [target, setTarget] = useState('public')
   const [loading, setLoading] = useState(false)
@@ -31,8 +33,15 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
 
   function setNpcField(field, value) { setNpc((p) => ({ ...p, [field]: value })) }
 
+  function handleImageChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
   function resetForm() {
-    setTitle(''); setContent('')
+    setTitle(''); setContent(''); setImageFile(null); setImagePreview(null)
     setNpc({ role: '', age: '', status: '', appearance: '', character: '', connections: '', secret: '' })
     setTarget('public'); setType('document')
   }
@@ -51,6 +60,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
           })
         : content.trim()
       const payload = { type, title: title.trim(), content: finalContent }
+      if (imageFile) payload.image = imageFile
       if (target === 'public') {
         payload.is_public = true
       } else if (target === 'personal') {
@@ -162,6 +172,29 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
               <textarea className="form-input" value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} placeholder="Що приховує..." rows={2} style={{ borderColor: 'rgba(122,42,37,0.5)' }} />
             </div>
           </>
+        ) : type === 'photo' ? (
+          <div className="form-group" style={{ marginBottom: 12 }}>
+            <label className="form-label">Зображення</label>
+            <label style={{
+              display: 'block', border: '1px dashed var(--ochre-deep)',
+              padding: imagePreview ? 0 : '20px 0', textAlign: 'center',
+              cursor: 'pointer', overflow: 'hidden',
+            }}>
+              {imagePreview
+                ? <img src={imagePreview} alt="" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+                : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.18em' }}>
+                    Клікни щоб обрати фото
+                  </span>
+              }
+              <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+            </label>
+            {imagePreview && (
+              <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
+                style={{ marginTop: 4, background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 9 }}>
+                × прибрати фото
+              </button>
+            )}
+          </div>
         ) : (
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">Зміст</label>
@@ -169,7 +202,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
           </div>
         )}
 
-        <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim()}>
+        <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim() || (type === 'photo' && !imageFile)}>
           {loading ? 'Збереження...' : 'Додати картку'}
         </button>
       </form>

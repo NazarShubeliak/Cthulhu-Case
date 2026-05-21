@@ -59,10 +59,17 @@ class CardSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    image = serializers.SerializerMethodField()
+    image_upload = serializers.ImageField(source='image', write_only=True, required=False, allow_null=True)
+
+    def get_image(self, obj):
+        if obj.image:
+            return obj.image.url  # relative path: /media/cards/...
+        return None
 
     class Meta:
         model = Card
-        fields = ['id', 'session', 'type', 'title', 'content', 'image',
+        fields = ['id', 'session', 'type', 'title', 'content', 'image', 'image_upload',
                   'created_by', 'owner', 'owner_id', 'is_public',
                   'pos_x', 'pos_y', 'created_at', 'updated_at']
         read_only_fields = ['session', 'created_by', 'created_at', 'updated_at']

@@ -16,6 +16,9 @@ const NPC_H = 420
 const NOTE_W = 200
 const NOTE_H = 160
 
+const PHOTO_W = 220
+const PHOTO_H = 260
+
 const KIND_COLOR = {
   document: '#f5f0e0',
   photo: '#d8d4cc',
@@ -38,6 +41,7 @@ function cardDims(type) {
   if (type === 'document') return { w: DOC_W, h: DOC_H }
   if (type === 'npc') return { w: NPC_W, h: NPC_H }
   if (type === 'note') return { w: NOTE_W, h: NOTE_H }
+  if (type === 'photo') return { w: PHOTO_W, h: PHOTO_H }
   return { w: CARD_W, h: CARD_H }
 }
 
@@ -428,6 +432,51 @@ function DefaultCard({ card, selected, connectMode, isMaster, isOwn, isCreator, 
   )
 }
 
+function PhotoCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+  const shadow = selected
+    ? '0 0 0 2px var(--ochre), 0 12px 32px rgba(0,0,0,0.75)'
+    : connectMode
+    ? '0 0 0 2px var(--blood), 0 8px 20px rgba(0,0,0,0.5)'
+    : '3px 3px 10px rgba(0,0,0,0.5), 6px 8px 28px rgba(0,0,0,0.4)'
+
+  return (
+    <div style={{
+      background: '#f8f4ec',
+      width: PHOTO_W,
+      padding: '10px 10px 0',
+      boxShadow: shadow,
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* Photo area */}
+      <div style={{
+        width: '100%', height: 180,
+        background: '#c8c0b0',
+        overflow: 'hidden', flexShrink: 0,
+      }}>
+        {card.image
+          ? <img src={card.image} alt={card.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          : <div style={{
+              width: '100%', height: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-mono)', fontSize: 9, color: '#8a8070', letterSpacing: '0.14em',
+            }}>немає зображення</div>
+        }
+      </div>
+
+      {/* White bottom strip — polaroid caption */}
+      <div style={{ padding: '8px 4px 6px', minHeight: 44 }}>
+        <div style={{
+          fontFamily: 'var(--font-display)', fontStyle: 'italic',
+          fontSize: 13, color: '#2a2010', lineHeight: 1.2, marginBottom: 4,
+        }}>
+          {card.title}
+        </div>
+        <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
+      </div>
+    </div>
+  )
+}
+
 function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster, currentUserId, sessionId }) {
   const rot = KIND_ROT[card.type] ?? 0
   const isOwn = card.owner?.id === currentUserId
@@ -469,20 +518,23 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster,
         transition: selected ? 'none' : 'box-shadow .2s',
       }}
     >
-      {/* Pin */}
-      <div style={{
-        position: 'absolute',
-        top: -8, left: '50%', transform: 'translateX(-50%)',
-        width: 14, height: 14, borderRadius: '50%',
-        background: 'radial-gradient(circle at 35% 30%, #d04a3f, #7a2a25)',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.6)',
-        zIndex: 2,
-      }} />
+      {/* Pin — not shown for photo (polaroid style) */}
+      {card.type !== 'photo' && (
+        <div style={{
+          position: 'absolute',
+          top: -8, left: '50%', transform: 'translateX(-50%)',
+          width: 14, height: 14, borderRadius: '50%',
+          background: 'radial-gradient(circle at 35% 30%, #d04a3f, #7a2a25)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.6)',
+          zIndex: 2,
+        }} />
+      )}
 
       {card.type === 'document' && <DocumentCard {...sharedProps} />}
       {card.type === 'npc' && <NpcCard {...sharedProps} />}
       {card.type === 'note' && <NoteCard {...sharedProps} />}
-      {card.type !== 'document' && card.type !== 'npc' && card.type !== 'note' && <DefaultCard {...sharedProps} />}
+      {card.type === 'photo' && <PhotoCard {...sharedProps} />}
+      {card.type !== 'document' && card.type !== 'npc' && card.type !== 'note' && card.type !== 'photo' && <DefaultCard {...sharedProps} />}
     </div>
   )
 }
