@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCharacter, updateCharacter, updateSkill, rollDice } from '../../api/characters.js'
+import { getCharacter, updateCharacter, updateSkill, rollDice, improveSkills, createEquipmentItem, updateEquipmentItem, deleteEquipmentItem, createMentalScar, deleteMentalScar } from '../../api/characters.js'
 import useDebounce from '../../hooks/useDebounce.js'
 
 // ── Stat definitions ─────────────────────────────────────────────────────────
@@ -531,11 +531,25 @@ export default function CharacterSheetPage() {
   const [loading, setLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState('') // 'saving' | 'saved' | ''
   const pendingRef = useRef({})
+  const [improving, setImproving] = useState(false)
+  const [improvementResults, setImprovementResults] = useState(null)
+  const [equipment, setEquipment] = useState([])
+  const [newItemName, setNewItemName] = useState('')
+  const [newItemNotes, setNewItemNotes] = useState('')
+  const [addingItem, setAddingItem] = useState(false)
+  const [mentalScars, setMentalScars] = useState([])
+  const [newScarName, setNewScarName] = useState('')
+  const [newScarType, setNewScarType] = useState('phobia')
+  const [addingScar, setAddingScar] = useState(false)
 
   // Load character
   useEffect(() => {
     getCharacter(id)
-      .then((res) => setChar(res.data))
+      .then((res) => {
+        setChar(res.data)
+        setEquipment(res.data.equipment ?? [])
+        setMentalScars(res.data.mental_scars ?? [])
+      })
       .catch(() => navigate('/characters'))
       .finally(() => setLoading(false))
   }, [id])
@@ -582,6 +596,77 @@ export default function CharacterSheetPage() {
       current_value: updatedSkill.current_value,
       checked: updatedSkill.checked,
     }).catch(() => {})
+  }
+
+  const handleImproveSkills = async () => {
+    setImproving(true)
+    try {
+      const res = await improveSkills(id)
+      const results = res.data.results
+      setChar((prev) => ({
+        ...prev,
+        skills: prev.skills.map((s) => {
+          const r = results.find((r) => r.skill_id === s.id)
+          return r ? { ...s, current_value: r.new_value, checked: false } : s
+        }),
+      }))
+      setImprovementResults(results)
+    } catch (err) {
+      console.error('improve-skills error:', err?.response?.status, err?.response?.data)
+      alert('Помилка: ' + (err?.response?.data?.error ?? err?.message ?? 'невідома'))
+    } finally {
+      setImproving(false)
+    }
+  }
+
+  const handleAddItem = async (e) => {
+    e.preventDefault()
+    if (!newItemName.trim()) return
+    setAddingItem(true)
+    try {
+      const res = await createEquipmentItem(id, {
+        name: newItemName.trim(),
+        notes: newItemNotes.trim(),
+        order: equipment.length,
+      })
+      setEquipment((prev) => [...prev, res.data])
+      setNewItemName('')
+      setNewItemNotes('')
+    } catch {
+      // ignore
+    } finally {
+      setAddingItem(false)
+    }
+  }
+
+  const handleDeleteItem = async (itemId) => {
+    setEquipment((prev) => prev.filter((i) => i.id !== itemId))
+    deleteEquipmentItem(id, itemId).catch(() => {})
+  }
+
+  const handleUpdateItemNotes = (itemId, notes) => {
+    setEquipment((prev) => prev.map((i) => i.id === itemId ? { ...i, notes } : i))
+    updateEquipmentItem(id, itemId, { notes }).catch(() => {})
+  }
+
+  const handleAddScar = async (e) => {
+    e.preventDefault()
+    if (!newScarName.trim()) return
+    setAddingScar(true)
+    try {
+      const res = await createMentalScar(id, { name: newScarName.trim(), scar_type: newScarType })
+      setMentalScars((prev) => [...prev, res.data])
+      setNewScarName('')
+    } catch {
+      // ignore
+    } finally {
+      setAddingScar(false)
+    }
+  }
+
+  const handleDeleteScar = (scarId) => {
+    setMentalScars((prev) => prev.filter((s) => s.id !== scarId))
+    deleteMentalScar(id, scarId).catch(() => {})
   }
 
   if (loading) {
@@ -951,14 +1036,26 @@ export default function CharacterSheetPage() {
                   Те, що дослідник вміє
                 </div>
               </div>
-              <div
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 10,
-                  color: 'var(--ochre-dim)',
-                }}
-              >
-                {char.skills?.length ?? 0} навичок
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    color: 'var(--ochre-dim)',
+                  }}
+                >
+                  {char.skills?.length ?? 0} навичок
+                </div>
+                {(char.skills ?? []).some((s) => s.checked) && (
+                  <button
+                    className="btn btn--primary"
+                    style={{ padding: '4px 12px', fontSize: 11 }}
+                    onClick={handleImproveSkills}
+                    disabled={improving}
+                  >
+                    {improving ? '...' : 'Підвищити навички'}
+                  </button>
+                )}
               </div>
             </div>
             <div
@@ -977,10 +1074,219 @@ export default function CharacterSheetPage() {
                 />
               ))}
             </div>
+
+            {improvementResults && (
+              <div
+                style={{
+                  marginTop: 16,
+                  border: '1px solid var(--ochre-deep)',
+                  background: 'var(--ink-2)',
+                  padding: '14px 16px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
+                    Результати підвищення
+                  </span>
+                  <button
+                    className="btn btn--ghost"
+                    style={{ padding: '2px 8px', fontSize: 9 }}
+                    onClick={() => setImprovementResults(null)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {improvementResults.map((r) => (
+                  <div
+                    key={r.skill_id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '5px 0',
+                      borderBottom: '1px solid var(--ochre-deep)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                    }}
+                  >
+                    <span style={{ color: 'var(--cream)', fontStyle: 'italic', fontFamily: 'var(--font-display)', fontSize: 13 }}>
+                      {r.name}
+                    </span>
+                    <span style={{ color: 'var(--moss-pale)', fontSize: 10 }}>
+                      кидок: {r.roll}
+                    </span>
+                    {r.improved ? (
+                      <span style={{ color: 'var(--ochre-bright)' }}>
+                        {r.old_value} → {r.new_value} <span style={{ color: 'var(--moss)' }}>(+{r.improvement})</span>
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--moss)' }}>без змін</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Dice panel */}
           <DicePanel characterId={id} skills={char.skills ?? []} />
+
+          {/* Equipment */}
+          <div className="card corners" style={{ padding: 24, marginTop: 8 }}>
+            <span className="corner-tr" /><span className="corner-bl" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
+              <div>
+                <div className="eyebrow" style={{ marginBottom: 6 }}>Спорядження</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic' }}>
+                  У саквояжі та в кишенях
+                </div>
+              </div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ochre-dim)' }}>
+                {equipment.length} предм.
+              </span>
+            </div>
+
+            {equipment.length > 0 && (
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 16px' }}>
+                {equipment.map((item, i) => (
+                  <li
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '9px 0',
+                      borderBottom: i < equipment.length - 1 ? '1px dotted var(--ochre-deep)' : 'none',
+                    }}
+                  >
+                    <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontStyle: 'italic', fontSize: 15, color: 'var(--cream-soft)' }}>
+                      {item.name}
+                    </span>
+                    <input
+                      value={item.notes}
+                      onChange={(e) => handleUpdateItemNotes(item.id, e.target.value)}
+                      placeholder="нотатка"
+                      style={{
+                        width: 90,
+                        background: 'transparent',
+                        border: 'none',
+                        borderBottom: '1px solid var(--ochre-deep)',
+                        color: 'var(--ochre-dim)',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 11,
+                        letterSpacing: '0.1em',
+                        outline: 'none',
+                        textAlign: 'right',
+                        padding: '2px 0',
+                      }}
+                    />
+                    <button
+                      onClick={() => handleDeleteItem(item.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--moss)', fontSize: 13, padding: '0 2px', lineHeight: 1 }}
+                      title="Видалити"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <form onSubmit={handleAddItem} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="Назва предмета..."
+                style={{
+                  flex: 1,
+                  background: 'var(--ink-2)',
+                  border: '1px solid var(--ochre-deep)',
+                  color: 'var(--cream)',
+                  padding: '6px 10px',
+                  fontFamily: 'var(--font-body)',
+                  fontStyle: 'italic',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+              <input
+                value={newItemNotes}
+                onChange={(e) => setNewItemNotes(e.target.value)}
+                placeholder="нотатка"
+                style={{
+                  width: 90,
+                  background: 'var(--ink-2)',
+                  border: '1px solid var(--ochre-deep)',
+                  color: 'var(--cream)',
+                  padding: '6px 8px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  outline: 'none',
+                }}
+              />
+              <button className="btn btn--primary" style={{ padding: '6px 14px', fontSize: 12 }} disabled={addingItem}>
+                +
+              </button>
+            </form>
+          </div>
+
+          {/* Mental Scars */}
+          <div className="card corners" style={{ padding: 24, marginTop: 8, borderColor: '#5a2a25' }}>
+            <span className="corner-tr" /><span className="corner-bl" />
+            <div className="eyebrow" style={{ marginBottom: 6, color: '#c47a72' }}>Шрами розуму</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', marginBottom: 16 }}>
+              Фобії та манії
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: mentalScars.length > 0 ? 16 : 0 }}>
+              {mentalScars.map((scar) => (
+                <span
+                  key={scar.id}
+                  className={scar.scar_type === 'phobia' ? 'chip chip--danger' : 'chip chip--cool'}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'default' }}
+                >
+                  {scar.name}
+                  <button
+                    onClick={() => handleDeleteScar(scar.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 11, padding: 0, lineHeight: 1, opacity: 0.7 }}
+                    title="Видалити"
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            <form onSubmit={handleAddScar} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                value={newScarName}
+                onChange={(e) => setNewScarName(e.target.value)}
+                placeholder="Назва фобії або манії..."
+                style={{
+                  flex: 1,
+                  background: 'var(--ink-2)',
+                  border: '1px solid #5a2a25',
+                  color: 'var(--cream)',
+                  padding: '6px 10px',
+                  fontFamily: 'var(--font-body)',
+                  fontStyle: 'italic',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setNewScarType((t) => t === 'phobia' ? 'mania' : 'phobia')}
+                className={newScarType === 'phobia' ? 'chip chip--danger' : 'chip chip--cool'}
+                style={{ cursor: 'pointer', border: 'none', whiteSpace: 'nowrap' }}
+              >
+                {newScarType === 'phobia' ? 'Фобія' : 'Манія'}
+              </button>
+              <button className="btn btn--primary" style={{ padding: '6px 14px', fontSize: 12, background: '#7a2a25', borderColor: '#5a2a25' }} disabled={addingScar}>
+                +
+              </button>
+            </form>
+          </div>
 
           {/* Back button */}
           <button

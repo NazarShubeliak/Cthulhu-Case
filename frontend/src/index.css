@@ -316,6 +316,16 @@ textarea.form-input {
   color: var(--ochre-dim);
   padding: 2px 8px;
 }
+.chip--danger {
+  border-color: #7a2a25;
+  color: #c47a72;
+  background: rgba(122, 42, 37, 0.15);
+}
+.chip--cool {
+  border-color: #2a4a5a;
+  color: #72a4c4;
+  background: rgba(42, 74, 90, 0.15);
+}
 
 .eyebrow {
   font-family: var(--font-mono);

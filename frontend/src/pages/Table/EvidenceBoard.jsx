@@ -311,7 +311,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [panning, setPanning] = useState(null)
   const [connectMode, setConnectMode] = useState(false)
-  const [filter, setFilter] = useState('all')
+  const [tab, setTab] = useState('public')
   const stageRef = useRef(null)
   const moveTimer = useRef(null)
 
@@ -399,7 +399,9 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const visibleCards = filter === 'all' ? cards : cards.filter((c) => c.type === filter)
+  const visibleCards = tab === 'public'
+    ? cards.filter((c) => c.is_public)
+    : cards.filter((c) => !c.is_public && (c.owner?.id === currentUserId || (!c.owner && c.created_by?.id === currentUserId)))
   const visibleIds = new Set(visibleCards.map((c) => c.id))
   const visibleThreads = threads.filter((t) => {
     const fId = t.card_from?.id ?? t.card_from
@@ -426,14 +428,14 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* Filter tabs */}
-          {[['all', 'Всі'], ['document', 'Документи'], ['photo', 'Фото'], ['npc', 'НПС'], ['location', 'Локації'], ['note', 'Нотатки']].map(([k, l]) => (
-            <button key={k} onClick={() => setFilter(k)} style={{
-              padding: '4px 10px', fontFamily: 'var(--font-mono)', fontSize: 9,
+          {/* Tab switcher */}
+          {[['public', 'Загальний стіл'], ['personal', 'Особистий']].map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} style={{
+              padding: '4px 14px', fontFamily: 'var(--font-mono)', fontSize: 9,
               letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer',
-              border: `1px solid ${filter === k ? 'var(--ochre)' : 'var(--ochre-deep)'}`,
-              color: filter === k ? 'var(--ochre-bright)' : 'var(--moss-pale)',
-              background: filter === k ? 'rgba(184,153,104,0.08)' : 'transparent',
+              border: `1px solid ${tab === k ? 'var(--ochre)' : 'var(--ochre-deep)'}`,
+              color: tab === k ? 'var(--ochre-bright)' : 'var(--moss-pale)',
+              background: tab === k ? 'rgba(184,153,104,0.08)' : 'transparent',
             }}>{l}</button>
           ))}
 
@@ -537,7 +539,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
             fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.28em',
             textTransform: 'uppercase', color: 'var(--moss)', textAlign: 'center',
           }}>
-            Дошка порожня · Nullae Chartae
+            {tab === 'public' ? 'Загальний стіл порожній · Mensa Vacua' : 'Особистих карток немає · Nullae Chartae'}
           </div>
         )}
       </div>

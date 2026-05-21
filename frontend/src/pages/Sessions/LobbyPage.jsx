@@ -194,7 +194,7 @@ export default function LobbyPage() {
         <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
           {isMaster ? (
             <>
-              {session?.status !== 'closed' && (
+              {session?.status === 'lobby' && (
                 <button
                   className="btn btn--primary"
                   onClick={handleStart}

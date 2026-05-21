@@ -20,7 +20,7 @@ const STATUS_LABELS = { lobby: 'Лобі', active: 'Активна', closed: 'З
 
 // ── Create card form (master only) ──
 
-function CreateCardForm({ sessionId, players, onCreated }) {
+function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState('document')
   const [title, setTitle] = useState('')
@@ -38,7 +38,11 @@ function CreateCardForm({ sessionId, players, onCreated }) {
       const payload = { type, title: title.trim(), content: content.trim() }
       if (target === 'public') {
         payload.is_public = true
+      } else if (target === 'personal') {
+        payload.is_public = false
+        payload.owner_id = currentUserId
       } else {
+        // master sending to specific player
         payload.owner_id = parseInt(target, 10)
         payload.is_public = false
       }
@@ -91,10 +95,13 @@ function CreateCardForm({ sessionId, players, onCreated }) {
             </select>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Кому</label>
+            <label className="form-label">Куди</label>
             <select className="form-input" value={target} onChange={(e) => setTarget(e.target.value)}>
               <option value="public">Загальний стіл</option>
-              {players.map((p) => <option key={p.id} value={p.id}>{p.username}</option>)}
+              <option value="personal">Особистий</option>
+              {isMaster && players.map((p) => (
+                <option key={p.id} value={p.id}>→ {p.username}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -309,16 +316,17 @@ export default function TablePage() {
         />
       </div>
 
-      {/* Master: floating create button */}
-      {isMaster && (
-        <CreateCardForm
-          sessionId={id}
-          players={players}
-          onCreated={(card) => {
-            if (card.is_public) addCard(card)
-          }}
-        />
-      )}
+      {/* Floating create button — all participants */}
+      <CreateCardForm
+        sessionId={id}
+        isMaster={isMaster}
+        currentUserId={user?.id}
+        players={players}
+        onCreated={(card) => {
+          if (card.is_public) addCard(card)
+          else if (card.owner?.id === user?.id || card.created_by?.id === user?.id) addCard(card)
+        }}
+      />
 
       {/* Notes sidebar */}
       <NotesPanel

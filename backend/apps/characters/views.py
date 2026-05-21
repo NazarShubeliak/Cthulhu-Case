@@ -5,9 +5,10 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Character, Skill, DiceRoll
+from .models import Character, Skill, DiceRoll, Equipment, MentalScar
 from .serializers import (
     CharacterSerializer, CharacterListSerializer, DiceRollSerializer, SkillSerializer,
+    EquipmentSerializer, MentalScarSerializer,
 )
 
 DEFAULT_SKILLS = [
@@ -206,6 +207,43 @@ class CharacterViewSet(viewsets.ModelViewSet):
         return Response(data, status=status.HTTP_201_CREATED)
 
 
+    @action(detail=True, methods=['post'], url_path='improve-skills')
+    def improve_skills(self, request, pk=None):
+        character = self.get_object()
+        checked_skills = list(character.skills.filter(checked=True))
+
+        if not checked_skills:
+            return Response(
+                {'error': 'Немає позначених навичок для підвищення.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        results = []
+        for skill in checked_skills:
+            d100 = random.randint(1, 100)
+            old_value = skill.current_value
+            improvement = 0
+
+            if d100 > old_value:
+                improvement = random.randint(1, 10)
+                skill.current_value = min(99, old_value + improvement)
+
+            skill.checked = False
+            skill.save(update_fields=['current_value', 'checked'])
+
+            results.append({
+                'skill_id': skill.id,
+                'name': skill.name,
+                'old_value': old_value,
+                'roll': d100,
+                'improved': improvement > 0,
+                'improvement': improvement,
+                'new_value': skill.current_value,
+            })
+
+        return Response({'results': results})
+
+
 class SkillViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SkillSerializer
@@ -215,3 +253,47 @@ class SkillViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
             Character, pk=self.kwargs['character_pk'], user=self.request.user
         )
         return Skill.objects.filter(character=character)
+
+
+class EquipmentViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    permission_classes = [IsAuthenticated]
+    serializer_class = EquipmentSerializer
+
+    def get_queryset(self):
+        character = get_object_or_404(
+            Character, pk=self.kwargs['character_pk'], user=self.request.user
+        )
+        return Equipment.objects.filter(character=character)
+
+    def perform_create(self, serializer):
+        character = get_object_or_404(
+            Character, pk=self.kwargs['character_pk'], user=self.request.user
+        )
+        serializer.save(character=character)
+
+
+class MentalScarViewSet(
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    permission_classes = [IsAuthenticated]
+    serializer_class = MentalScarSerializer
+
+    def get_queryset(self):
+        character = get_object_or_404(
+            Character, pk=self.kwargs['character_pk'], user=self.request.user
+        )
+        return MentalScar.objects.filter(character=character)
+
+    def perform_create(self, serializer):
+        character = get_object_or_404(
+            Character, pk=self.kwargs['character_pk'], user=self.request.user
+        )
+        serializer.save(character=character)

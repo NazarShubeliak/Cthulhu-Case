@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Character, Skill, DiceRoll
+from .models import Character, Skill, DiceRoll, Equipment, MentalScar
 
 
 class SkillSerializer(serializers.ModelSerializer):
@@ -19,8 +19,24 @@ class DiceRollSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'results', 'total', 'created_at')
 
 
+class EquipmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Equipment
+        fields = ('id', 'name', 'notes', 'order')
+        read_only_fields = ('id',)
+
+
+class MentalScarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MentalScar
+        fields = ('id', 'name', 'scar_type')
+        read_only_fields = ('id',)
+
+
 class CharacterSerializer(serializers.ModelSerializer):
     skills = SkillSerializer(many=True, read_only=True)
+    equipment = EquipmentSerializer(many=True, read_only=True)
+    mental_scars = MentalScarSerializer(many=True, read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
@@ -33,7 +49,7 @@ class CharacterSerializer(serializers.ModelSerializer):
             'hp_current', 'hp_max', 'mp_current', 'mp_max',
             'sanity_current', 'sanity_max', 'sanity_starting',
             'luck_current', 'luck_max',
-            'skills', 'created_at', 'updated_at',
+            'skills', 'equipment', 'mental_scars', 'created_at', 'updated_at',
         )
         read_only_fields = ('id', 'user', 'created_at', 'updated_at')
 

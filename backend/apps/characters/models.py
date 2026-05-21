@@ -63,6 +63,34 @@ class Skill(models.Model):
         return f'{self.character.name} — {self.name}'
 
 
+class Equipment(models.Model):
+    character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name='equipment')
+    name = models.CharField(max_length=200)
+    notes = models.CharField(max_length=100, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'equipment'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.character.name} — {self.name}'
+
+
+class MentalScar(models.Model):
+    TYPE_CHOICES = [('phobia', 'Фобія'), ('mania', 'Манія')]
+    character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name='mental_scars')
+    name = models.CharField(max_length=200)
+    scar_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default='phobia')
+
+    class Meta:
+        db_table = 'mental_scars'
+        ordering = ['id']
+
+    def __str__(self):
+        return f'{self.character.name} — {self.name}'
+
+
 class DiceRoll(models.Model):
     character = models.ForeignKey(Character, on_delete=models.CASCADE, related_name='dice_rolls')
     dice_type = models.CharField(max_length=10)  # d4, d6, d8, d10, d100
