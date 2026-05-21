@@ -67,6 +67,7 @@ class Card(models.Model):
         null=True, blank=True, related_name='owned_cards'
     )
     is_public = models.BooleanField(default=False)
+    is_pinned = models.BooleanField(default=False)
     pos_x = models.FloatField(default=0)
     pos_y = models.FloatField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -26,6 +26,7 @@ export const createCard = (sessionId, data) => {
 export const updateCard = (sessionId, cardId, data) => api.patch(`/sessions/${sessionId}/cards/${cardId}/`, data)
 export const deleteCard = (sessionId, cardId) => api.delete(`/sessions/${sessionId}/cards/${cardId}/`)
 export const publishCard = (sessionId, cardId) => api.post(`/sessions/${sessionId}/cards/${cardId}/publish/`)
+export const pinCard = (sessionId, cardId) => api.post(`/sessions/${sessionId}/cards/${cardId}/pin/`)
 
 export const moveCard = (sessionId, cardId, pos_x, pos_y) =>
   api.patch(`/sessions/${sessionId}/cards/${cardId}/`, { pos_x, pos_y })

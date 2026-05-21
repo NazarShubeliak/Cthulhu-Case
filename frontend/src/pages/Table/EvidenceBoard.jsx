@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import useTableStore from '../../store/tableStore'
-import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard } from '../../api/sessions'
+import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard } from '../../api/sessions'
 
 // ── Constants ──
 
@@ -124,35 +124,8 @@ function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, sessionId }) {
 
 // ── Cork card ──
 
-function CardActions({ card, isMaster, isOwn, isCreator, onPublish, onDelete }) {
-  return (
-    <div
-      className="no-drag"
-      style={{
-        display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8,
-        paddingTop: 6, borderTop: '1px dashed #7a6440',
-        pointerEvents: 'all',
-      }}
-    >
-      {isMaster && !card.is_public && (
-        <button onClick={onPublish} style={btnStyle('#7a6440')}>На стіл</button>
-      )}
-      {!isMaster && isOwn && !card.is_public && (
-        <button onClick={onPublish} style={btnStyle('#7a6440')}>Винести</button>
-      )}
-      {(isMaster || isCreator) && (
-        <button onClick={onDelete} style={btnStyle('#a04040')}>×</button>
-      )}
-      {!card.is_public && (
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#a08050', letterSpacing: '0.14em', alignSelf: 'center' }}>
-          приватна
-        </span>
-      )}
-    </div>
-  )
-}
 
-function DocumentCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+function DocumentCard({ card, selected, connectMode }) {
   return (
     <div style={{
       background: '#f6f2e4',
@@ -168,7 +141,6 @@ function DocumentCard({ card, selected, connectMode, isMaster, isOwn, isCreator,
       display: 'flex', flexDirection: 'column',
       borderLeft: '3px solid #c8b890',
     }}>
-      {/* Header line */}
       <div style={{
         fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.3em',
         textTransform: 'uppercase', color: '#8a7450',
@@ -196,8 +168,6 @@ function DocumentCard({ card, selected, connectMode, isMaster, isOwn, isCreator,
           {card.content}
         </div>
       )}
-
-      <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
     </div>
   )
 }
@@ -236,7 +206,7 @@ function NpcField({ label, value, secret }) {
   )
 }
 
-function NpcCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+function NpcCard({ card, selected, connectMode, isMaster }) {
   const d = parseNpcContent(card.content)
   const statusColor = STATUS_COLOR[d.status] ?? '#5a5040'
 
@@ -330,15 +300,13 @@ function NpcCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPu
         {(d.connections !== undefined || !card.content) && <NpcField label="Зв'язки" value={d.connections} />}
         {isMaster && <NpcField label="Секрет" value={d.secret} secret />}
 
-        <div style={{ marginTop: 'auto', paddingTop: 6 }}>
-          <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
-        </div>
+        <div style={{ marginTop: 'auto', paddingTop: 6 }} />
       </div>
     </div>
   )
 }
 
-function NoteCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+function NoteCard({ card, selected, connectMode }) {
   return (
     <div style={{
       background: KIND_COLOR.note,
@@ -380,12 +348,11 @@ function NoteCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onP
           {card.content}
         </div>
       )}
-      <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
     </div>
   )
 }
 
-function DefaultCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+function DefaultCard({ card, selected, connectMode }) {
   return (
     <div style={{
       background: KIND_COLOR[card.type] ?? KIND_COLOR.document,
@@ -427,12 +394,11 @@ function DefaultCard({ card, selected, connectMode, isMaster, isOwn, isCreator, 
           {card.content}
         </div>
       )}
-      <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
     </div>
   )
 }
 
-function PhotoCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+function PhotoCard({ card, selected, connectMode }) {
   const shadow = selected
     ? '0 0 0 2px var(--ochre), 0 12px 32px rgba(0,0,0,0.75)'
     : connectMode
@@ -467,65 +433,44 @@ function PhotoCard({ card, selected, connectMode, isMaster, isOwn, isCreator, on
       <div style={{ padding: '8px 4px 6px', minHeight: 44 }}>
         <div style={{
           fontFamily: 'var(--font-display)', fontStyle: 'italic',
-          fontSize: 13, color: '#2a2010', lineHeight: 1.2, marginBottom: 4,
+          fontSize: 13, color: '#2a2010', lineHeight: 1.2,
         }}>
           {card.title}
         </div>
-        <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
       </div>
     </div>
   )
 }
 
-function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster, currentUserId, sessionId }) {
+function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContextMenu, isMaster }) {
   const rot = KIND_ROT[card.type] ?? 0
-  const isOwn = card.owner?.id === currentUserId
-  const isCreator = card.created_by?.id === currentUserId
-  const store = useTableStore()
-
-  async function handlePublish(e) {
-    e.stopPropagation()
-    try {
-      const res = await publishCard(sessionId, card.id)
-      store.updateCard(res.data)
-    } catch {}
-  }
-
-  async function handleDelete(e) {
-    e.stopPropagation()
-    if (!window.confirm('Видалити картку?')) return
-    try {
-      await deleteCard(sessionId, card.id)
-      store.removeCard(card.id)
-    } catch {}
-  }
-
   const dims = cardDims(card.type)
-  const sharedProps = { card, selected, connectMode, isMaster, isOwn, isCreator, onPublish: handlePublish, onDelete: handleDelete }
+  const sharedProps = { card, selected, connectMode, isMaster }
 
   return (
     <div
       onMouseDown={onMouseDown}
       onClick={onClick}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e) }}
       style={{
         position: 'absolute',
         left: card.pos_x,
         top: card.pos_y,
         width: dims.w,
-        cursor: connectMode ? 'crosshair' : 'grab',
+        cursor: card.is_pinned ? 'default' : connectMode ? 'crosshair' : 'grab',
         zIndex: selected ? 50 : 10,
         transform: `rotate(${rot}deg)`,
         transition: selected ? 'none' : 'box-shadow .2s',
       }}
     >
-      {/* Pin — not shown for photo (polaroid style) */}
-      {card.type !== 'photo' && (
+      {/* Pin indicator — only shown when card is pinned */}
+      {card.is_pinned && (
         <div style={{
           position: 'absolute',
-          top: -8, left: '50%', transform: 'translateX(-50%)',
-          width: 14, height: 14, borderRadius: '50%',
-          background: 'radial-gradient(circle at 35% 30%, #d04a3f, #7a2a25)',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.6)',
+          top: -9, left: '50%', transform: 'translateX(-50%)',
+          width: 16, height: 16, borderRadius: '50%',
+          background: 'radial-gradient(circle at 35% 30%, #e05050, #7a1a1a)',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.7), 0 0 0 2px rgba(200,60,60,0.3)',
           zIndex: 2,
         }} />
       )}
@@ -539,13 +484,6 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster,
   )
 }
 
-function btnStyle(color) {
-  return {
-    background: 'transparent', border: `1px solid ${color}`, color,
-    fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.14em',
-    textTransform: 'uppercase', padding: '1px 6px', cursor: 'pointer',
-  }
-}
 
 // ── Full view / edit modal ──
 
@@ -714,6 +652,62 @@ function SaveBar({ onSave, onClose, saving, dirty, dark }) {
   )
 }
 
+// ── Context menu ──
+
+function CtxItem({ label, onClick, danger }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        padding: '8px 18px', cursor: 'pointer',
+        fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+        color: danger
+          ? (hov ? '#e06060' : '#a04040')
+          : (hov ? 'var(--ochre-bright)' : 'var(--ochre)'),
+        background: hov ? 'rgba(184,153,104,0.1)' : 'transparent',
+        borderBottom: '1px solid rgba(184,153,104,0.08)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </div>
+  )
+}
+
+function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, onFullView, onPin, onPublish, onConnect, onDelete, onClose }) {
+  return (
+    <>
+      <div
+        onClick={onClose}
+        onContextMenu={(e) => { e.preventDefault(); onClose() }}
+        style={{ position: 'fixed', inset: 0, zIndex: 800 }}
+      />
+      <div style={{
+        position: 'fixed', left: x, top: y, zIndex: 801,
+        background: '#1a1410',
+        border: '1px solid var(--ochre-deep)',
+        boxShadow: '0 8px 28px rgba(0,0,0,0.75)',
+        minWidth: 170,
+        overflow: 'hidden',
+      }}>
+        <CtxItem label="Переглянути" onClick={() => { onFullView(); onClose() }} />
+        <CtxItem label={card.is_pinned ? 'Відкріпити' : 'Закріпити'} onClick={() => { onPin(); onClose() }} />
+        {(isMaster || isOwn) && !card.is_public && (
+          <CtxItem label={isMaster ? 'На стіл' : 'Винести'} onClick={() => { onPublish(); onClose() }} />
+        )}
+        <CtxItem label="+ Нитка" onClick={() => { onConnect(); onClose() }} />
+        {(isMaster || isCreator) && (
+          <CtxItem label="Видалити" onClick={onDelete} danger />
+        )}
+      </div>
+    </>
+  )
+}
+
 // ── Detail rail (bottom bar) ──
 
 function DetailRail({ card, isMaster, onConnect, connectMode, onCancelConnect, onFullView }) {
@@ -788,6 +782,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
   const [connectMode, setConnectMode] = useState(false)
   const [fullViewCard, setFullViewCard] = useState(null)
   const [tab, setTab] = useState('public')
+  const [contextMenu, setContextMenu] = useState(null)
   const stageRef = useRef(null)
   const moveTimer = useRef(null)
   const zoomRef = useRef(zoom)
@@ -832,7 +827,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
     e.stopPropagation()
     setSelectedId(cardId)
     const card = useTableStore.getState().cards.find((c) => c.id === cardId)
-    if (!card) return
+    if (!card || card.is_pinned) return  // pinned cards can be selected but not dragged
     setDragging({
       id: cardId,
       offsetX: e.clientX / zoom - card.pos_x,
@@ -936,6 +931,43 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // ── Context menu handlers ──
+  const openContextMenu = useCallback((e, card) => {
+    setSelectedId(card.id)
+    setContextMenu({ card, x: e.clientX, y: e.clientY })
+  }, [])
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
+
+  async function handleCtxPin() {
+    const card = contextMenu?.card
+    if (!card) return
+    try {
+      const res = await pinCard(sessionId, card.id)
+      useTableStore.getState().replaceCard(res.data)
+    } catch {}
+  }
+
+  async function handleCtxPublish() {
+    const card = contextMenu?.card
+    if (!card) return
+    try {
+      const res = await publishCard(sessionId, card.id)
+      useTableStore.getState().updateCard(res.data)
+    } catch {}
+  }
+
+  async function handleCtxDelete() {
+    const card = contextMenu?.card
+    if (!card) return
+    closeContextMenu()
+    if (!window.confirm('Видалити картку?')) return
+    try {
+      await deleteCard(sessionId, card.id)
+      useTableStore.getState().removeCard(card.id)
+    } catch {}
+  }
+
   const visibleCards = tab === 'public'
     ? cards.filter((c) => c.is_public)
     : cards.filter((c) => !c.is_public && (c.owner?.id === currentUserId || (!c.owner && c.created_by?.id === currentUserId)))
@@ -1034,9 +1066,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
               connectMode={connectMode && selectedId !== null && selectedId !== card.id}
               onMouseDown={(e) => onCardMouseDown(e, card.id)}
               onClick={(e) => handleCardClick(e, card.id)}
+              onContextMenu={(e) => openContextMenu(e, card)}
               isMaster={isMaster}
-              currentUserId={currentUserId}
-              sessionId={sessionId}
             />
           ))}
         </div>
@@ -1099,6 +1130,24 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
           sessionId={sessionId}
           onClose={() => setFullViewCard(null)}
           onSaved={(updated) => setFullViewCard(updated)}
+        />
+      )}
+
+      {/* ── Context menu ── */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          card={contextMenu.card}
+          isMaster={isMaster}
+          isOwn={contextMenu.card.owner?.id === currentUserId}
+          isCreator={contextMenu.card.created_by?.id === currentUserId}
+          onFullView={() => { setFullViewCard(contextMenu.card) }}
+          onPin={handleCtxPin}
+          onPublish={handleCtxPublish}
+          onConnect={() => { setSelectedId(contextMenu.card.id); setConnectMode(true) }}
+          onDelete={handleCtxDelete}
+          onClose={closeContextMenu}
         />
       )}
     </div>

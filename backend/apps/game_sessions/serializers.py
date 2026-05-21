@@ -70,7 +70,7 @@ class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
         fields = ['id', 'session', 'type', 'title', 'content', 'image', 'image_upload',
-                  'created_by', 'owner', 'owner_id', 'is_public',
+                  'created_by', 'owner', 'owner_id', 'is_public', 'is_pinned',
                   'pos_x', 'pos_y', 'created_at', 'updated_at']
         read_only_fields = ['session', 'created_by', 'created_at', 'updated_at']
 

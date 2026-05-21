@@ -22,6 +22,7 @@ const useTableStore = create((set) => ({
       : [card, ...s.cards],
   })),
   updateCard: (card) => set((s) => ({ cards: s.cards.map((c) => (c.id === card.id ? card : c)) })),
+  replaceCard: (card) => set((s) => ({ cards: s.cards.map((c) => (c.id === card.id ? { ...c, ...card } : c)) })),
   moveCard: (cardId, pos_x, pos_y) =>
     set((s) => ({ cards: s.cards.map((c) => (c.id === cardId ? { ...c, pos_x, pos_y } : c)) })),
   removeCard: (cardId) => set((s) => ({ cards: s.cards.filter((c) => c.id !== cardId) })),

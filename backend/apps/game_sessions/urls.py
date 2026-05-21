@@ -10,6 +10,7 @@ urlpatterns = [
     path('<int:session_pk>/cards/', CardViewSet.as_view({'get': 'list', 'post': 'create'}), name='session-cards'),
     path('<int:session_pk>/cards/<int:pk>/', CardViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='session-card-detail'),
     path('<int:session_pk>/cards/<int:pk>/publish/', CardViewSet.as_view({'post': 'publish'}), name='card-publish'),
+    path('<int:session_pk>/cards/<int:pk>/pin/', CardViewSet.as_view({'post': 'pin'}), name='card-pin'),
     path('<int:session_pk>/notes/', NoteViewSet.as_view({'get': 'list', 'post': 'create'}), name='session-notes'),
     path('<int:session_pk>/notes/<int:pk>/', NoteViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='session-note-detail'),
     path('<int:session_pk>/threads/', ThreadViewSet.as_view({'get': 'list', 'post': 'create'}), name='session-threads'),

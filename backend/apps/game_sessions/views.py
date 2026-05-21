@@ -204,6 +204,16 @@ class CardViewSet(viewsets.ModelViewSet):
         broadcast(session.id, {'type': 'card.published', 'card': data})
         return Response(data)
 
+    @action(detail=True, methods=['post'])
+    def pin(self, request, session_pk=None, pk=None):
+        card = self.get_object()
+        session = self.get_session()
+        card.is_pinned = not card.is_pinned
+        card.save(update_fields=['is_pinned'])
+        data = CardSerializer(card, context={'request': request}).data
+        broadcast(session.id, {'type': 'card.updated', 'card': data})
+        return Response(data)
+
 
 class ThreadViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]

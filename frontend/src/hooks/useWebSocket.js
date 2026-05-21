@@ -10,6 +10,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
     addThread, removeThread,
     addNote, updateNote, removeNote,
     addConnectedUser,
+    replaceCard,
   } = useTableStore()
 
   useEffect(() => {
@@ -35,6 +36,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
           break
         case 'card.published':
           updateCard(msg.card)
+          break
+        case 'card.updated':
+          replaceCard(msg.card)
           break
         case 'card.deleted':
           removeCard(msg.card_id)
