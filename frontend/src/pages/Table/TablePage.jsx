@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
 import useTableStore from '../../store/tableStore.js'
 import useWebSocket from '../../hooks/useWebSocket.js'
-import { getSession, getCards, getThreads, createCard, rollDice } from '../../api/sessions.js'
+import { getSession, getCards, getThreads, createCard } from '../../api/sessions.js'
 import EvidenceBoard from './EvidenceBoard.jsx'
 
 // ── Constants ──
@@ -223,81 +223,6 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
   )
 }
 
-// ── Dice roller (master only) ──
-
-const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100']
-
-function DiceRoller({ sessionId }) {
-  const [open, setOpen] = useState(false)
-  const [diceType, setDiceType] = useState('d100')
-  const [count, setCount] = useState(1)
-  const [rolling, setRolling] = useState(false)
-
-  async function handleRoll() {
-    setRolling(true)
-    try {
-      await rollDice(sessionId, { dice_type: diceType, count })
-      setOpen(false)
-    } catch {} finally { setRolling(false) }
-  }
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <button
-        className="btn btn--ghost"
-        style={{ padding: '4px 10px', fontSize: 13 }}
-        onClick={() => setOpen((v) => !v)}
-        title="Кинути кубик"
-      >
-        🎲
-      </button>
-      {open && (
-        <div style={{
-          position: 'absolute', top: '110%', right: 0, zIndex: 300,
-          background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
-          padding: 14, width: 220,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-        }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 12 }}>
-            Кубик · Alea
-          </div>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
-            {DICE_TYPES.map((d) => (
-              <button key={d} onClick={() => setDiceType(d)} style={{
-                padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 10,
-                cursor: 'pointer',
-                background: diceType === d ? 'rgba(184,153,104,0.15)' : 'transparent',
-                border: `1px solid ${diceType === d ? 'var(--ochre)' : 'var(--ochre-deep)'}`,
-                color: diceType === d ? 'var(--ochre-bright)' : 'var(--moss-pale)',
-              }}>{d}</button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em' }}>Кількість:</span>
-            <button onClick={() => setCount((c) => Math.max(1, c - 1))} style={{ ...countBtn }}>−</button>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--ochre)', minWidth: 20, textAlign: 'center' }}>{count}</span>
-            <button onClick={() => setCount((c) => Math.min(10, c + 1))} style={{ ...countBtn }}>+</button>
-          </div>
-          <button
-            className="btn btn--primary"
-            style={{ width: '100%', fontSize: 11 }}
-            onClick={handleRoll}
-            disabled={rolling}
-          >
-            {rolling ? '...' : `Кинути ${count}${diceType}`}
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-const countBtn = {
-  background: 'transparent', border: '1px solid var(--ochre-deep)',
-  color: 'var(--moss)', cursor: 'pointer', width: 24, height: 24,
-  fontFamily: 'var(--font-mono)', fontSize: 14, lineHeight: 1,
-}
-
 // ── TablePage ──
 
 export default function TablePage() {
@@ -380,7 +305,6 @@ export default function TablePage() {
           {STATUS_LABELS[session?.status] ?? session?.status}
         </span>
         <div style={{ flex: 1 }} />
-        {isMaster && <DiceRoller sessionId={id} />}
       </div>
 
       {/* Board */}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import useTableStore from '../../store/tableStore'
-import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard } from '../../api/sessions'
+import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice } from '../../api/sessions'
 
 // ── Constants ──
 
@@ -659,6 +659,64 @@ function SaveBar({ onSave, onClose, saving, dirty, dark }) {
   )
 }
 
+// ── Dice popup ──
+
+const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100']
+
+const diceCountBtn = {
+  background: 'transparent', border: '1px solid var(--ochre-deep)',
+  color: 'var(--moss)', cursor: 'pointer', width: 24, height: 24,
+  fontFamily: 'var(--font-mono)', fontSize: 14, lineHeight: 1,
+}
+
+function DicePopup({ sessionId, onClose }) {
+  const [diceType, setDiceType] = useState('d100')
+  const [count, setCount] = useState(1)
+  const [rolling, setRolling] = useState(false)
+
+  async function handleRoll() {
+    setRolling(true)
+    try {
+      await rollDice(sessionId, { dice_type: diceType, count })
+      onClose()
+    } catch {} finally { setRolling(false) }
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 800 }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+        zIndex: 801, background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
+        padding: 20, width: 240, boxShadow: '0 8px 28px rgba(0,0,0,0.7)',
+      }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 14 }}>
+          Кубик · Alea
+        </div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 14 }}>
+          {DICE_TYPES.map((d) => (
+            <button key={d} onClick={() => setDiceType(d)} style={{
+              padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer',
+              background: diceType === d ? 'rgba(184,153,104,0.15)' : 'transparent',
+              border: `1px solid ${diceType === d ? 'var(--ochre)' : 'var(--ochre-deep)'}`,
+              color: diceType === d ? 'var(--ochre-bright)' : 'var(--moss-pale)',
+            }}>{d}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em' }}>Кількість:</span>
+          <button onClick={() => setCount((c) => Math.max(1, c - 1))} style={diceCountBtn}>−</button>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--ochre)', minWidth: 20, textAlign: 'center' }}>{count}</span>
+          <button onClick={() => setCount((c) => Math.min(10, c + 1))} style={diceCountBtn}>+</button>
+        </div>
+        <button className="btn btn--primary" style={{ width: '100%', fontSize: 11 }} onClick={handleRoll} disabled={rolling}>
+          {rolling ? '...' : `Кинути ${count}${diceType}`}
+        </button>
+      </div>
+    </>
+  )
+}
+
 // ── Board context menu (right-click on empty space) ──
 
 const BOARD_CARD_TYPES = [
@@ -668,7 +726,7 @@ const BOARD_CARD_TYPES = [
   { value: 'photo',    label: 'Фото' },
 ]
 
-function BoardContextMenu({ x, y, onSelect, onClose }) {
+function BoardContextMenu({ x, y, onSelect, onClose, onDiceRoll }) {
   return (
     <>
       <div onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose() }} style={{ position: 'fixed', inset: 0, zIndex: 800 }} />
@@ -687,6 +745,12 @@ function BoardContextMenu({ x, y, onSelect, onClose }) {
         {BOARD_CARD_TYPES.map((t) => (
           <CtxItem key={t.value} label={t.label} onClick={() => { onSelect(t.value); onClose() }} />
         ))}
+        {onDiceRoll && (
+          <>
+            <div style={{ borderTop: '1px solid rgba(184,153,104,0.15)', margin: '2px 0' }} />
+            <CtxItem label="🎲 Кинути кубик" onClick={() => { onDiceRoll(); onClose() }} />
+          </>
+        )}
       </div>
     </>
   )
@@ -815,6 +879,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
   const [tab, setTab] = useState('public')
   const [contextMenu, setContextMenu] = useState(null)
   const [boardMenu, setBoardMenu] = useState(null)
+  const [diceOpen, setDiceOpen] = useState(false)
   const stageRef = useRef(null)
   const moveTimer = useRef(null)
   const zoomRef = useRef(zoom)
@@ -1156,6 +1221,11 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
         />
       )}
 
+      {/* ── Dice popup ── */}
+      {diceOpen && isMaster && (
+        <DicePopup sessionId={sessionId} onClose={() => setDiceOpen(false)} />
+      )}
+
       {/* ── Board context menu ── */}
       {boardMenu && (
         <BoardContextMenu
@@ -1163,6 +1233,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
           y={boardMenu.y}
           onSelect={(type) => onBoardCreate?.(type, boardMenu.boardX, boardMenu.boardY, tab)}
           onClose={() => setBoardMenu(null)}
+          onDiceRoll={isMaster ? () => setDiceOpen(true) : undefined}
         />
       )}
 
