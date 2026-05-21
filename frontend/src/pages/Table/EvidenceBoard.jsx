@@ -1154,7 +1154,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
         <BoardContextMenu
           x={boardMenu.x}
           y={boardMenu.y}
-          onSelect={(type) => onBoardCreate?.(type, boardMenu.boardX, boardMenu.boardY)}
+          onSelect={(type) => onBoardCreate?.(type, boardMenu.boardX, boardMenu.boardY, tab)}
           onClose={() => setBoardMenu(null)}
         />
       )}

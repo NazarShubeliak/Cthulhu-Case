@@ -19,7 +19,7 @@ const STATUS_LABELS = { lobby: 'Лобі', active: 'Активна', closed: 'З
 
 // ── Create card form (master only) ──
 
-function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated, open, onClose, initialType, initialPos }) {
+function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated, open, onClose, initialType, initialPos, initialTarget }) {
   const [type, setType] = useState(initialType ?? 'document')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -35,7 +35,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
       setType(initialType ?? 'document')
       setTitle(''); setContent(''); setImageFile(null); setImagePreview(null)
       setNpc({ role: '', age: '', status: '', appearance: '', character: '', connections: '', secret: '' })
-      setTarget('public'); setError('')
+      setTarget(initialTarget ?? 'public'); setError('')
     }
   }, [open, initialType])
 
@@ -479,8 +479,8 @@ export default function TablePage() {
           currentUserId={user?.id}
           connectedUsers={connectedUsers}
           sessionName={session?.name ?? ''}
-          onBoardCreate={(type, boardX, boardY) =>
-            setCreateConfig({ open: true, type, pos: { x: boardX, y: boardY } })
+          onBoardCreate={(type, boardX, boardY, tab) =>
+            setCreateConfig({ open: true, type, pos: { x: boardX, y: boardY }, tab })
           }
         />
       </div>
@@ -490,6 +490,7 @@ export default function TablePage() {
         onClose={() => setCreateConfig((c) => ({ ...c, open: false }))}
         initialType={createConfig.type}
         initialPos={createConfig.pos}
+        initialTarget={createConfig.tab === 'personal' ? 'personal' : 'public'}
         sessionId={id}
         isMaster={isMaster}
         currentUserId={user?.id}
