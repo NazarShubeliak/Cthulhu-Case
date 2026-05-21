@@ -26,7 +26,6 @@ class Migration(migrations.Migration):
                 ('players', models.ManyToManyField(blank=True, related_name='joined_sessions', to=settings.AUTH_USER_MODEL)),
             ],
             options={
-                'db_table': 'sessions',
                 'ordering': ['-created_at'],
             },
         ),

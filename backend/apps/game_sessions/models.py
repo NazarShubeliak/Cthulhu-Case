@@ -38,7 +38,6 @@ class Session(models.Model):
         super().save(*args, **kwargs)
 
     class Meta:
-        db_table = 'sessions'
         ordering = ['-created_at']
 
     def __str__(self):

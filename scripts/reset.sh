@@ -28,14 +28,15 @@ fi
 echo -e "\n${CYAN}[3/4] Starting containers...${NC}"
 docker compose up -d
 
-echo -e "\n${CYAN}[4/4] Waiting for DB to be ready...${NC}"
-for i in $(seq 1 20); do
-    docker compose exec -T db pg_isready 2>/dev/null | grep -q "accepting connections" && break
-    echo "  waiting... ($i/20)"
+echo -e "\n${CYAN}[4/4] Waiting for migrations to complete...${NC}"
+for i in $(seq 1 30); do
+    status=$(docker compose ps web --format json 2>/dev/null | grep -o '"Health":"[^"]*"' | head -1 || true)
+    if docker compose logs web 2>/dev/null | grep -q "Listening on TCP address"; then
+        break
+    fi
+    echo "  waiting... ($i/30)"
     sleep 2
 done
-
-docker compose exec web python manage.py migrate
 
 echo -e "\n${GREEN}Reset complete.${NC}"
 echo -e "  Frontend : http://localhost:3000"
