@@ -12,7 +12,13 @@ const useTableStore = create((set) => ({
 
   addCard: (card) => set((s) => ({
     cards: s.cards.find((c) => c.id === card.id)
-      ? s.cards.map((c) => (c.id === card.id ? card : c))
+      ? s.cards.map((c) => {
+          if (c.id !== card.id) return c
+          // preserve position if card was already moved and incoming has default (0,0)
+          const pos_x = (card.pos_x === 0 && c.pos_x !== 0) ? c.pos_x : card.pos_x
+          const pos_y = (card.pos_y === 0 && c.pos_y !== 0) ? c.pos_y : card.pos_y
+          return { ...card, pos_x, pos_y }
+        })
       : [card, ...s.cards],
   })),
   updateCard: (card) => set((s) => ({ cards: s.cards.map((c) => (c.id === card.id ? card : c)) })),

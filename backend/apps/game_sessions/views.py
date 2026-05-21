@@ -1,3 +1,4 @@
+import random
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from rest_framework import viewsets, status
@@ -108,6 +109,29 @@ class SessionViewSet(viewsets.ModelViewSet):
         session.status = 'closed'
         session.save()
         return Response(SessionDetailSerializer(session, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'])
+    def roll(self, request, pk=None):
+        session = self.get_object()
+        if session.master != request.user:
+            return Response({'error': 'Тільки майстер може кидати кубики на столі.'}, status=status.HTTP_403_FORBIDDEN)
+        DICE = {'d4': 4, 'd6': 6, 'd8': 8, 'd10': 10, 'd100': 100}
+        dice_type = request.data.get('dice_type', 'd100')
+        if dice_type not in DICE:
+            return Response({'error': 'Невідомий тип кубика.'}, status=status.HTTP_400_BAD_REQUEST)
+        count = max(1, min(10, int(request.data.get('count', 1))))
+        sides = DICE[dice_type]
+        results = [random.randint(1, sides) for _ in range(count)]
+        total = sum(results)
+        payload = {
+            'dice_type': dice_type, 'count': count,
+            'results': results, 'total': total,
+            'rolled_by': request.user.username,
+        }
+        async_to_sync(get_channel_layer().group_send)(
+            f'session_{pk}', {'type': 'dice.rolled', **payload}
+        )
+        return Response(payload)
 
 
 class CardViewSet(viewsets.ModelViewSet):

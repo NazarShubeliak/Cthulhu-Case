@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import useTableStore from '../../store/tableStore'
-import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard } from '../../api/sessions'
+import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard } from '../../api/sessions'
 
 // ── Constants ──
 
@@ -33,7 +33,7 @@ const KIND_LAT = {
   npc: 'Persona',
 }
 
-const KIND_ROT = { document: 0, photo: 2, note: -2, npc: 0 }
+const KIND_ROT = { document: -1, photo: 2, note: -2, npc: 1 }
 
 // ── Thread SVG layer ──
 
@@ -155,7 +155,7 @@ function CardActions({ card, isMaster, isOwn, isCreator, onPublish, onDelete }) 
 function DocumentCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
   return (
     <div style={{
-      background: '#f5f0e0',
+      background: '#f6f2e4',
       color: '#1a1208',
       width: DOC_W,
       minHeight: DOC_H,
@@ -242,7 +242,7 @@ function NpcCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPu
 
   return (
     <div style={{
-      background: '#ede5d5',
+      background: '#ddd0b8',
       color: '#1a1208',
       width: NPC_W,
       minHeight: NPC_H,
@@ -252,7 +252,7 @@ function NpcCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPu
         ? '0 0 0 2px var(--blood), 0 8px 20px rgba(0,0,0,0.5)'
         : '2px 4px 8px rgba(0,0,0,0.4), 4px 8px 24px rgba(0,0,0,0.35)',
       display: 'flex', flexDirection: 'column',
-      border: '1px solid #b0a070',
+      border: '1px solid #9a8860',
       overflow: 'hidden',
       position: 'relative',
     }}>
@@ -547,9 +547,176 @@ function btnStyle(color) {
   }
 }
 
+// ── Full view / edit modal ──
+
+const fvInput = (extra = {}) => ({
+  background: 'transparent', border: 'none', borderBottom: '1px solid rgba(122,98,64,0.35)',
+  outline: 'none', width: '100%', color: 'inherit', fontFamily: 'inherit',
+  fontSize: 'inherit', lineHeight: 'inherit', resize: 'vertical', padding: '2px 0',
+  ...extra,
+})
+
+function CardFullView({ card, isMaster, sessionId, onClose, onSaved }) {
+  const initNpc = () => {
+    const d = parseNpcContent(card.content)
+    return { role: d.role ?? '', age: d.age ?? '', status: d.status ?? '',
+             appearance: d.appearance ?? '', character: d.character ?? '',
+             connections: d.connections ?? '', secret: d.secret ?? '' }
+  }
+
+  const [title, setTitle] = useState(card.title)
+  const [content, setContent] = useState(card.content ?? '')
+  const [npc, setNpc] = useState(initNpc)
+  const [saving, setSaving] = useState(false)
+  const canEdit = card.type !== 'photo'
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const finalContent = card.type === 'npc'
+        ? JSON.stringify({
+            role: npc.role.trim(), age: npc.age.trim(), status: npc.status.trim(),
+            appearance: npc.appearance.trim(), character: npc.character.trim(),
+            connections: npc.connections.trim(), secret: npc.secret.trim(),
+          })
+        : content
+      const res = await apiUpdateCard(sessionId, card.id, { title: title.trim(), content: finalContent })
+      useTableStore.getState().updateCard(res.data)
+      onSaved(res.data)
+      onClose()
+    } catch {} finally { setSaving(false) }
+  }
+
+  function setNpcField(f, v) { setNpc((p) => ({ ...p, [f]: v })) }
+
+  const dirty = canEdit && (
+    title !== card.title || content !== (card.content ?? '') ||
+    (card.type === 'npc' && JSON.stringify(npc) !== JSON.stringify(initNpc()))
+  )
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 500,
+      background: 'rgba(0,0,0,0.72)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 40,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* ── Document ── */}
+        {card.type === 'document' && (
+          <div style={{ background: '#f6f2e4', width: 560, padding: '48px 56px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', borderLeft: '4px solid #c8b890' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.3em', textTransform: 'uppercase', color: '#8a7450', borderBottom: '1px solid #c8b890', paddingBottom: 8, marginBottom: 20, display: 'flex', justifyContent: 'space-between' }}>
+              <span>Documentum</span><span>{card.created_by?.username ?? ''}</span>
+            </div>
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              style={{ ...fvInput(), fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 24, color: '#1a1208', marginBottom: 20, paddingBottom: 10, borderBottom: '1px solid #d4c8a0' }} />
+            <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={14}
+              style={{ ...fvInput(), fontFamily: 'Georgia, serif', fontSize: 14, lineHeight: 1.9, color: '#2a2010' }} />
+            <SaveBar onSave={handleSave} onClose={onClose} saving={saving} dirty={dirty} />
+          </div>
+        )}
+
+        {/* ── Note ── */}
+        {card.type === 'note' && (
+          <div style={{ background: '#ecdfc0', width: 420, padding: '32px 36px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', transform: 'rotate(-1deg)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.28em', textTransform: 'uppercase', color: '#7a6440', marginBottom: 14 }}>Nota</div>
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              style={{ ...fvInput(), fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 22, color: '#1f1a10', marginBottom: 14 }} />
+            <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={6}
+              style={{ ...fvInput(), fontFamily: 'var(--font-mono)', fontSize: 13, lineHeight: 1.7, color: '#3a2e1c' }} />
+            <SaveBar onSave={handleSave} onClose={onClose} saving={saving} dirty={dirty} dark />
+          </div>
+        )}
+
+        {/* ── Photo (read-only) ── */}
+        {card.type === 'photo' && (
+          <div style={{ background: '#f8f4ec', padding: '16px 16px 12px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', maxWidth: 640 }}>
+            {card.image
+              ? <img src={card.image} alt={card.title} style={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
+              : <div style={{ width: 400, height: 300, background: '#c8c0b0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a8070', fontFamily: 'var(--font-mono)', fontSize: 10 }}>немає зображення</div>
+            }
+            <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 16, color: '#2a2010', marginTop: 12, textAlign: 'center' }}>{card.title}</div>
+            <button onClick={onClose} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: '1px solid #9a8860', color: '#7a6440', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: 'pointer' }}>Закрити</button>
+          </div>
+        )}
+
+        {/* ── NPC dossier ── */}
+        {card.type === 'npc' && (
+          <div style={{ background: '#ddd0b8', width: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', border: '1px solid #9a8860', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%,-50%) rotate(-18deg)', fontFamily: 'var(--font-mono)', fontSize: 72, fontWeight: 'bold', letterSpacing: '0.18em', color: 'rgba(122,42,37,0.06)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>ДОСЬЄ</div>
+            <div style={{ background: '#1e1608', color: '#c8a84a', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.32em', textTransform: 'uppercase', padding: '8px 20px', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Особова справа · Persona</span>
+              <span style={{ opacity: 0.5 }}>{card.created_by?.username ?? ''}</span>
+            </div>
+            <div style={{ padding: '24px 28px', position: 'relative' }}>
+              <div style={{ display: 'flex', gap: 20, marginBottom: 20, paddingBottom: 16, borderBottom: '2px solid #9a8860' }}>
+                <div style={{ width: 100, height: 126, flexShrink: 0, border: '1px dashed #9a8860', background: 'rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <input value={title} onChange={(e) => setTitle(e.target.value)}
+                    style={{ ...fvInput(), fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 24, color: '#1a1208', marginBottom: 8 }} placeholder="Ім'я..." />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 8, marginBottom: 8 }}>
+                    <input value={npc.role} onChange={(e) => setNpcField('role', e.target.value)} placeholder="Роль / Посада..."
+                      style={{ ...fvInput(), fontFamily: 'var(--font-mono)', fontSize: 11, color: '#5a4820' }} />
+                    <input value={npc.age} onChange={(e) => setNpcField('age', e.target.value)} placeholder="Вік..."
+                      style={{ ...fvInput(), fontFamily: 'var(--font-mono)', fontSize: 11, color: '#8a7450' }} />
+                  </div>
+                  <select value={npc.status} onChange={(e) => setNpcField('status', e.target.value)}
+                    style={{ ...fvInput({ resize: 'none' }), fontFamily: 'var(--font-mono)', fontSize: 10, color: STATUS_COLOR[npc.status] ?? '#5a5040' }}>
+                    <option value="">— статус —</option>
+                    {Object.keys(STATUS_COLOR).map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+              {[['Зовнішність', 'appearance'], ['Характер', 'character'], ["Зв'язки", 'connections']].map(([label, field]) => (
+                <div key={field} style={{ marginBottom: 14 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#8a7450', marginBottom: 4 }}>{label}</div>
+                  <textarea value={npc[field]} onChange={(e) => setNpcField(field, e.target.value)} rows={2} placeholder="невідомо"
+                    style={{ ...fvInput(), fontFamily: 'Georgia, serif', fontSize: 13, lineHeight: 1.6, color: '#2a2010' }} />
+                </div>
+              ))}
+              {isMaster && (
+                <div style={{ marginTop: 4, padding: '10px 14px', background: 'rgba(122,42,37,0.1)', borderLeft: '3px solid rgba(122,42,37,0.4)' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(196,100,90,0.8)', marginBottom: 4 }}>Секрет</div>
+                  <textarea value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} rows={2} placeholder="невідомо"
+                    style={{ ...fvInput(), fontFamily: 'Georgia, serif', fontSize: 13, lineHeight: 1.6, color: '#3a1008' }} />
+                </div>
+              )}
+              <SaveBar onSave={handleSave} onClose={onClose} saving={saving} dirty={dirty} />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SaveBar({ onSave, onClose, saving, dirty, dark }) {
+  const color = dark ? '#5a4820' : '#7a6440'
+  const border = dark ? 'rgba(90,72,32,0.3)' : 'rgba(122,98,64,0.3)'
+  return (
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16, paddingTop: 12, borderTop: `1px solid ${border}` }}>
+      <button onClick={onClose} style={{ background: 'none', border: `1px solid ${border}`, color, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: 'pointer' }}>
+        Закрити
+      </button>
+      <button onClick={onSave} disabled={saving || !dirty} style={{ background: dirty ? 'rgba(122,98,64,0.15)' : 'none', border: `1px solid ${dirty ? color : border}`, color: dirty ? color : border, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: dirty ? 'pointer' : 'default' }}>
+        {saving ? 'Збереження...' : 'Зберегти'}
+      </button>
+    </div>
+  )
+}
+
 // ── Detail rail (bottom bar) ──
 
-function DetailRail({ card, onConnect, connectMode, onCancelConnect }) {
+function DetailRail({ card, isMaster, onConnect, connectMode, onCancelConnect, onFullView }) {
   if (!card) {
     return (
       <div style={railStyle}>
@@ -579,6 +746,9 @@ function DetailRail({ card, onConnect, connectMode, onCancelConnect }) {
         )}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={onFullView}>
+          🔍 Переглянути
+        </button>
         {connectMode ? (
           <>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--blood)', letterSpacing: '0.18em', alignSelf: 'center' }}>
@@ -616,14 +786,47 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [panning, setPanning] = useState(null)
   const [connectMode, setConnectMode] = useState(false)
+  const [fullViewCard, setFullViewCard] = useState(null)
   const [tab, setTab] = useState('public')
   const stageRef = useRef(null)
   const moveTimer = useRef(null)
+  const zoomRef = useRef(zoom)
+  const panRef = useRef(pan)
+  useEffect(() => { zoomRef.current = zoom }, [zoom])
+  useEffect(() => { panRef.current = pan }, [pan])
+
+  // ── Auto-position new cards at view center ──
+  const seenCardIds = useRef(null)
+  useEffect(() => {
+    if (seenCardIds.current === null) {
+      seenCardIds.current = new Set(cards.map((c) => c.id))
+      return
+    }
+    const newCards = cards.filter((c) => !seenCardIds.current.has(c.id))
+    newCards.forEach((c) => seenCardIds.current.add(c.id))
+    if (newCards.length === 0) return
+
+    const el = stageRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const z = zoomRef.current
+    const p = panRef.current
+
+    newCards.forEach((card, i) => {
+      if (card.pos_x !== 0 || card.pos_y !== 0) return
+      const dims = cardDims(card.type)
+      const nx = (rect.width / 2 - p.x) / z - dims.w / 2 + i * 24
+      const ny = (rect.height / 2 - p.y) / z - dims.h / 2 + i * 24
+      useTableStore.getState().moveCard(card.id, nx, ny)
+      apiMoveCard(sessionId, card.id, nx, ny).catch(() => {})
+    })
+  }, [cards, sessionId])
 
   const selectedCard = cards.find((c) => c.id === selectedId) ?? null
 
-  // ── Drag card ──
+  // ── Drag card (left click only) ──
   const onCardMouseDown = useCallback((e, cardId) => {
+    if (e.button !== 0) return  // middle/right click falls through to stage pan
     if (e.target.closest('.no-drag')) return
     if (connectMode) return
     e.stopPropagation()
@@ -662,8 +865,14 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
     }
   }, [dragging, zoom, sessionId])
 
-  // ── Pan stage ──
+  // ── Pan stage (left click on bg OR middle click anywhere) ──
   const onStageMouseDown = useCallback((e) => {
+    if (e.button === 1) {
+      e.preventDefault()
+      setPanning({ startX: e.clientX - pan.x, startY: e.clientY - pan.y })
+      return
+    }
+    if (e.button !== 0) return
     if (e.target !== stageRef.current && !e.target.classList.contains('board-inner')) return
     setSelectedId(null)
     setPanning({ startX: e.clientX - pan.x, startY: e.clientY - pan.y })
@@ -680,6 +889,29 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
       window.removeEventListener('mouseup', onUp)
     }
   }, [panning])
+
+  // ── Scroll wheel zoom toward cursor ──
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const onWheel = (e) => {
+      e.preventDefault()
+      const z = zoomRef.current
+      const p = panRef.current
+      const delta = e.deltaY < 0 ? 0.08 : -0.08
+      const newZoom = Math.max(0.3, Math.min(1.6, +(z + delta).toFixed(2)))
+      const rect = el.getBoundingClientRect()
+      const cx = e.clientX - rect.left
+      const cy = e.clientY - rect.top
+      setZoom(newZoom)
+      setPan({
+        x: cx - (cx - p.x) * (newZoom / z),
+        y: cy - (cy - p.y) * (newZoom / z),
+      })
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
 
   // ── Connect mode: click card to create thread ──
   const handleCardClick = useCallback(async (e, cardId) => {
@@ -852,10 +1084,23 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
       {/* ── Detail rail ── */}
       <DetailRail
         card={selectedCard}
+        isMaster={isMaster}
         connectMode={connectMode}
         onConnect={() => setConnectMode(true)}
         onCancelConnect={() => setConnectMode(false)}
+        onFullView={() => selectedCard && setFullViewCard(selectedCard)}
       />
+
+      {/* ── Full view modal ── */}
+      {fullViewCard && (
+        <CardFullView
+          card={fullViewCard}
+          isMaster={isMaster}
+          sessionId={sessionId}
+          onClose={() => setFullViewCard(null)}
+          onSaved={(updated) => setFullViewCard(updated)}
+        />
+      )}
     </div>
   )
 }

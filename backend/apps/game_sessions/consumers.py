@@ -81,6 +81,16 @@ class TableConsumer(AsyncWebsocketConsumer):
             'username': event['username'],
         }))
 
+    async def dice_rolled(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'dice.rolled',
+            'dice_type': event['dice_type'],
+            'count': event['count'],
+            'results': event['results'],
+            'total': event['total'],
+            'rolled_by': event['rolled_by'],
+        }))
+
     # ── Helpers ──
 
     @database_sync_to_async

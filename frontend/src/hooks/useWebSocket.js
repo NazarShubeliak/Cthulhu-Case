@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import useAuthStore from '../store/authStore'
 import useTableStore from '../store/tableStore'
 
-export default function useWebSocket(sessionId, currentUserId) {
+export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
   const wsRef = useRef(null)
   const accessToken = useAuthStore((s) => s.accessToken)
   const {
@@ -56,6 +56,9 @@ export default function useWebSocket(sessionId, currentUserId) {
           break
         case 'player.joined':
           addConnectedUser({ user_id: msg.user_id, username: msg.username })
+          break
+        case 'dice.rolled':
+          if (onDiceRolled) onDiceRolled(msg)
           break
         default:
           break

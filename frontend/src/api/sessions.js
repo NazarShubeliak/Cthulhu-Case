@@ -9,6 +9,7 @@ export const deleteSession = (id) => api.delete(`/sessions/${id}/`)
 export const joinByCode = (code) => api.post('/sessions/join-by-code/', { code })
 export const startSession = (id) => api.post(`/sessions/${id}/start/`)
 export const closeSession = (id) => api.post(`/sessions/${id}/close/`)
+export const rollDice = (id, data) => api.post(`/sessions/${id}/roll/`, data)
 
 export const getCards = (sessionId) => api.get(`/sessions/${sessionId}/cards/`)
 export const createCard = (sessionId, data) => {
