@@ -13,7 +13,6 @@ const CARD_TYPES = [
   { value: 'photo', label: 'Фото' },
   { value: 'note', label: 'Нотатка' },
   { value: 'npc', label: 'НПС' },
-  { value: 'location', label: 'Локація' },
 ]
 
 const STATUS_LABELS = { lobby: 'Лобі', active: 'Активна', closed: 'Закрита' }
@@ -25,9 +24,18 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
   const [type, setType] = useState('document')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [npc, setNpc] = useState({ role: '', age: '', status: '', appearance: '', character: '', connections: '', secret: '' })
   const [target, setTarget] = useState('public')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  function setNpcField(field, value) { setNpc((p) => ({ ...p, [field]: value })) }
+
+  function resetForm() {
+    setTitle(''); setContent('')
+    setNpc({ role: '', age: '', status: '', appearance: '', character: '', connections: '', secret: '' })
+    setTarget('public'); setType('document')
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -35,23 +43,26 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
     setLoading(true)
     setError('')
     try {
-      const payload = { type, title: title.trim(), content: content.trim() }
+      const finalContent = type === 'npc'
+        ? JSON.stringify({
+            role: npc.role.trim(), age: npc.age.trim(), status: npc.status.trim(),
+            appearance: npc.appearance.trim(), character: npc.character.trim(),
+            connections: npc.connections.trim(), secret: npc.secret.trim(),
+          })
+        : content.trim()
+      const payload = { type, title: title.trim(), content: finalContent }
       if (target === 'public') {
         payload.is_public = true
       } else if (target === 'personal') {
         payload.is_public = false
         payload.owner_id = currentUserId
       } else {
-        // master sending to specific player
         payload.owner_id = parseInt(target, 10)
         payload.is_public = false
       }
       const res = await createCard(sessionId, payload)
       onCreated(res.data)
-      setTitle('')
-      setContent('')
-      setTarget('public')
-      setType('document')
+      resetForm()
       setOpen(false)
     } catch (err) {
       setError(err.response?.data?.detail || 'Помилка створення картки.')
@@ -76,14 +87,15 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
     <div style={{
       position: 'fixed', bottom: 70, right: 24, zIndex: 200,
       background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
-      padding: 20, width: 320,
+      padding: 20, width: 340,
       boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+      maxHeight: 'calc(100vh - 100px)', overflowY: 'auto',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
           Нова картка · Nova Charta
         </span>
-        <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 16 }}>×</button>
+        <button onClick={() => { setOpen(false); resetForm() }} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 16 }}>×</button>
       </div>
       {error && <div className="auth-error" style={{ marginBottom: 10 }}>{error}</div>}
       <form onSubmit={handleSubmit}>
@@ -105,14 +117,58 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
             </select>
           </div>
         </div>
+
         <div className="form-group">
-          <label className="form-label">Назва</label>
-          <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Заголовок..." />
+          <label className="form-label">{type === 'npc' ? 'Ім\'я' : 'Назва'}</label>
+          <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === 'npc' ? 'Ім\'я персонажа...' : 'Заголовок...'} />
         </div>
-        <div className="form-group" style={{ marginBottom: 12 }}>
-          <label className="form-label">Зміст</label>
-          <textarea className="form-input" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Текст..." rows={3} />
-        </div>
+
+        {type === 'npc' ? (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="form-label">Роль / Посада</label>
+                <input className="form-input" value={npc.role} onChange={(e) => setNpcField('role', e.target.value)} placeholder="Детектив, крамар..." />
+              </div>
+              <div className="form-group" style={{ marginBottom: 10 }}>
+                <label className="form-label">Вік</label>
+                <input className="form-input" value={npc.age} onChange={(e) => setNpcField('age', e.target.value)} placeholder="35..." />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Статус</label>
+              <select className="form-input" value={npc.status} onChange={(e) => setNpcField('status', e.target.value)}>
+                <option value="">— невідомо —</option>
+                <option value="живий">Живий</option>
+                <option value="мертвий">Мертвий</option>
+                <option value="зниклий">Зниклий</option>
+                <option value="підозрюваний">Підозрюваний</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Зовнішність</label>
+              <textarea className="form-input" value={npc.appearance} onChange={(e) => setNpcField('appearance', e.target.value)} placeholder="Як виглядає, одяг, особливі прикмети..." rows={2} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Характер</label>
+              <textarea className="form-input" value={npc.character} onChange={(e) => setNpcField('character', e.target.value)} placeholder="Поведінка, манери, страхи..." rows={2} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Зв&apos;язки</label>
+              <textarea className="form-input" value={npc.connections} onChange={(e) => setNpcField('connections', e.target.value)} placeholder="З ким пов'язаний, де буває..." rows={2} />
+            </div>
+            <div className="form-group" style={{ marginBottom: 12 }}>
+              <label className="form-label" style={{ color: 'rgba(196,122,114,0.8)' }}>Секрет</label>
+              <textarea className="form-input" value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} placeholder="Що приховує..." rows={2} style={{ borderColor: 'rgba(122,42,37,0.5)' }} />
+            </div>
+          </>
+        ) : (
+          <div className="form-group" style={{ marginBottom: 12 }}>
+            <label className="form-label">Зміст</label>
+            <textarea className="form-input" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Текст..." rows={type === 'document' ? 5 : 3} />
+          </div>
+        )}
+
         <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim()}>
           {loading ? 'Збереження...' : 'Додати картку'}
         </button>

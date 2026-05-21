@@ -7,12 +7,20 @@ import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, delet
 const CARD_W = 240
 const CARD_H = 190
 
+const DOC_W = 260
+const DOC_H = 340
+
+const NPC_W = 300
+const NPC_H = 420
+
+const NOTE_W = 200
+const NOTE_H = 160
+
 const KIND_COLOR = {
-  document: '#f0e6c8',
+  document: '#f5f0e0',
   photo: '#d8d4cc',
   note: '#ecdfc0',
-  npc: '#e4d8c0',
-  location: '#d8e4d0',
+  npc: '#e8e0d0',
 }
 
 const KIND_LAT = {
@@ -20,12 +28,18 @@ const KIND_LAT = {
   photo: 'Imago',
   note: 'Nota',
   npc: 'Persona',
-  location: 'Locus',
 }
 
-const KIND_ROT = { document: -2, photo: 2, note: -1, npc: 1, location: 3 }
+const KIND_ROT = { document: 0, photo: 2, note: -2, npc: 0 }
 
 // ── Thread SVG layer ──
+
+function cardDims(type) {
+  if (type === 'document') return { w: DOC_W, h: DOC_H }
+  if (type === 'npc') return { w: NPC_W, h: NPC_H }
+  if (type === 'note') return { w: NOTE_W, h: NOTE_H }
+  return { w: CARD_W, h: CARD_H }
+}
 
 function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, sessionId }) {
   return (
@@ -43,10 +57,11 @@ function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, sessionId }) {
         const from = cards.find((c) => c.id === (t.card_from?.id ?? t.card_from))
         const to = cards.find((c) => c.id === (t.card_to?.id ?? t.card_to))
         if (!from || !to) return null
-        const x1 = from.pos_x + CARD_W / 2
-        const y1 = from.pos_y + CARD_H / 2
-        const x2 = to.pos_x + CARD_W / 2
-        const y2 = to.pos_y + CARD_H / 2
+        const fd = cardDims(from.type); const td = cardDims(to.type)
+        const x1 = from.pos_x + fd.w / 2
+        const y1 = from.pos_y + fd.h / 2
+        const x2 = to.pos_x + td.w / 2
+        const y2 = to.pos_y + td.h / 2
         const midX = (x1 + x2) / 2
         const midY = (y1 + y2) / 2
         const dx = x2 - x1
@@ -105,8 +120,315 @@ function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, sessionId }) {
 
 // ── Cork card ──
 
+function CardActions({ card, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+  return (
+    <div
+      className="no-drag"
+      style={{
+        display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8,
+        paddingTop: 6, borderTop: '1px dashed #7a6440',
+        pointerEvents: 'all',
+      }}
+    >
+      {isMaster && !card.is_public && (
+        <button onClick={onPublish} style={btnStyle('#7a6440')}>На стіл</button>
+      )}
+      {!isMaster && isOwn && !card.is_public && (
+        <button onClick={onPublish} style={btnStyle('#7a6440')}>Винести</button>
+      )}
+      {(isMaster || isCreator) && (
+        <button onClick={onDelete} style={btnStyle('#a04040')}>×</button>
+      )}
+      {!card.is_public && (
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#a08050', letterSpacing: '0.14em', alignSelf: 'center' }}>
+          приватна
+        </span>
+      )}
+    </div>
+  )
+}
+
+function DocumentCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+  return (
+    <div style={{
+      background: '#f5f0e0',
+      color: '#1a1208',
+      width: DOC_W,
+      minHeight: DOC_H,
+      padding: '20px 22px 14px',
+      boxShadow: selected
+        ? '0 0 0 2px var(--ochre), 0 12px 32px rgba(0,0,0,0.75)'
+        : connectMode
+        ? '0 0 0 2px var(--blood), 0 8px 20px rgba(0,0,0,0.5)'
+        : '2px 4px 8px rgba(0,0,0,0.4), 4px 8px 24px rgba(0,0,0,0.35)',
+      display: 'flex', flexDirection: 'column',
+      borderLeft: '3px solid #c8b890',
+    }}>
+      {/* Header line */}
+      <div style={{
+        fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.3em',
+        textTransform: 'uppercase', color: '#8a7450',
+        borderBottom: '1px solid #c8b890', paddingBottom: 6, marginBottom: 10,
+        display: 'flex', justifyContent: 'space-between',
+      }}>
+        <span>Documentum</span>
+        <span style={{ letterSpacing: '0.1em' }}>{card.created_by?.username ?? ''}</span>
+      </div>
+
+      <div style={{
+        fontFamily: 'var(--font-display)', fontStyle: 'italic',
+        fontSize: 17, lineHeight: 1.2, color: '#1a1208', marginBottom: 12,
+        borderBottom: '1px solid #d4c8a0', paddingBottom: 8,
+      }}>
+        {card.title}
+      </div>
+
+      {card.content && (
+        <div style={{
+          fontFamily: 'var(--font-body, Georgia, serif)', fontSize: 12,
+          lineHeight: 1.7, color: '#2a2010', flex: 1,
+          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+        }}>
+          {card.content}
+        </div>
+      )}
+
+      <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
+    </div>
+  )
+}
+
+const STATUS_COLOR = {
+  'живий': '#3a6040',
+  'мертвий': '#7a2a25',
+  'зниклий': '#6a5020',
+  'підозрюваний': '#4a3a70',
+}
+
+function parseNpcContent(raw) {
+  if (!raw) return {}
+  try { return JSON.parse(raw) } catch { return {} }
+}
+
+function NpcField({ label, value, secret }) {
+  const text = value || 'невідомо'
+  return (
+    <div style={{ marginBottom: 7 }}>
+      <div style={{
+        fontFamily: 'var(--font-mono)', fontSize: 7.5, letterSpacing: '0.22em',
+        textTransform: 'uppercase', marginBottom: 2,
+        color: secret ? 'rgba(196,100,90,0.7)' : '#8a7450',
+      }}>{label}</div>
+      <div style={{
+        fontFamily: 'Georgia, serif', fontSize: 11,
+        lineHeight: 1.5, color: secret ? '#5a1a15' : '#2a2010',
+        background: secret ? 'rgba(122,42,37,0.08)' : 'transparent',
+        padding: secret ? '3px 5px' : 0,
+        borderLeft: secret ? '2px solid rgba(122,42,37,0.3)' : 'none',
+        fontStyle: value ? 'normal' : 'italic',
+        opacity: value ? 1 : 0.5,
+      }}>{text}</div>
+    </div>
+  )
+}
+
+function NpcCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+  const d = parseNpcContent(card.content)
+  const statusColor = STATUS_COLOR[d.status] ?? '#5a5040'
+
+  return (
+    <div style={{
+      background: '#ede5d5',
+      color: '#1a1208',
+      width: NPC_W,
+      minHeight: NPC_H,
+      boxShadow: selected
+        ? '0 0 0 2px var(--ochre), 0 12px 32px rgba(0,0,0,0.75)'
+        : connectMode
+        ? '0 0 0 2px var(--blood), 0 8px 20px rgba(0,0,0,0.5)'
+        : '2px 4px 8px rgba(0,0,0,0.4), 4px 8px 24px rgba(0,0,0,0.35)',
+      display: 'flex', flexDirection: 'column',
+      border: '1px solid #b0a070',
+      overflow: 'hidden',
+      position: 'relative',
+    }}>
+
+      {/* Watermark stamp */}
+      <div style={{
+        position: 'absolute', top: '38%', left: '50%',
+        transform: 'translate(-50%, -50%) rotate(-18deg)',
+        fontFamily: 'var(--font-mono)', fontSize: 36, fontWeight: 'bold',
+        letterSpacing: '0.18em', textTransform: 'uppercase',
+        color: 'rgba(122,42,37,0.07)', pointerEvents: 'none',
+        whiteSpace: 'nowrap', zIndex: 0,
+      }}>ДОСЬЄ</div>
+
+      {/* Header bar */}
+      <div style={{
+        background: '#1e1608', color: '#c8a84a',
+        fontFamily: 'var(--font-mono)', fontSize: 8,
+        letterSpacing: '0.32em', textTransform: 'uppercase',
+        padding: '5px 12px', display: 'flex', justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
+        <span>Особова справа · Persona</span>
+        <span style={{ opacity: 0.5 }}>{card.created_by?.username ?? ''}</span>
+      </div>
+
+      <div style={{ padding: '12px 14px 10px', display: 'flex', flexDirection: 'column', flex: 1, position: 'relative', zIndex: 1 }}>
+
+        {/* Photo + name block */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #b8a878' }}>
+          {/* Photo placeholder */}
+          <div style={{
+            width: 64, height: 80, flexShrink: 0,
+            border: '1px dashed #9a8860',
+            background: 'rgba(0,0,0,0.06)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1">
+              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
+          </div>
+          {/* Name + meta */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontStyle: 'italic',
+              fontSize: 17, lineHeight: 1.2, color: '#1a1208', marginBottom: 5,
+            }}>{card.title}</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {d.role && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, color: '#6a5828', letterSpacing: '0.1em' }}>
+                  {d.role}
+                </span>
+              )}
+              {d.age && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, color: '#8a7450', letterSpacing: '0.08em' }}>
+                  · {d.age} р.
+                </span>
+              )}
+            </div>
+            {d.status && (
+              <div style={{
+                marginTop: 5, display: 'inline-block',
+                fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.18em',
+                textTransform: 'uppercase', padding: '1px 6px',
+                border: `1px solid ${statusColor}`,
+                color: statusColor,
+              }}>{d.status}</div>
+            )}
+          </div>
+        </div>
+
+        {/* Sections */}
+        {(d.appearance !== undefined || !card.content) && <NpcField label="Зовнішність" value={d.appearance} />}
+        {(d.character !== undefined || !card.content) && <NpcField label="Характер" value={d.character} />}
+        {(d.connections !== undefined || !card.content) && <NpcField label="Зв'язки" value={d.connections} />}
+        {isMaster && <NpcField label="Секрет" value={d.secret} secret />}
+
+        <div style={{ marginTop: 'auto', paddingTop: 6 }}>
+          <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function NoteCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+  return (
+    <div style={{
+      background: KIND_COLOR.note,
+      color: '#2a2418',
+      width: NOTE_W,
+      minHeight: NOTE_H,
+      padding: 14,
+      boxShadow: selected
+        ? '0 0 0 2px var(--ochre), 0 8px 24px rgba(0,0,0,0.7)'
+        : connectMode
+        ? '0 0 0 2px var(--blood), 0 6px 16px rgba(0,0,0,0.5)'
+        : '0 6px 16px rgba(0,0,0,0.55)',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{
+        fontFamily: 'var(--font-mono)', fontSize: 9,
+        letterSpacing: '0.28em', textTransform: 'uppercase',
+        color: '#7a6440', display: 'flex', justifyContent: 'space-between',
+        marginBottom: 6,
+      }}>
+        <span>note</span>
+        <span style={{ fontStyle: 'italic', fontFamily: 'var(--font-display)', textTransform: 'none', letterSpacing: '0.08em' }}>
+          Nota
+        </span>
+      </div>
+      <div style={{
+        fontFamily: 'var(--font-display)', fontSize: 15,
+        fontStyle: 'italic', lineHeight: 1.2,
+        color: '#1f1a10', marginBottom: 8,
+      }}>
+        {card.title}
+      </div>
+      {card.content && (
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 11,
+          lineHeight: 1.45, color: '#3a2e1c', overflow: 'hidden', flex: 1,
+          display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+        }}>
+          {card.content}
+        </div>
+      )}
+      <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
+    </div>
+  )
+}
+
+function DefaultCard({ card, selected, connectMode, isMaster, isOwn, isCreator, onPublish, onDelete }) {
+  return (
+    <div style={{
+      background: KIND_COLOR[card.type] ?? KIND_COLOR.document,
+      color: '#2a2418',
+      padding: 14,
+      boxShadow: selected
+        ? '0 0 0 2px var(--ochre), 0 8px 24px rgba(0,0,0,0.7)'
+        : connectMode
+        ? '0 0 0 2px var(--blood), 0 6px 16px rgba(0,0,0,0.5)'
+        : '0 6px 16px rgba(0,0,0,0.55)',
+      display: 'flex', flexDirection: 'column',
+      minHeight: CARD_H,
+    }}>
+      <div style={{
+        fontFamily: 'var(--font-mono)', fontSize: 9,
+        letterSpacing: '0.28em', textTransform: 'uppercase',
+        color: '#7a6440', display: 'flex', justifyContent: 'space-between',
+        marginBottom: 6,
+      }}>
+        <span>{card.type}</span>
+        <span style={{ fontStyle: 'italic', fontFamily: 'var(--font-display)', textTransform: 'none', letterSpacing: '0.08em' }}>
+          {KIND_LAT[card.type] ?? ''}
+        </span>
+      </div>
+      <div style={{
+        fontFamily: 'var(--font-display)', fontSize: 16,
+        fontStyle: 'italic', lineHeight: 1.2,
+        color: '#1f1a10', marginBottom: 8,
+      }}>
+        {card.title}
+      </div>
+      {card.content && (
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 11,
+          lineHeight: 1.45, color: '#3a2e1c',
+          overflow: 'hidden', flex: 1,
+          display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+        }}>
+          {card.content}
+        </div>
+      )}
+      <CardActions card={card} isMaster={isMaster} isOwn={isOwn} isCreator={isCreator} onPublish={onPublish} onDelete={onDelete} />
+    </div>
+  )
+}
+
 function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster, currentUserId, sessionId }) {
-  const color = KIND_COLOR[card.type] ?? KIND_COLOR.document
   const rot = KIND_ROT[card.type] ?? 0
   const isOwn = card.owner?.id === currentUserId
   const isCreator = card.created_by?.id === currentUserId
@@ -129,6 +451,9 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster,
     } catch {}
   }
 
+  const dims = cardDims(card.type)
+  const sharedProps = { card, selected, connectMode, isMaster, isOwn, isCreator, onPublish: handlePublish, onDelete: handleDelete }
+
   return (
     <div
       onMouseDown={onMouseDown}
@@ -137,7 +462,7 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster,
         position: 'absolute',
         left: card.pos_x,
         top: card.pos_y,
-        width: CARD_W,
+        width: dims.w,
         cursor: connectMode ? 'crosshair' : 'grab',
         zIndex: selected ? 50 : 10,
         transform: `rotate(${rot}deg)`,
@@ -154,82 +479,10 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, isMaster,
         zIndex: 2,
       }} />
 
-      <div style={{
-        background: color,
-        color: '#2a2418',
-        padding: 14,
-        boxShadow: selected
-          ? '0 0 0 2px var(--ochre), 0 8px 24px rgba(0,0,0,0.7)'
-          : connectMode
-          ? '0 0 0 2px var(--blood), 0 6px 16px rgba(0,0,0,0.5)'
-          : '0 6px 16px rgba(0,0,0,0.55)',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: CARD_H,
-      }}>
-        <div style={{
-          fontFamily: 'var(--font-mono)', fontSize: 9,
-          letterSpacing: '0.28em', textTransform: 'uppercase',
-          color: '#7a6440', display: 'flex', justifyContent: 'space-between',
-          marginBottom: 6,
-        }}>
-          <span>{card.type}</span>
-          <span style={{ fontStyle: 'italic', fontFamily: 'var(--font-display)', textTransform: 'none', letterSpacing: '0.08em' }}>
-            {KIND_LAT[card.type] ?? ''}
-          </span>
-        </div>
-
-        <div style={{
-          fontFamily: 'var(--font-display)', fontSize: 16,
-          fontStyle: 'italic', lineHeight: 1.2,
-          color: '#1f1a10', marginBottom: 8,
-        }}>
-          {card.title}
-        </div>
-
-        {card.content && (
-          <div style={{
-            fontFamily: 'var(--font-mono)', fontSize: 11,
-            lineHeight: 1.45, color: '#3a2e1c',
-            overflow: 'hidden', flex: 1,
-            display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
-          }}>
-            {card.content}
-          </div>
-        )}
-
-        <div style={{
-          display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8,
-          paddingTop: 6, borderTop: '1px dashed #7a6440',
-          pointerEvents: 'all',
-        }}
-          className="no-drag"
-        >
-          {isMaster && !card.is_public && (
-            <button
-              onClick={handlePublish}
-              style={btnStyle('#7a6440')}
-            >
-              На стіл
-            </button>
-          )}
-          {!isMaster && isOwn && !card.is_public && (
-            <button onClick={handlePublish} style={btnStyle('#7a6440')}>
-              Винести
-            </button>
-          )}
-          {(isMaster || isCreator) && (
-            <button onClick={handleDelete} style={btnStyle('#a04040')}>
-              ×
-            </button>
-          )}
-          {!card.is_public && (
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#a08050', letterSpacing: '0.14em', alignSelf: 'center' }}>
-              приватна
-            </span>
-          )}
-        </div>
-      </div>
+      {card.type === 'document' && <DocumentCard {...sharedProps} />}
+      {card.type === 'npc' && <NpcCard {...sharedProps} />}
+      {card.type === 'note' && <NoteCard {...sharedProps} />}
+      {card.type !== 'document' && card.type !== 'npc' && card.type !== 'note' && <DefaultCard {...sharedProps} />}
     </div>
   )
 }

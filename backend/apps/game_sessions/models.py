@@ -53,7 +53,6 @@ class Card(models.Model):
         ('photo', 'Фото'),
         ('note', 'Нотатка'),
         ('npc', 'НПС'),
-        ('location', 'Локація'),
     ]
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='cards')
     type = models.CharField(max_length=20, choices=CARD_TYPES, default='document')
