@@ -264,6 +264,14 @@
       "admin": "Administrator"
     }
   },
+  "notFound": {
+    "code": "404",
+    "latin": "Pagina non inventa",
+    "title": "Page Lost in the Void",
+    "text": "What you seek has been swallowed by the darkness between pages. Perhaps it never existed — or perhaps you were not meant to find it.",
+    "back": "Return to the Archive",
+    "folio": "folio not found · arkham archive"
+  },
   "about": {
     "eyebrow": "№ v · about · de nobis",
     "title": "Taver near the river",

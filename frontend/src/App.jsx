@@ -12,22 +12,27 @@ import TablePage from './pages/Table/TablePage.jsx'
 import StoryEditorPage from './pages/StoryEditor/StoryEditorPage.jsx'
 import LandingPage from './pages/Landing/LandingPage.jsx'
 import AboutPage from './pages/About/AboutPage.jsx'
+import NotFoundPage from './pages/NotFound/NotFoundPage.jsx'
+
+function PublicRoute({ element }) {
+  const accessToken = useAuthStore((s) => s.accessToken)
+  if (accessToken) return <Navigate to="/sessions" replace />
+  return element
+}
 
 function ProtectedLayout() {
   const accessToken = useAuthStore((s) => s.accessToken)
-  if (!accessToken) {
-    return <Navigate to="/" replace />
-  }
+  if (!accessToken) return <Navigate to="/" replace />
   return <AppLayout />
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      <Route path="/" element={<PublicRoute element={<LandingPage />} />} />
       <Route path="/about" element={<AboutPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/login" element={<PublicRoute element={<LoginPage />} />} />
+      <Route path="/register" element={<PublicRoute element={<RegisterPage />} />} />
       <Route element={<ProtectedLayout />}>
         <Route path="/sessions" element={<SessionListPage />} />
         <Route path="/sessions/:id" element={<LobbyPage />} />
@@ -37,6 +42,7 @@ export default function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/story-editor" element={<StoryEditorPage />} />
       </Route>
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }
