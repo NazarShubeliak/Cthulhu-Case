@@ -155,8 +155,12 @@ class SessionViewSet(viewsets.ModelViewSet):
         assets = CampaignAsset.objects.filter(campaign=campaign)
         if not assets.exists():
             return Response({'error': 'У кампанії немає ассетів.'}, status=status.HTTP_400_BAD_REQUEST)
+        COLS = 4
+        CARD_W, CARD_H, GAP = 220, 160, 24
         cards = []
-        for asset in assets:
+        for i, asset in enumerate(assets):
+            col = i % COLS
+            row = i // COLS
             card = Card(
                 session=session,
                 type=asset.type,
@@ -166,8 +170,8 @@ class SessionViewSet(viewsets.ModelViewSet):
                 created_by=request.user,
                 owner=None,
                 is_public=False,
-                pos_x=0,
-                pos_y=0,
+                pos_x=col * (CARD_W + GAP),
+                pos_y=row * (CARD_H + GAP),
             )
             cards.append(card)
         Card.objects.bulk_create(cards)

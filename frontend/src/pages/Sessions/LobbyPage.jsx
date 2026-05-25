@@ -74,7 +74,12 @@ export default function LobbyPage() {
 
   useEffect(() => {
     if (!session?.is_master) return
-    getCampaigns().then(res => setCampaigns(res.data.results ?? res.data)).catch(() => {})
+    getCampaigns()
+      .then(res => {
+        const all = res.data.results ?? res.data
+        setCampaigns(all.filter(c => (c.asset_count ?? 0) > 0))
+      })
+      .catch(() => {})
   }, [session?.is_master])
 
   async function handleLoadCampaign(campaignId) {
