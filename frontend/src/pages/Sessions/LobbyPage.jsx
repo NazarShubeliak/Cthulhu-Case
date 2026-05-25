@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
-import { getSession, startSession, deleteSession, leaveSession } from '../../api/sessions.js'
+import { getSession, startSession, deleteSession, leaveSession, setSessionCharacter, getMySessionCharacter } from '../../api/sessions.js'
+import { getCharacters } from '../../api/characters.js'
 
 const STATUS_LABELS = {
   lobby: 'Лобі',
@@ -39,6 +40,9 @@ export default function LobbyPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
+  const [characters, setCharacters] = useState([])
+  const [boundCharId, setBoundCharId] = useState(null)
+  const [charLoading, setCharLoading] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -51,6 +55,29 @@ export default function LobbyPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  useEffect(() => {
+    if (!session || session.is_master) return
+    Promise.all([
+      getCharacters(),
+      getMySessionCharacter(id),
+    ]).then(([charsRes, boundRes]) => {
+      setCharacters(charsRes.data.results ?? charsRes.data)
+      setBoundCharId(boundRes.data?.character_id ?? null)
+    }).catch(() => {})
+  }, [session, id])
+
+  async function handleSelectCharacter(charId) {
+    setCharLoading(true)
+    try {
+      await setSessionCharacter(id, charId || null)
+      setBoundCharId(charId || null)
+    } catch {
+      // ignore
+    } finally {
+      setCharLoading(false)
+    }
+  }
 
   async function handleStart() {
     setActionLoading(true)
@@ -298,6 +325,53 @@ export default function LobbyPage() {
             <InfoRow label="Створено" value={createdDate} />
           </div>
         </div>
+
+        {!isMaster && characters.length > 0 && (
+          <div style={{ marginTop: 24 }}>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em',
+              textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 10,
+            }}>
+              Ваш персонаж
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {characters.map((c) => (
+                <button
+                  key={c.id}
+                  disabled={charLoading}
+                  onClick={() => handleSelectCharacter(boundCharId === c.id ? null : c.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: boundCharId === c.id ? 'rgba(184,153,104,0.12)' : 'transparent',
+                    border: `1px solid ${boundCharId === c.id ? 'var(--ochre)' : 'var(--ochre-deep)'}`,
+                    padding: '8px 12px', cursor: 'pointer', textAlign: 'left',
+                    transition: 'all .15s',
+                  }}
+                >
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                    background: boundCharId === c.id ? 'var(--ochre)' : 'var(--ochre-deep)',
+                  }} />
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 14, color: 'var(--cream)' }}>
+                      {c.name}
+                    </div>
+                    {c.occupation && (
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.12em' }}>
+                        {c.occupation}
+                      </div>
+                    )}
+                  </div>
+                  {boundCharId === c.id && (
+                    <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--ochre)', letterSpacing: '0.2em' }}>
+                      ОБРАНО
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {session?.status === 'active' && !isMaster && (
           <div style={{ marginTop: 20 }}>

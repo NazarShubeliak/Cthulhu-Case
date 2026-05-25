@@ -35,6 +35,10 @@ export const getThreads = (sessionId) => api.get(`/sessions/${sessionId}/threads
 export const createThread = (sessionId, data) => api.post(`/sessions/${sessionId}/threads/`, data)
 export const deleteThread = (sessionId, threadId) => api.delete(`/sessions/${sessionId}/threads/${threadId}/`)
 
+export const setSessionCharacter = (sessionId, characterId) =>
+  api.post(`/sessions/${sessionId}/set-character/`, characterId ? { character_id: characterId } : {})
+export const getMySessionCharacter = (sessionId) => api.get(`/sessions/${sessionId}/my-character/`)
+
 export const getNotes = (sessionId) => api.get(`/sessions/${sessionId}/notes/`)
 export const createNote = (sessionId, data) => api.post(`/sessions/${sessionId}/notes/`, data)
 export const updateNote = (sessionId, noteId, data) => api.patch(`/sessions/${sessionId}/notes/${noteId}/`, data)

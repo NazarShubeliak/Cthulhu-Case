@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
 import useTableStore from '../../store/tableStore.js'
 import useWebSocket from '../../hooks/useWebSocket.js'
-import { getSession, getCards, getThreads, createCard } from '../../api/sessions.js'
+import { getSession, getCards, getThreads, createCard, getMySessionCharacter } from '../../api/sessions.js'
 import EvidenceBoard from './EvidenceBoard.jsx'
 
 // ── Constants ──
@@ -229,12 +229,14 @@ export default function TablePage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const { setCards, setThreads, addCard, addConnectedUser, connectedUsers, reset } = useTableStore()
+  const { setCards, setThreads, addCard, addConnectedUser, connectedUsers, diceLog, reset } = useTableStore()
 
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [diceToasts, setDiceToasts] = useState([])
   const [createConfig, setCreateConfig] = useState({ open: false, type: 'document', pos: null })
+  const [diceLogOpen, setDiceLogOpen] = useState(false)
+  const [boundChar, setBoundChar] = useState(null)
   const toastId = useRef(0)
 
   const addDiceToast = useCallback((msg) => {
@@ -275,6 +277,13 @@ export default function TablePage() {
     return () => reset()
   }, [load]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!session || session.is_master) return
+    getMySessionCharacter(id)
+      .then((res) => setBoundChar(res.data ?? null))
+      .catch(() => {})
+  }, [session, id])
+
   const isMaster = session?.is_master ?? false
   const players = session?.players ?? []
 
@@ -305,6 +314,26 @@ export default function TablePage() {
           {STATUS_LABELS[session?.status] ?? session?.status}
         </span>
         <div style={{ flex: 1 }} />
+        {!isMaster && boundChar && (
+          <div style={{
+            fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 14,
+            color: 'var(--ochre)', borderLeft: '1px solid var(--ochre-deep)', paddingLeft: 12,
+          }}>
+            {boundChar.character_name}
+          </div>
+        )}
+        <button
+          className="btn btn--ghost"
+          style={{ padding: '4px 10px', fontSize: 10, position: 'relative' }}
+          onClick={() => setDiceLogOpen((v) => !v)}
+        >
+          Кидки {diceLog.length > 0 && (
+            <span style={{
+              marginLeft: 4, background: 'var(--blood)', color: '#fff',
+              borderRadius: 8, fontSize: 8, padding: '1px 5px',
+            }}>{diceLog.length}</span>
+          )}
+        </button>
       </div>
 
       {/* Board */}
@@ -338,6 +367,84 @@ export default function TablePage() {
         }}
       />
 
+
+      {/* Dice log panel */}
+      {diceLogOpen && (
+        <div style={{
+          position: 'fixed', top: 50, right: 0, bottom: 0, width: 300, zIndex: 400,
+          background: 'var(--ink-0)', borderLeft: '1px solid var(--ochre-deep)',
+          display: 'flex', flexDirection: 'column',
+          boxShadow: '-4px 0 20px rgba(0,0,0,0.5)',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 16px', borderBottom: '1px solid var(--ochre-deep)', flexShrink: 0,
+          }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
+              Журнал кидків
+            </span>
+            <button onClick={() => setDiceLogOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+            {diceLog.length === 0 && (
+              <div style={{ padding: '24px 16px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--moss)', letterSpacing: '0.16em', textAlign: 'center' }}>
+                Кидків ще немає
+              </div>
+            )}
+            {diceLog.map((entry, i) => {
+              const isPrivate = entry.visible_to_all === false
+              const canSee = !isPrivate || isMaster || entry.rolled_by_id === user?.id
+              if (!canSee) return null
+              const tierColors = { critical: '#c8634d', extreme: '#8a6a30', hard: '#5a7850', regular: '#4a6878', failure: '#6a5050', fumble: '#7a2a25' }
+              return (
+                <div key={i} style={{
+                  padding: '10px 16px', borderBottom: '1px solid rgba(184,153,104,0.08)',
+                  opacity: isPrivate ? 0.85 : 1,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--moss)', letterSpacing: '0.18em' }}>
+                      {entry.rolled_by}
+                    </span>
+                    {entry.character_name && (
+                      <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 11, color: 'var(--ochre)' }}>
+                        · {entry.character_name}
+                      </span>
+                    )}
+                    {isPrivate && (
+                      <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--blood)', letterSpacing: '0.14em' }}>
+                        приватний
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontSize: 26, fontFamily: 'var(--font-mono)', color: entry.tier ? tierColors[entry.tier] ?? 'var(--ochre-bright)' : 'var(--ochre-bright)', lineHeight: 1 }}>
+                      {entry.total}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em' }}>
+                      {entry.count}{entry.dice_type}
+                    </span>
+                    {entry.skill_name && (
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--moss-pale)', letterSpacing: '0.12em' }}>
+                        {entry.skill_name}
+                      </span>
+                    )}
+                    {entry.tier && (
+                      <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 8, color: tierColors[entry.tier] ?? 'var(--ochre)', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
+                        {entry.tier}
+                      </span>
+                    )}
+                  </div>
+                  {entry.count > 1 && (
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--moss)', marginTop: 2 }}>
+                      [{entry.results?.join(' + ')}]
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Dice roll toasts */}
       <div style={{ position: 'fixed', bottom: 80, left: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -204,6 +204,32 @@ class CharacterViewSet(viewsets.ModelViewSet):
 
         data = DiceRollSerializer(dice_roll).data
         data['tier'] = tier
+
+        # Broadcast to session if character is bound
+        try:
+            from apps.game_sessions.models import SessionCharacter
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            binding = SessionCharacter.objects.get(character=character)
+            async_to_sync(get_channel_layer().group_send)(
+                f'session_{binding.session_id}',
+                {
+                    'type': 'dice.rolled',
+                    'dice_type': dice_type,
+                    'count': dice_count,
+                    'results': results,
+                    'total': total,
+                    'rolled_by': request.user.username,
+                    'rolled_by_id': request.user.id,
+                    'character_name': character.name,
+                    'skill_name': skill.name if skill else None,
+                    'tier': tier,
+                    'visible_to_all': bool(visible_to_all),
+                },
+            )
+        except Exception:
+            pass
+
         return Response(data, status=status.HTTP_201_CREATED)
 
 

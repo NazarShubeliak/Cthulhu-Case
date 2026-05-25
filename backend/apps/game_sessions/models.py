@@ -99,6 +99,23 @@ class Thread(models.Model):
         return f'Thread {self.card_from_id} → {self.card_to_id}'
 
 
+class SessionCharacter(models.Model):
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='session_characters')
+    player = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='session_characters'
+    )
+    character = models.ForeignKey(
+        'characters.Character', on_delete=models.CASCADE, related_name='session_bindings'
+    )
+
+    class Meta:
+        db_table = 'session_characters'
+        unique_together = [['session', 'player']]
+
+    def __str__(self):
+        return f'{self.player} → {self.character} in {self.session}'
+
+
 class Note(models.Model):
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='notes')
     author = models.ForeignKey(

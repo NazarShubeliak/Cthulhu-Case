@@ -11,6 +11,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
     addNote, updateNote, removeNote,
     addConnectedUser,
     replaceCard,
+    addDiceLog,
   } = useTableStore()
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
           addConnectedUser({ user_id: msg.user_id, username: msg.username })
           break
         case 'dice.rolled':
+          addDiceLog(msg)
           if (onDiceRolled) onDiceRolled(msg)
           break
         default:

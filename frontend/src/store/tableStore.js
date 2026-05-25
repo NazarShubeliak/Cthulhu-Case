@@ -5,6 +5,7 @@ const useTableStore = create((set) => ({
   threads: [],
   notes: [],
   connectedUsers: [],
+  diceLog: [],
 
   setCards: (cards) => set({ cards }),
   setThreads: (threads) => set({ threads }),
@@ -47,7 +48,10 @@ const useTableStore = create((set) => ({
         : [...s.connectedUsers, user],
     })),
 
-  reset: () => set({ cards: [], threads: [], notes: [], connectedUsers: [] }),
+  addDiceLog: (entry) =>
+    set((s) => ({ diceLog: [{ ...entry, ts: Date.now() }, ...s.diceLog].slice(0, 100) })),
+
+  reset: () => set({ cards: [], threads: [], notes: [], connectedUsers: [], diceLog: [] }),
 }))
 
 export default useTableStore

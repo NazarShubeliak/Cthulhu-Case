@@ -9,10 +9,10 @@ from rest_framework.response import Response
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
-from .models import Session, Card, Note, Thread
+from .models import Session, Card, Note, Thread, SessionCharacter
 from .serializers import (
     SessionListSerializer, SessionDetailSerializer, SessionCreateSerializer,
-    CardSerializer, NoteSerializer, ThreadSerializer,
+    CardSerializer, NoteSerializer, ThreadSerializer, SessionCharacterSerializer,
 )
 
 User = get_user_model()
@@ -110,6 +110,35 @@ class SessionViewSet(viewsets.ModelViewSet):
         session.save()
         return Response(SessionDetailSerializer(session, context={'request': request}).data)
 
+    @action(detail=True, methods=['post'], url_path='set-character')
+    def set_character(self, request, pk=None):
+        session = self.get_object()
+        if session.master == request.user:
+            return Response({'error': 'Майстер не вибирає персонажа.'}, status=status.HTTP_400_BAD_REQUEST)
+        character_id = request.data.get('character_id')
+        if not character_id:
+            SessionCharacter.objects.filter(session=session, player=request.user).delete()
+            return Response({'status': 'unbound'})
+        from apps.characters.models import Character
+        try:
+            character = Character.objects.get(id=character_id, user=request.user)
+        except Character.DoesNotExist:
+            return Response({'error': 'Персонажа не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+        obj, _ = SessionCharacter.objects.update_or_create(
+            session=session, player=request.user,
+            defaults={'character': character},
+        )
+        return Response(SessionCharacterSerializer(obj).data)
+
+    @action(detail=True, methods=['get'], url_path='my-character')
+    def my_character(self, request, pk=None):
+        session = self.get_object()
+        try:
+            binding = SessionCharacter.objects.get(session=session, player=request.user)
+            return Response(SessionCharacterSerializer(binding).data)
+        except SessionCharacter.DoesNotExist:
+            return Response(None)
+
     @action(detail=True, methods=['post'])
     def roll(self, request, pk=None):
         session = self.get_object()
@@ -127,6 +156,11 @@ class SessionViewSet(viewsets.ModelViewSet):
             'dice_type': dice_type, 'count': count,
             'results': results, 'total': total,
             'rolled_by': request.user.username,
+            'rolled_by_id': request.user.id,
+            'character_name': None,
+            'skill_name': None,
+            'tier': None,
+            'visible_to_all': True,
         }
         async_to_sync(get_channel_layer().group_send)(
             f'session_{pk}', {'type': 'dice.rolled', **payload}

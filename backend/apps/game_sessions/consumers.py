@@ -85,14 +85,18 @@ class TableConsumer(AsyncWebsocketConsumer):
         }))
 
     async def dice_rolled(self, event):
-        await self.send(text_data=json.dumps({
+        payload = {
             'type': 'dice.rolled',
             'dice_type': event['dice_type'],
             'count': event['count'],
             'results': event['results'],
             'total': event['total'],
             'rolled_by': event['rolled_by'],
-        }))
+        }
+        for key in ('rolled_by_id', 'character_name', 'skill_name', 'tier', 'visible_to_all'):
+            if key in event:
+                payload[key] = event[key]
+        await self.send(text_data=json.dumps(payload))
 
     # ── Helpers ──
 
