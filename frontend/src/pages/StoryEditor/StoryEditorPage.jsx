@@ -5,6 +5,7 @@ import {
   getActs, createAct, updateAct, deleteAct,
   createScene, updateScene, deleteScene, getScene,
   createNPC, deleteNPC,
+  getAssets, createAsset, deleteAsset,
 } from '../../api/campaigns.js'
 
 // ─── tiny helpers ────────────────────────────────────────────────────────────
@@ -442,6 +443,156 @@ function SceneDetail({ campaign, scene, onUpdated }) {
   )
 }
 
+// ─── Asset panel ─────────────────────────────────────────────────────────────
+
+const ASSET_TYPES = [
+  { key: 'npc', label: 'НПС' },
+  { key: 'document', label: 'Документ' },
+  { key: 'photo', label: 'Фото' },
+  { key: 'note', label: 'Нотатка' },
+]
+
+function AssetPanel({ campaign }) {
+  const [assets, setAssets] = useState([])
+  const [activeType, setActiveType] = useState('npc')
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ title: '', content: '', image: null })
+  const [loading, setLoading] = useState(false)
+  const [confirmId, setConfirmId] = useState(null)
+
+  useEffect(() => {
+    if (!campaign) return
+    setAssets([])
+    getAssets(campaign.id).then(res => setAssets(res.data.results ?? res.data)).catch(() => {})
+  }, [campaign?.id])
+
+  const filtered = assets.filter(a => a.type === activeType)
+
+  async function handleCreate(e) {
+    e.preventDefault()
+    if (!form.title.trim()) return
+    setLoading(true)
+    try {
+      const data = { type: activeType, title: form.title.trim(), content: form.content.trim() }
+      if (form.image) data.image = form.image
+      const res = await createAsset(campaign.id, data)
+      setAssets(prev => [...prev, res.data])
+      setForm({ title: '', content: '', image: null })
+      setShowForm(false)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleDelete(id) {
+    await deleteAsset(campaign.id, id)
+    setAssets(prev => prev.filter(a => a.id !== id))
+    setConfirmId(null)
+  }
+
+  if (!campaign) return null
+
+  return (
+    <div className="se-panel se-panel--assets">
+      <div className="se-panel__head">
+        <span className="se-panel__title">Ассети кампанії</span>
+        <button
+          className="btn btn--ghost"
+          style={{ padding: '2px 10px', fontSize: 11 }}
+          onClick={() => setShowForm(v => !v)}
+        >
+          {showForm ? '×' : '+'}
+        </button>
+      </div>
+
+      <div className="se-asset-tabs">
+        {ASSET_TYPES.map(t => (
+          <button
+            key={t.key}
+            className={'se-asset-tab' + (activeType === t.key ? ' se-asset-tab--active' : '')}
+            onClick={() => { setActiveType(t.key); setShowForm(false) }}
+          >
+            {t.label}
+            <span className="se-asset-tab__count">
+              {assets.filter(a => a.type === t.key).length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {showForm && (
+        <form onSubmit={handleCreate} className="se-inline-form">
+          <input
+            className="form-input"
+            placeholder={`Назва (${ASSET_TYPES.find(t => t.key === activeType)?.label})`}
+            value={form.title}
+            onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+            autoFocus
+          />
+          {(activeType === 'document' || activeType === 'note') && (
+            <textarea
+              className="form-input"
+              placeholder="Зміст..."
+              value={form.content}
+              onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
+              rows={3}
+            />
+          )}
+          {(activeType === 'photo' || activeType === 'npc') && (
+            <input
+              type="file"
+              accept="image/*"
+              className="form-input"
+              onChange={e => setForm(p => ({ ...p, image: e.target.files[0] ?? null }))}
+            />
+          )}
+          <button type="submit" className="btn btn--primary" disabled={loading || !form.title.trim()}>
+            {loading ? '...' : 'Додати'}
+          </button>
+        </form>
+      )}
+
+      <div className="se-list">
+        {filtered.length === 0 && (
+          <div className="se-empty">
+            Немає {ASSET_TYPES.find(t => t.key === activeType)?.label.toLowerCase()}
+          </div>
+        )}
+        {filtered.map(asset => (
+          <div key={asset.id} className="se-list__item">
+            <div className="se-list__item-main">
+              {asset.image && (
+                <img
+                  src={asset.image}
+                  alt=""
+                  style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 2, marginRight: 8, flexShrink: 0 }}
+                />
+              )}
+              <div>
+                <div className="se-list__item-title">{asset.title}</div>
+                {asset.content && (
+                  <div className="se-list__item-meta" style={{ whiteSpace: 'pre-line', maxHeight: 40, overflow: 'hidden' }}>
+                    {asset.content}
+                  </div>
+                )}
+              </div>
+            </div>
+            {confirmId === asset.id ? (
+              <ConfirmDelete
+                label="ассет"
+                onConfirm={() => handleDelete(asset.id)}
+                onCancel={() => setConfirmId(null)}
+              />
+            ) : (
+              <button className="se-del-btn" onClick={() => setConfirmId(asset.id)}>×</button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function StoryEditorPage() {
@@ -459,17 +610,6 @@ export default function StoryEditorPage() {
       })
       .finally(() => setLoading(false))
   }, [])
-
-  if (user?.role !== 'master' && user?.role !== 'admin') {
-    return (
-      <div className="page">
-        <div className="empty-state">
-          <div className="empty-state__title">Доступ заборонено</div>
-          <div className="empty-state__sub">Редактор сюжету доступний тільки для майстрів гри</div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="page page--fullwidth">
@@ -507,10 +647,10 @@ export default function StoryEditorPage() {
           <SceneDetail
             campaign={selectedCampaign}
             scene={selectedScene}
-            onUpdated={updated => {
-              // nothing to sync to ActTree title yet — acceptable for Phase 4
-            }}
+            onUpdated={updated => {}}
           />
+
+          <AssetPanel campaign={selectedCampaign} />
         </div>
       )}
     </div>

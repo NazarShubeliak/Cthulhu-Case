@@ -37,6 +37,19 @@ export const updateNPC = (campaignId, npcId, data) => {
 }
 export const deleteNPC = (campaignId, npcId) => api.delete(`/campaigns/${campaignId}/npcs/${npcId}/`)
 
+// Campaign Assets
+export const getAssets = (campaignId) => api.get(`/campaigns/${campaignId}/assets/`)
+export const createAsset = (campaignId, data) => {
+  if (data.image instanceof File) {
+    const fd = new FormData()
+    Object.entries(data).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v) })
+    return api.post(`/campaigns/${campaignId}/assets/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+  }
+  return api.post(`/campaigns/${campaignId}/assets/`, data)
+}
+export const updateAsset = (campaignId, assetId, data) => api.patch(`/campaigns/${campaignId}/assets/${assetId}/`, data)
+export const deleteAsset = (campaignId, assetId) => api.delete(`/campaigns/${campaignId}/assets/${assetId}/`)
+
 // Scene cards
 export const getSceneCards = (campaignId, actId, sceneId) =>
   api.get(`/campaigns/${campaignId}/acts/${actId}/scenes/${sceneId}/cards/`)

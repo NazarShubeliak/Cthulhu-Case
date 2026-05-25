@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import useAuthStore from '../../store/authStore.js'
-import { getSession, startSession, deleteSession, leaveSession, setSessionCharacter, getMySessionCharacter } from '../../api/sessions.js'
+import { getSession, startSession, deleteSession, leaveSession, setSessionCharacter, getMySessionCharacter, loadCampaign } from '../../api/sessions.js'
 import { getCharacters } from '../../api/characters.js'
+import { getCampaigns } from '../../api/campaigns.js'
 
 const STATUS_LABELS = {
   lobby: 'Лобі',
@@ -43,6 +44,10 @@ export default function LobbyPage() {
   const [characters, setCharacters] = useState([])
   const [boundCharId, setBoundCharId] = useState(null)
   const [charLoading, setCharLoading] = useState(false)
+  const [campaigns, setCampaigns] = useState([])
+  const [showCampaignPicker, setShowCampaignPicker] = useState(false)
+  const [loadingCampaign, setLoadingCampaign] = useState(false)
+  const [loadSuccess, setLoadSuccess] = useState(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -66,6 +71,25 @@ export default function LobbyPage() {
       setBoundCharId(boundRes.status === 204 ? null : (boundRes.data?.character_id ?? null))
     }).catch(() => {})
   }, [session, id])
+
+  useEffect(() => {
+    if (!session?.is_master) return
+    getCampaigns().then(res => setCampaigns(res.data.results ?? res.data)).catch(() => {})
+  }, [session?.is_master])
+
+  async function handleLoadCampaign(campaignId) {
+    setLoadingCampaign(true)
+    setLoadSuccess(null)
+    try {
+      const res = await loadCampaign(id, campaignId)
+      setLoadSuccess(`Завантажено ${res.data.created} ассетів на стіл`)
+      setShowCampaignPicker(false)
+    } catch (err) {
+      setError(err.response?.data?.error || 'Помилка завантаження кампанії.')
+    } finally {
+      setLoadingCampaign(false)
+    }
+  }
 
   async function handleSelectCharacter(charId) {
     setCharLoading(true)
@@ -217,8 +241,19 @@ export default function LobbyPage() {
           </div>
         )}
 
+        {/* Load campaign success message */}
+        {loadSuccess && (
+          <div style={{
+            fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ochre)',
+            letterSpacing: '0.18em', marginTop: 16, padding: '8px 12px',
+            border: '1px solid var(--ochre-deep)', background: 'rgba(184,153,104,0.08)',
+          }}>
+            {loadSuccess}
+          </div>
+        )}
+
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
           {isMaster ? (
             <>
               {session?.status === 'lobby' && (
@@ -236,6 +271,15 @@ export default function LobbyPage() {
                   onClick={() => navigate(`/table/${id}`)}
                 >
                   Відкрити стіл
+                </button>
+              )}
+              {session?.status !== 'closed' && campaigns.length > 0 && (
+                <button
+                  className="btn btn--ghost"
+                  onClick={() => setShowCampaignPicker(v => !v)}
+                  disabled={loadingCampaign}
+                >
+                  {loadingCampaign ? '...' : 'Завантажити кампанію'}
                 </button>
               )}
               {session?.status !== 'closed' && (
@@ -265,6 +309,56 @@ export default function LobbyPage() {
             ← Усі сесії
           </button>
         </div>
+
+        {/* Campaign picker */}
+        {showCampaignPicker && campaigns.length > 0 && (
+          <div style={{
+            marginTop: 16,
+            border: '1px solid var(--ochre-deep)',
+            background: 'var(--ink-2)',
+            padding: 12,
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em',
+              textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 10,
+            }}>
+              Оберіть кампанію
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {campaigns.map(c => (
+                <button
+                  key={c.id}
+                  disabled={loadingCampaign}
+                  onClick={() => handleLoadCampaign(c.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    background: 'transparent', border: '1px solid var(--ochre-deep)',
+                    padding: '8px 12px', cursor: 'pointer', textAlign: 'left',
+                    transition: 'border-color .15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--ochre)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--ochre-deep)'}
+                >
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 14, color: 'var(--cream)' }}>
+                      {c.title}
+                    </div>
+                    {(c.setting || c.era) && (
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.12em' }}>
+                        {[c.setting, c.era].filter(Boolean).join(' · ')}
+                      </div>
+                    )}
+                  </div>
+                  {c.asset_count > 0 && (
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--ochre)', letterSpacing: '0.2em' }}>
+                      {c.asset_count} ассетів
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right panel */}

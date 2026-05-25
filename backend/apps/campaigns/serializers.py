@@ -3,9 +3,16 @@ from rest_framework import serializers
 from apps.users.serializers import UserSerializer
 from apps.game_sessions.models import Card
 from apps.game_sessions.serializers import CardSerializer
-from .models import Campaign, Act, Scene, NPC, SceneCard
+from .models import Campaign, Act, Scene, NPC, SceneCard, CampaignAsset
 
 User = get_user_model()
+
+
+class CampaignAssetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CampaignAsset
+        fields = ['id', 'campaign', 'type', 'title', 'content', 'image', 'order']
+        read_only_fields = ['campaign']
 
 
 class SceneCardSerializer(serializers.ModelSerializer):
@@ -102,10 +109,14 @@ class CampaignSerializer(serializers.ModelSerializer):
 class CampaignListSerializer(serializers.ModelSerializer):
     master = UserSerializer(read_only=True)
     act_count = serializers.SerializerMethodField()
+    asset_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Campaign
-        fields = ['id', 'master', 'title', 'setting', 'era', 'act_count', 'created_at']
+        fields = ['id', 'master', 'title', 'setting', 'era', 'act_count', 'asset_count', 'created_at']
 
     def get_act_count(self, obj):
         return obj.acts.count()
+
+    def get_asset_count(self, obj):
+        return obj.assets.count()

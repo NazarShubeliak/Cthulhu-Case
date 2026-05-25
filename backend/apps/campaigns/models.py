@@ -65,6 +65,28 @@ class NPC(models.Model):
         return self.name
 
 
+class CampaignAsset(models.Model):
+    ASSET_TYPES = [
+        ('npc', 'NPC'),
+        ('document', 'Document'),
+        ('photo', 'Photo'),
+        ('note', 'Note'),
+    ]
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='assets')
+    type = models.CharField(max_length=20, choices=ASSET_TYPES)
+    title = models.CharField(max_length=200)
+    content = models.TextField(blank=True)
+    image = models.ImageField(upload_to='campaign_assets/', null=True, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'campaign_assets'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.type}: {self.title}'
+
+
 class SceneCard(models.Model):
     scene = models.ForeignKey(Scene, on_delete=models.CASCADE, related_name='scene_cards')
     card = models.ForeignKey(

@@ -139,6 +139,44 @@ class SessionViewSet(viewsets.ModelViewSet):
         except SessionCharacter.DoesNotExist:
             return Response(None, status=status.HTTP_204_NO_CONTENT)
 
+    @action(detail=True, methods=['post'], url_path='load-campaign')
+    def load_campaign(self, request, pk=None):
+        session = self.get_object()
+        if session.master != request.user:
+            return Response({'error': 'Тільки майстер може завантажити кампанію.'}, status=status.HTTP_403_FORBIDDEN)
+        campaign_id = request.data.get('campaign_id')
+        if not campaign_id:
+            return Response({'error': 'Вкажіть campaign_id.'}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.campaigns.models import Campaign, CampaignAsset
+        try:
+            campaign = Campaign.objects.get(pk=campaign_id, master=request.user)
+        except Campaign.DoesNotExist:
+            return Response({'error': 'Кампанію не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+        assets = CampaignAsset.objects.filter(campaign=campaign)
+        if not assets.exists():
+            return Response({'error': 'У кампанії немає ассетів.'}, status=status.HTTP_400_BAD_REQUEST)
+        cards = []
+        for asset in assets:
+            card = Card(
+                session=session,
+                type=asset.type,
+                title=asset.title,
+                content=asset.content,
+                image=asset.image if asset.image else None,
+                created_by=request.user,
+                owner=None,
+                is_public=False,
+                pos_x=0,
+                pos_y=0,
+            )
+            cards.append(card)
+        Card.objects.bulk_create(cards)
+        created = Card.objects.filter(session=session, created_by=request.user).order_by('-id')[:len(cards)]
+        return Response({
+            'created': len(cards),
+            'cards': CardSerializer(created, many=True, context={'request': request}).data,
+        }, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['post'])
     def roll(self, request, pk=None):
         session = self.get_object()

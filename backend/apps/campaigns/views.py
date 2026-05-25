@@ -5,12 +5,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 
-from .models import Campaign, Act, Scene, NPC, SceneCard
+from .models import Campaign, Act, Scene, NPC, SceneCard, CampaignAsset
 from .serializers import (
     CampaignListSerializer, CampaignSerializer,
     ActListSerializer, ActSerializer,
     SceneListSerializer, SceneSerializer,
-    NPCSerializer, SceneCardSerializer,
+    NPCSerializer, SceneCardSerializer, CampaignAssetSerializer,
 )
 
 User = get_user_model()
@@ -108,6 +108,19 @@ class NPCViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         campaign = get_campaign_for_master(self.kwargs['campaign_pk'], self.request.user)
         return campaign.npcs.prefetch_related('scenes')
+
+    def perform_create(self, serializer):
+        campaign = get_campaign_for_master(self.kwargs['campaign_pk'], self.request.user)
+        serializer.save(campaign=campaign)
+
+
+class CampaignAssetViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CampaignAssetSerializer
+
+    def get_queryset(self):
+        campaign = get_campaign_for_master(self.kwargs['campaign_pk'], self.request.user)
+        return campaign.assets.all()
 
     def perform_create(self, serializer):
         campaign = get_campaign_for_master(self.kwargs['campaign_pk'], self.request.user)

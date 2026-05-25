@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CampaignViewSet, ActViewSet, SceneViewSet, NPCViewSet, SceneCardViewSet
+from .views import CampaignViewSet, ActViewSet, SceneViewSet, NPCViewSet, SceneCardViewSet, CampaignAssetViewSet
 
 router = DefaultRouter()
 router.register(r'', CampaignViewSet, basename='campaign')
@@ -33,4 +33,10 @@ urlpatterns = [
          NPCViewSet.as_view({'get': 'list', 'post': 'create'}), name='campaign-npcs'),
     path('<int:campaign_pk>/npcs/<int:pk>/',
          NPCViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='campaign-npc-detail'),
+
+    # Assets
+    path('<int:campaign_pk>/assets/',
+         CampaignAssetViewSet.as_view({'get': 'list', 'post': 'create'}), name='campaign-assets'),
+    path('<int:campaign_pk>/assets/<int:pk>/',
+         CampaignAssetViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='campaign-asset-detail'),
 ]

@@ -39,6 +39,9 @@ export const setSessionCharacter = (sessionId, characterId) =>
   api.post(`/sessions/${sessionId}/set-character/`, characterId ? { character_id: characterId } : {})
 export const getMySessionCharacter = (sessionId) => api.get(`/sessions/${sessionId}/my-character/`)
 
+export const loadCampaign = (sessionId, campaignId) =>
+  api.post(`/sessions/${sessionId}/load-campaign/`, { campaign_id: campaignId })
+
 export const getNotes = (sessionId) => api.get(`/sessions/${sessionId}/notes/`)
 export const createNote = (sessionId, data) => api.post(`/sessions/${sessionId}/notes/`, data)
 export const updateNote = (sessionId, noteId, data) => api.patch(`/sessions/${sessionId}/notes/${noteId}/`, data)
