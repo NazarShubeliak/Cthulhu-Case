@@ -170,8 +170,11 @@ class CardViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         session = self.get_session()
-        if (serializer.instance.created_by != self.request.user
-                and session.master != self.request.user):
+        position_only = set(serializer.validated_data.keys()) <= {'pos_x', 'pos_y'}
+        if not position_only and (
+            serializer.instance.created_by != self.request.user
+            and session.master != self.request.user
+        ):
             raise PermissionDenied('Недостатньо прав для редагування цієї картки.')
         card = serializer.save()
         broadcast(session.id, {
@@ -184,9 +187,8 @@ class CardViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         session = self.get_session()
-        if (instance.created_by != self.request.user
-                and session.master != self.request.user):
-            raise PermissionDenied('Недостатньо прав для видалення цієї картки.')
+        if session.master != self.request.user and instance.created_by == session.master:
+            raise PermissionDenied('Не можна видалити картку майстра.')
         session_id = instance.session_id
         card_id = instance.id
         instance.delete()
@@ -248,9 +250,8 @@ class ThreadViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         session = self.get_session()
-        if (instance.created_by != self.request.user
-                and session.master != self.request.user):
-            raise PermissionDenied('Недостатньо прав для видалення цієї нитки.')
+        if session.master != self.request.user and instance.created_by == session.master:
+            raise PermissionDenied('Не можна видалити нитку майстра.')
         session_id = instance.session_id
         thread_id = instance.id
         instance.delete()

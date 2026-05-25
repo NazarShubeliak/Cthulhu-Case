@@ -45,7 +45,7 @@ function cardDims(type) {
   return { w: CARD_W, h: CARD_H }
 }
 
-function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, sessionId }) {
+function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, currentUserId, masterId, sessionId }) {
   return (
     <svg
       style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', overflow: 'visible' }}
@@ -108,7 +108,8 @@ function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, sessionId }) {
               strokeWidth={14}
               fill="none"
               onClick={() => {
-                if (isMaster && window.confirm('Видалити нитку?')) {
+                const canDelete = isMaster || (t.created_by?.id !== masterId)
+                if (canDelete && window.confirm('Видалити нитку?')) {
                   deleteThread(sessionId, t.id)
                     .then(() => useTableStore.getState().removeThread(t.id))
                     .catch(() => {})
@@ -262,7 +263,7 @@ function NpcCard({ card, selected, connectMode, isMaster }) {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {card.image
-              ? <img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              ? <img src={card.image} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1">
                   <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                 </svg>
@@ -424,7 +425,7 @@ function PhotoCard({ card, selected, connectMode }) {
         overflow: 'hidden', flexShrink: 0,
       }}>
         {card.image
-          ? <img src={card.image} alt={card.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ? <img src={card.image} alt={card.title} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           : <div style={{
               width: '100%', height: '100%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -581,7 +582,7 @@ function CardFullView({ card, isMaster, sessionId, onClose, onSaved }) {
         {card.type === 'photo' && (
           <div style={{ background: '#f8f4ec', padding: '16px 16px 12px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', maxWidth: 640 }}>
             {card.image
-              ? <img src={card.image} alt={card.title} style={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
+              ? <img src={card.image} alt={card.title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
               : <div style={{ width: 400, height: 300, background: '#c8c0b0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a8070', fontFamily: 'var(--font-mono)', fontSize: 10 }}>немає зображення</div>
             }
             <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 16, color: '#2a2010', marginTop: 12, textAlign: 'center' }}>{card.title}</div>
@@ -601,7 +602,7 @@ function CardFullView({ card, isMaster, sessionId, onClose, onSaved }) {
               <div style={{ display: 'flex', gap: 20, marginBottom: 20, paddingBottom: 16, borderBottom: '2px solid #9a8860' }}>
                 <div style={{ width: 100, height: 126, flexShrink: 0, border: '1px solid #9a8860', background: 'rgba(0,0,0,0.06)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {card.image
-                    ? <img src={card.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    ? <img src={card.image} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                     : <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9a8860" strokeWidth="1"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                   }
                 </div>
@@ -782,7 +783,7 @@ function CtxItem({ label, onClick, danger }) {
   )
 }
 
-function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, onFullView, onPin, onPublish, onConnect, onDelete, onClose }) {
+function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, onFullView, onPin, onPublish, onConnect, onDelete, onClose }) {
   return (
     <>
       <div
@@ -804,7 +805,7 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, onFullView, onPin
           <CtxItem label={isMaster ? 'На стіл' : 'Винести'} onClick={() => { onPublish(); onClose() }} />
         )}
         <CtxItem label="+ Нитка" onClick={() => { onConnect(); onClose() }} />
-        {(isMaster || isCreator) && (
+        {(isMaster || card.created_by?.id !== masterId) && (
           <CtxItem label="Видалити" onClick={onDelete} danger />
         )}
       </div>
@@ -867,7 +868,7 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
-export default function EvidenceBoard({ sessionId, isMaster, currentUserId, connectedUsers, sessionName, onBoardCreate }) {
+export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, connectedUsers, sessionName, onBoardCreate }) {
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
   const [dragging, setDragging] = useState(null)
@@ -921,6 +922,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
     if (e.button !== 0) return  // middle/right click falls through to stage pan
     if (e.target.closest('.no-drag')) return
     if (connectMode) return
+    e.preventDefault()
     e.stopPropagation()
     setSelectedId(cardId)
     const card = useTableStore.getState().cards.find((c) => c.id === cardId)
@@ -1139,6 +1141,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
         }}
         style={{
           flex: 1, position: 'relative', overflow: 'hidden',
+          userSelect: 'none',
           cursor: panning ? 'grabbing' : connectMode ? 'crosshair' : 'grab',
           background: `
             radial-gradient(circle at 30% 20%, rgba(184,153,104,0.04), transparent 50%),
@@ -1161,6 +1164,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
             threads={visibleThreads}
             onDeleteThread={(tid) => useTableStore.getState().removeThread(tid)}
             isMaster={isMaster}
+            currentUserId={currentUserId}
+            masterId={masterId}
             sessionId={sessionId}
           />
           {visibleCards.map((card) => (
@@ -1246,6 +1251,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, conn
           isMaster={isMaster}
           isOwn={contextMenu.card.owner?.id === currentUserId}
           isCreator={contextMenu.card.created_by?.id === currentUserId}
+          masterId={masterId}
           onFullView={() => { setFullViewCard(contextMenu.card) }}
           onPin={handleCtxPin}
           onPublish={handleCtxPublish}

@@ -313,6 +313,7 @@ export default function TablePage() {
           sessionId={id}
           isMaster={isMaster}
           currentUserId={user?.id}
+          masterId={session?.master?.id}
           connectedUsers={connectedUsers}
           sessionName={session?.name ?? ''}
           onBoardCreate={(type, boardX, boardY, tab) =>
