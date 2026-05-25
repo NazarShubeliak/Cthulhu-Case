@@ -63,7 +63,7 @@ export default function LobbyPage() {
       getMySessionCharacter(id),
     ]).then(([charsRes, boundRes]) => {
       setCharacters(charsRes.data.results ?? charsRes.data)
-      setBoundCharId(boundRes.data?.character_id ?? null)
+      setBoundCharId(boundRes.status === 204 ? null : (boundRes.data?.character_id ?? null))
     }).catch(() => {})
   }, [session, id])
 

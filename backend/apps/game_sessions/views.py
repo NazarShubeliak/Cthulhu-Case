@@ -137,7 +137,7 @@ class SessionViewSet(viewsets.ModelViewSet):
             binding = SessionCharacter.objects.get(session=session, player=request.user)
             return Response(SessionCharacterSerializer(binding).data)
         except SessionCharacter.DoesNotExist:
-            return Response(None)
+            return Response(None, status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post'])
     def roll(self, request, pk=None):

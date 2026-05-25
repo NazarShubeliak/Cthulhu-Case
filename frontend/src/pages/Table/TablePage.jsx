@@ -280,7 +280,7 @@ export default function TablePage() {
   useEffect(() => {
     if (!session || session.is_master) return
     getMySessionCharacter(id)
-      .then((res) => setBoundChar(res.data ?? null))
+      .then((res) => setBoundChar(res.status === 204 ? null : (res.data ?? null)))
       .catch(() => {})
   }, [session, id])
 

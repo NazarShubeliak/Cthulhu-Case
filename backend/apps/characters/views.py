@@ -148,7 +148,8 @@ class CharacterViewSet(viewsets.ModelViewSet):
         dice_type = request.data.get('dice_type', 'd100')
         dice_count = int(request.data.get('dice_count', 1))
         skill_id = request.data.get('skill_id')
-        visible_to_all = request.data.get('visible_to_all', True)
+        raw_visible = request.data.get('visible_to_all', True)
+        visible_to_all = raw_visible not in (False, 'false', '0', 'no', 0)
 
         if dice_type not in ('d4', 'd6', 'd8', 'd10', 'd100'):
             return Response(
