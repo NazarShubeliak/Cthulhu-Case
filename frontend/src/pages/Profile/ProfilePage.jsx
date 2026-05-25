@@ -1,19 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getMe, updateMe, logout } from '../../api/auth.js'
 import { getCharacters } from '../../api/characters.js'
 import useAuthStore from '../../store/authStore.js'
 import useUIStore from '../../store/uiStore.js'
 
-const ROLE_LABELS = {
-  player: 'Гравець',
-  master: 'Майстер',
-  admin: 'Адміністратор',
-}
-
-function formatDate(iso) {
+function formatDate(iso, lang) {
   if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('uk-UA', {
+  return new Date(iso).toLocaleDateString(lang === 'uk' ? 'uk-UA' : 'en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -22,6 +17,7 @@ function formatDate(iso) {
 
 export default function ProfilePage() {
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
   const { user, setUser, clearAuth, refreshToken } = useAuthStore((s) => ({
     user: s.user,
     setUser: s.setUser,
@@ -34,7 +30,7 @@ export default function ProfilePage() {
   const [saveMsg, setSaveMsg] = useState('')
   const [charCount, setCharCount] = useState(null)
   const fileRef = useRef(null)
-  const { lamp, grain, glitchText, showLatin, setLamp, setGrain, setGlitchText, setShowLatin } = useUIStore()
+  const { lamp, grain, glitchText, showLatin, lang, setLamp, setGrain, setGlitchText, setShowLatin, setLang } = useUIStore()
 
   useEffect(() => {
     getMe()
@@ -58,10 +54,10 @@ export default function ProfilePage() {
     try {
       const res = await updateMe({ bio })
       setUser(res.data)
-      setSaveMsg('збережено')
+      setSaveMsg(t('profile.saved'))
       setTimeout(() => setSaveMsg(''), 2000)
     } catch {
-      setSaveMsg('помилка')
+      setSaveMsg(t('profile.error'))
     } finally {
       setSaving(false)
     }
@@ -88,20 +84,29 @@ export default function ProfilePage() {
     navigate('/login')
   }
 
+  const handleLangToggle = (newLang) => {
+    setLang(newLang)
+    i18n.changeLanguage(newLang)
+  }
+
   const initials = user?.username
     ? user.username.slice(0, 2).toUpperCase()
     : '?'
+
+  const ROLE_LABELS = {
+    player: t('profile.roles.player'),
+    master: t('profile.roles.master'),
+    admin: t('profile.roles.admin'),
+  }
 
   return (
     <div className="page">
       <header className="page-header">
         <div className="page-header__eyebrow">
-          № iii · профіль · profile
+          {t('profile.eyebrow')}
         </div>
-        <h1 className="page-header__title">Особисте досьє</h1>
-        <p className="page-header__sub">
-          Ваші дані в архіві Університету Міскатонік.
-        </p>
+        <h1 className="page-header__title">{t('profile.title')}</h1>
+        <p className="page-header__sub">{t('profile.sub')}</p>
       </header>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, maxWidth: 800 }}>
@@ -115,7 +120,7 @@ export default function ProfilePage() {
                 className="avatar-circle"
                 style={{ cursor: 'pointer' }}
                 onClick={() => fileRef.current?.click()}
-                title="Натисніть, щоб змінити аватар"
+                title={t('profile.change')}
               >
                 {user?.avatar ? (
                   <img src={user.avatar} alt={user.username} />
@@ -141,7 +146,7 @@ export default function ProfilePage() {
                   textTransform: 'uppercase',
                 }}
               >
-                змінити
+                {t('profile.change')}
               </div>
             </div>
 
@@ -184,7 +189,7 @@ export default function ProfilePage() {
                   color: 'var(--moss)',
                 }}
               >
-                У справах з {formatDate(user?.date_joined)}
+                {t('profile.joinedAt')} {formatDate(user?.date_joined, lang)}
               </div>
             </div>
 
@@ -206,14 +211,14 @@ export default function ProfilePage() {
               >
                 {charCount ?? '—'}
               </div>
-              <div className="eyebrow" style={{ marginTop: 4 }}>Персонажів</div>
+              <div className="eyebrow" style={{ marginTop: 4 }}>{t('profile.characters')}</div>
             </div>
           </div>
         </div>
 
         {/* Bio card */}
         <div className="card" style={{ padding: 28, gridColumn: 'span 2' }}>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Біографія</div>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>{t('profile.bioEyebrow')}</div>
           <div
             style={{
               fontFamily: 'var(--font-display)',
@@ -222,7 +227,7 @@ export default function ProfilePage() {
               marginBottom: 16,
             }}
           >
-            Про дослідника
+            {t('profile.bioTitle')}
           </div>
 
           <div className="form-group">
@@ -231,7 +236,7 @@ export default function ProfilePage() {
               style={{ minHeight: 120 }}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="Розкажіть про себе як дослідника..."
+              placeholder={t('profile.bioPlaceholder')}
             />
           </div>
 
@@ -241,7 +246,7 @@ export default function ProfilePage() {
               onClick={handleSaveBio}
               disabled={saving}
             >
-              {saving ? 'Збереження...' : 'Зберегти'}
+              {saving ? t('profile.saving') : t('profile.save')}
             </button>
             {saveMsg && (
               <span
@@ -249,7 +254,7 @@ export default function ProfilePage() {
                   fontFamily: 'var(--font-mono)',
                   fontSize: 10,
                   letterSpacing: '0.18em',
-                  color: saveMsg === 'помилка' ? 'var(--blood-bright)' : 'var(--moss-pale)',
+                  color: saveMsg === t('profile.error') ? 'var(--blood-bright)' : 'var(--moss-pale)',
                 }}
               >
                 {saveMsg}
@@ -260,16 +265,16 @@ export default function ProfilePage() {
 
         {/* Appearance */}
         <div className="card" style={{ padding: 28, gridColumn: 'span 2' }}>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Вигляд</div>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>{t('profile.appearance')}</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', marginBottom: 20 }}>
-            Атмосфера архіву
+            {t('profile.atmosphere')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {[
-              { label: 'Курсор-ліхтар',     sub: 'Освітлення слідує за вказівником миші', value: lamp,      set: setLamp },
-              { label: 'Зернистість',         sub: 'Субтильна текстура старого паперу',    value: grain,     set: setGrain },
-              { label: 'Тремтіння літер',     sub: 'Символи трясуться при наведенні',      value: glitchText, set: setGlitchText },
-              { label: 'Латинські підписи',   sub: 'Латинь під назвами розділів у навігації', value: showLatin, set: setShowLatin },
+              { label: t('profile.lamp'),     sub: t('profile.lampSub'),    value: lamp,      set: setLamp },
+              { label: t('profile.grain'),    sub: t('profile.grainSub'),   value: grain,     set: setGrain },
+              { label: t('profile.glitch'),   sub: t('profile.glitchSub'),  value: glitchText, set: setGlitchText },
+              { label: t('profile.latin'),    sub: t('profile.latinSub'),   value: showLatin, set: setShowLatin },
             ].map(({ label, sub, value, set }) => (
               <div
                 key={label}
@@ -300,18 +305,54 @@ export default function ProfilePage() {
                 </button>
               </div>
             ))}
+
+            {/* Language toggle */}
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 0', borderBottom: '1px solid var(--ochre-deep)',
+              }}
+            >
+              <div>
+                <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--cream)' }}>{t('profile.language')}</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.16em', color: 'var(--moss-pale)', marginTop: 2 }}>{t('profile.languageSub')}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {['uk', 'en'].map(l => (
+                  <button
+                    key={l}
+                    onClick={() => handleLangToggle(l)}
+                    style={{
+                      padding: '4px 12px',
+                      border: '1px solid',
+                      borderColor: lang === l ? 'var(--ochre)' : 'var(--ochre-deep)',
+                      background: lang === l ? 'var(--ochre)' : 'transparent',
+                      color: lang === l ? 'var(--ink-0)' : 'var(--moss-pale)',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10,
+                      letterSpacing: '0.14em',
+                      cursor: 'pointer',
+                      transition: 'all .15s',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Logout */}
         <div className="card" style={{ padding: 24, gridColumn: 'span 2' }}>
-          <div className="eyebrow" style={{ marginBottom: 12 }}>Дії</div>
+          <div className="eyebrow" style={{ marginBottom: 12 }}>{t('profile.actionsEyebrow')}</div>
           <div style={{ display: 'flex', gap: 12 }}>
             <button
               className="btn btn--danger"
               onClick={handleLogout}
             >
-              Вийти з архіву
+              {t('profile.logout')}
             </button>
           </div>
         </div>

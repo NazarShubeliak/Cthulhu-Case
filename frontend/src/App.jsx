@@ -10,11 +10,13 @@ import SessionListPage from './pages/Sessions/SessionListPage.jsx'
 import LobbyPage from './pages/Sessions/LobbyPage.jsx'
 import TablePage from './pages/Table/TablePage.jsx'
 import StoryEditorPage from './pages/StoryEditor/StoryEditorPage.jsx'
+import LandingPage from './pages/Landing/LandingPage.jsx'
+import AboutPage from './pages/About/AboutPage.jsx'
 
 function ProtectedLayout() {
   const accessToken = useAuthStore((s) => s.accessToken)
   if (!accessToken) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/" replace />
   }
   return <AppLayout />
 }
@@ -22,10 +24,11 @@ function ProtectedLayout() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/about" element={<AboutPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route element={<ProtectedLayout />}>
-        <Route index element={<Navigate to="/sessions" replace />} />
         <Route path="/sessions" element={<SessionListPage />} />
         <Route path="/sessions/:id" element={<LobbyPage />} />
         <Route path="/table/:id" element={<TablePage />} />

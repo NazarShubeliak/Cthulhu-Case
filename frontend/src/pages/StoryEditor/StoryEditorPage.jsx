@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import useAuthStore from '../../store/authStore.js'
 import {
   getCampaigns, createCampaign, updateCampaign, deleteCampaign,
@@ -27,13 +28,14 @@ function Spinner() {
 }
 
 function ConfirmDelete({ label, onConfirm, onCancel }) {
+  const { t } = useTranslation()
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--blood)' }}>
-        Видалити {label}?
+        {t('se.deleteLabel', { label })}
       </span>
-      <button className="btn btn--ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={onCancel}>Ні</button>
-      <button className="btn" style={{ padding: '2px 8px', fontSize: 11, background: 'var(--blood)', color: '#fff', border: 'none' }} onClick={onConfirm}>Так</button>
+      <button className="btn btn--ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={onCancel}>{t('se.no')}</button>
+      <button className="btn" style={{ padding: '2px 8px', fontSize: 11, background: 'var(--blood)', color: '#fff', border: 'none' }} onClick={onConfirm}>{t('se.yes')}</button>
     </div>
   )
 }
@@ -41,6 +43,7 @@ function ConfirmDelete({ label, onConfirm, onCancel }) {
 // ─── Campaign list panel ──────────────────────────────────────────────────────
 
 function CampaignPanel({ campaigns, selected, onSelect, onCreated, onDeleted }) {
+  const { t } = useTranslation()
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [setting, setSetting] = useState('')
@@ -73,7 +76,7 @@ function CampaignPanel({ campaigns, selected, onSelect, onCreated, onDeleted }) 
   return (
     <div className="se-panel se-panel--campaigns">
       <div className="se-panel__head">
-        <span className="se-panel__title">Кампанії</span>
+        <span className="se-panel__title">{t('se.campaigns')}</span>
         <button className="btn btn--ghost" style={{ padding: '2px 10px', fontSize: 11 }} onClick={() => setShowForm(v => !v)}>
           {showForm ? '×' : '+'}
         </button>
@@ -83,32 +86,32 @@ function CampaignPanel({ campaigns, selected, onSelect, onCreated, onDeleted }) 
         <form onSubmit={handleCreate} className="se-inline-form">
           <input
             className="form-input"
-            placeholder="Назва кампанії"
+            placeholder={t('se.campaignName')}
             value={title}
             onChange={e => setTitle(e.target.value)}
             autoFocus
           />
           <input
             className="form-input"
-            placeholder="Місце (напр. Аркгем)"
+            placeholder={t('se.campaignPlace')}
             value={setting}
             onChange={e => setSetting(e.target.value)}
           />
           <input
             className="form-input"
-            placeholder="Епоха (напр. 1923)"
+            placeholder={t('se.campaignEra')}
             value={era}
             onChange={e => setEra(e.target.value)}
           />
           <button type="submit" className="btn btn--primary" disabled={loading || !title.trim()}>
-            {loading ? 'Створення...' : 'Створити'}
+            {loading ? t('se.creating') : t('se.create')}
           </button>
         </form>
       )}
 
       <div className="se-list">
         {campaigns.length === 0 && (
-          <div className="se-empty">Немає кампаній</div>
+          <div className="se-empty">{t('se.noCampaigns')}</div>
         )}
         {campaigns.map(c => (
           <div
@@ -124,7 +127,7 @@ function CampaignPanel({ campaigns, selected, onSelect, onCreated, onDeleted }) 
             </div>
             {confirmId === c.id ? (
               <ConfirmDelete
-                label="кампанію"
+                label={t('se.deleteCampaign')}
                 onConfirm={() => handleDelete(c.id)}
                 onCancel={() => setConfirmId(null)}
               />
@@ -132,7 +135,7 @@ function CampaignPanel({ campaigns, selected, onSelect, onCreated, onDeleted }) 
               <button
                 className="se-del-btn"
                 onClick={e => { e.stopPropagation(); setConfirmId(c.id) }}
-                title="Видалити"
+                title={t('se.deleteLabel', { label: t('se.deleteCampaign') })}
               >×</button>
             )}
           </div>
@@ -145,6 +148,7 @@ function CampaignPanel({ campaigns, selected, onSelect, onCreated, onDeleted }) 
 // ─── Acts + Scenes tree ───────────────────────────────────────────────────────
 
 function ActTree({ campaign, selectedScene, onSelectScene }) {
+  const { t } = useTranslation()
   const [acts, setActs] = useState([])
   const [loading, setLoading] = useState(true)
   const [newActTitle, setNewActTitle] = useState('')
@@ -218,7 +222,7 @@ function ActTree({ campaign, selectedScene, onSelectScene }) {
               <span className="se-act__title">{act.title}</span>
               {confirmAct === act.id ? (
                 <ConfirmDelete
-                  label="акт"
+                  label={t('se.deleteAct')}
                   onConfirm={() => handleDeleteAct(act.id)}
                   onCancel={() => setConfirmAct(null)}
                 />
@@ -238,7 +242,7 @@ function ActTree({ campaign, selectedScene, onSelectScene }) {
                     <span className="se-scene__title">{scene.title}</span>
                     {confirmScene === scene.id ? (
                       <ConfirmDelete
-                        label="сцену"
+                        label={t('se.deleteScene')}
                         onConfirm={() => handleDeleteScene(act.id, scene.id)}
                         onCancel={() => setConfirmScene(null)}
                       />
@@ -250,7 +254,7 @@ function ActTree({ campaign, selectedScene, onSelectScene }) {
                 <div className="se-add-scene">
                   <input
                     className="form-input"
-                    placeholder="+ нова сцена"
+                    placeholder={t('se.newScene')}
                     value={newSceneTitles[act.id] ?? ''}
                     onChange={e => setNewSceneTitles(prev => ({ ...prev, [act.id]: e.target.value }))}
                     onKeyDown={e => e.key === 'Enter' && handleCreateScene(act.id)}
@@ -265,12 +269,12 @@ function ActTree({ campaign, selectedScene, onSelectScene }) {
       <form onSubmit={handleCreateAct} className="se-add-act">
         <input
           className="form-input"
-          placeholder="+ новий акт"
+          placeholder={t('se.newAct')}
           value={newActTitle}
           onChange={e => setNewActTitle(e.target.value)}
         />
         <button type="submit" className="btn btn--ghost" disabled={!newActTitle.trim()}>
-          Додати
+          {t('se.add')}
         </button>
       </form>
     </div>
@@ -280,6 +284,7 @@ function ActTree({ campaign, selectedScene, onSelectScene }) {
 // ─── Scene detail panel ───────────────────────────────────────────────────────
 
 function SceneDetail({ campaign, scene, onUpdated }) {
+  const { t } = useTranslation()
   const [data, setData] = useState(null)
   const [saving, setSaving] = useState(false)
   const [npcForm, setNpcForm] = useState({ show: false, name: '', description: '', secret_info: '' })
@@ -310,7 +315,6 @@ function SceneDetail({ campaign, scene, onUpdated }) {
     fd.append('description', npcForm.description.trim())
     fd.append('secret_info', npcForm.secret_info.trim())
     const res = await createNPC(campaign.id, fd)
-    // Link NPC to scene via M2M — update scene to include this NPC
     setData(prev => ({ ...prev, npcs: [...(prev.npcs ?? []), res.data] }))
     setNpcForm({ show: false, name: '', description: '', secret_info: '' })
   }
@@ -323,8 +327,8 @@ function SceneDetail({ campaign, scene, onUpdated }) {
   if (!scene) {
     return (
       <div className="se-panel se-panel--detail se-detail-empty">
-        <div className="empty-state__title">Оберіть сцену</div>
-        <div className="empty-state__sub">Виберіть сцену зі списку зліва для редагування</div>
+        <div className="empty-state__title">{t('se.selectScene')}</div>
+        <div className="empty-state__sub">{t('se.selectSceneSub')}</div>
       </div>
     )
   }
@@ -348,12 +352,12 @@ function SceneDetail({ campaign, scene, onUpdated }) {
 
         {/* Description */}
         <div className="se-section">
-          <div className="se-section__label">Опис сцени</div>
+          <div className="se-section__label">{t('se.sceneDesc')}</div>
           <textarea
             className="se-textarea"
             defaultValue={data.description}
             rows={6}
-            placeholder="Що відбувається у цій сцені..."
+            placeholder={t('se.sceneDescPlaceholder')}
             onBlur={e => autoSave('description', e.target.value)}
           />
         </div>
@@ -361,13 +365,13 @@ function SceneDetail({ campaign, scene, onUpdated }) {
         {/* Master notes */}
         <div className="se-section">
           <div className="se-section__label se-section__label--private">
-            Нотатки майстра <span className="se-private-badge">ПРИВАТНО</span>
+            {t('se.masterNotes')} <span className="se-private-badge">{t('se.private')}</span>
           </div>
           <textarea
             className="se-textarea se-textarea--private"
             defaultValue={data.master_notes}
             rows={4}
-            placeholder="Секретна інформація, підказки, нотатки..."
+            placeholder={t('se.masterNotesPlaceholder')}
             onBlur={e => autoSave('master_notes', e.target.value)}
           />
         </div>
@@ -375,10 +379,10 @@ function SceneDetail({ campaign, scene, onUpdated }) {
         {/* NPCs */}
         <div className="se-section">
           <div className="se-section__label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span>НПС у сцені</span>
+            <span>{t('se.npcsInScene')}</span>
             <button className="btn btn--ghost" style={{ padding: '2px 10px', fontSize: 11 }}
               onClick={() => setNpcForm(p => ({ ...p, show: !p.show }))}>
-              {npcForm.show ? '×' : '+ НПС'}
+              {npcForm.show ? '×' : t('se.addNPCBtn2')}
             </button>
           </div>
 
@@ -386,34 +390,34 @@ function SceneDetail({ campaign, scene, onUpdated }) {
             <form onSubmit={handleAddNPC} className="se-inline-form">
               <input
                 className="form-input"
-                placeholder="Ім'я НПС"
+                placeholder={t('se.npcName')}
                 value={npcForm.name}
                 onChange={e => setNpcForm(p => ({ ...p, name: e.target.value }))}
                 autoFocus
               />
               <textarea
                 className="form-input"
-                placeholder="Опис (видимий гравцям)"
+                placeholder={t('se.npcDesc')}
                 value={npcForm.description}
                 onChange={e => setNpcForm(p => ({ ...p, description: e.target.value }))}
                 rows={2}
               />
               <textarea
                 className="form-input"
-                placeholder="Секретна інформація (тільки майстер)"
+                placeholder={t('se.npcSecret')}
                 value={npcForm.secret_info}
                 onChange={e => setNpcForm(p => ({ ...p, secret_info: e.target.value }))}
                 rows={2}
               />
               <button type="submit" className="btn btn--primary" disabled={!npcForm.name.trim()}>
-                Додати НПС
+                {t('se.addNPCBtn')}
               </button>
             </form>
           )}
 
           <div className="se-npc-list">
             {(data.npcs ?? []).length === 0 && (
-              <div className="se-empty">Немає НПС у цій сцені</div>
+              <div className="se-empty">{t('se.noNPCs')}</div>
             )}
             {(data.npcs ?? []).map(npc => (
               <div key={npc.id} className="se-npc">
@@ -424,14 +428,14 @@ function SceneDetail({ campaign, scene, onUpdated }) {
                   )}
                   {npc.secret_info && (
                     <div className="se-npc__secret">
-                      <span className="se-private-badge">секрет</span> {npc.secret_info}
+                      <span className="se-private-badge">{t('se.secret')}</span> {npc.secret_info}
                     </div>
                   )}
                 </div>
                 <button
                   className="se-del-btn"
                   onClick={() => handleDeleteNPC(npc.id)}
-                  title="Видалити НПС"
+                  title={t('se.deleteNPC')}
                 >×</button>
               </div>
             ))}
@@ -445,14 +449,16 @@ function SceneDetail({ campaign, scene, onUpdated }) {
 
 // ─── Asset panel ─────────────────────────────────────────────────────────────
 
-const ASSET_TYPES = [
-  { key: 'npc', label: 'НПС' },
-  { key: 'document', label: 'Документ' },
-  { key: 'photo', label: 'Фото' },
-  { key: 'note', label: 'Нотатка' },
-]
-
 function AssetPanel({ campaign }) {
+  const { t } = useTranslation()
+
+  const ASSET_TYPES = [
+    { key: 'npc',      label: t('se.assetNPC') },
+    { key: 'document', label: t('se.assetDocument') },
+    { key: 'photo',    label: t('se.assetPhoto') },
+    { key: 'note',     label: t('se.assetNote') },
+  ]
+
   const [assets, setAssets] = useState([])
   const [activeType, setActiveType] = useState('npc')
   const [showForm, setShowForm] = useState(false)
@@ -492,10 +498,12 @@ function AssetPanel({ campaign }) {
 
   if (!campaign) return null
 
+  const currentTypeLabel = ASSET_TYPES.find(tp => tp.key === activeType)?.label ?? activeType
+
   return (
     <div className="se-panel se-panel--assets">
       <div className="se-panel__head">
-        <span className="se-panel__title">Ассети кампанії</span>
+        <span className="se-panel__title">{t('se.assets')}</span>
         <button
           className="btn btn--ghost"
           style={{ padding: '2px 10px', fontSize: 11 }}
@@ -506,15 +514,15 @@ function AssetPanel({ campaign }) {
       </div>
 
       <div className="se-asset-tabs">
-        {ASSET_TYPES.map(t => (
+        {ASSET_TYPES.map(tp => (
           <button
-            key={t.key}
-            className={'se-asset-tab' + (activeType === t.key ? ' se-asset-tab--active' : '')}
-            onClick={() => { setActiveType(t.key); setShowForm(false) }}
+            key={tp.key}
+            className={'se-asset-tab' + (activeType === tp.key ? ' se-asset-tab--active' : '')}
+            onClick={() => { setActiveType(tp.key); setShowForm(false) }}
           >
-            {t.label}
+            {tp.label}
             <span className="se-asset-tab__count">
-              {assets.filter(a => a.type === t.key).length}
+              {assets.filter(a => a.type === tp.key).length}
             </span>
           </button>
         ))}
@@ -524,7 +532,7 @@ function AssetPanel({ campaign }) {
         <form onSubmit={handleCreate} className="se-inline-form">
           <input
             className="form-input"
-            placeholder={`Назва (${ASSET_TYPES.find(t => t.key === activeType)?.label})`}
+            placeholder={`${currentTypeLabel}`}
             value={form.title}
             onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
             autoFocus
@@ -532,7 +540,7 @@ function AssetPanel({ campaign }) {
           {(activeType === 'document' || activeType === 'note') && (
             <textarea
               className="form-input"
-              placeholder="Зміст..."
+              placeholder={t('se.assetContent')}
               value={form.content}
               onChange={e => setForm(p => ({ ...p, content: e.target.value }))}
               rows={3}
@@ -547,7 +555,7 @@ function AssetPanel({ campaign }) {
             />
           )}
           <button type="submit" className="btn btn--primary" disabled={loading || !form.title.trim()}>
-            {loading ? '...' : 'Додати'}
+            {loading ? '...' : t('se.assetAdd')}
           </button>
         </form>
       )}
@@ -555,7 +563,7 @@ function AssetPanel({ campaign }) {
       <div className="se-list">
         {filtered.length === 0 && (
           <div className="se-empty">
-            Немає {ASSET_TYPES.find(t => t.key === activeType)?.label.toLowerCase()}
+            {t('se.noAssets')} {currentTypeLabel.toLowerCase()}
           </div>
         )}
         {filtered.map(asset => (
@@ -579,7 +587,7 @@ function AssetPanel({ campaign }) {
             </div>
             {confirmId === asset.id ? (
               <ConfirmDelete
-                label="ассет"
+                label={t('se.deleteAsset')}
                 onConfirm={() => handleDelete(asset.id)}
                 onCancel={() => setConfirmId(null)}
               />
@@ -596,6 +604,7 @@ function AssetPanel({ campaign }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function StoryEditorPage() {
+  const { t } = useTranslation()
   const user = useAuthStore(s => s.user)
   const [campaigns, setCampaigns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -614,16 +623,14 @@ export default function StoryEditorPage() {
   return (
     <div className="page page--fullwidth">
       <div className="page-header">
-        <div className="page-header__eyebrow">№ iv · сюжет · fabula</div>
-        <h1 className="page-header__title">Редактор Сюжету</h1>
-        <p className="page-header__sub">
-          Будуйте кампанію сцена за сценою. Тільки майстер бачить цей розділ.
-        </p>
+        <div className="page-header__eyebrow">{t('se.eyebrow')}</div>
+        <h1 className="page-header__title">{t('se.title')}</h1>
+        <p className="page-header__sub">{t('se.sub')}</p>
       </div>
 
       {loading ? (
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--moss-pale)', letterSpacing: '0.2em', padding: '40px 0' }}>
-          Завантаження...
+          {t('se.loading')}
         </div>
       ) : (
         <div className="se-workspace">

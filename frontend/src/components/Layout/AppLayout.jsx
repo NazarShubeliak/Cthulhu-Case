@@ -1,16 +1,19 @@
 import { useEffect } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import useAuthStore from '../../store/authStore.js'
 import useUIStore from '../../store/uiStore.js'
 import CursorLamp from '../UI/CursorLamp.jsx'
 import GlitchText from '../UI/GlitchText.jsx'
 
-const NAV_ITEMS = [
-  { to: '/sessions',    num: 'i',   label: 'Вестибюль', latin: 'Vestibulum' },
-  { to: '/characters',  num: 'ii',  label: 'Дослідники', latin: 'Investigatores' },
-  { to: '/profile',     num: 'iii', label: 'Профіль',   latin: 'Persona' },
-  { to: '/story-editor',num: 'iv',  label: 'Сюжет',     latin: 'Fabula' },
-]
+function getNavItems(t) {
+  return [
+    { to: '/sessions',    num: 'I',   label: t('nav.vestibule'),   latin: 'Vestibulum' },
+    { to: '/characters',  num: 'II',  label: t('nav.investigators'), latin: 'Investigatores' },
+    { to: '/profile',     num: 'III', label: t('nav.profile'),     latin: 'Persona' },
+    { to: '/story-editor',num: 'IV',  label: t('nav.story'),       latin: 'Fabula' },
+  ]
+}
 
 function SigilGlyph() {
   return (
@@ -25,27 +28,34 @@ function SigilGlyph() {
   )
 }
 
-function getBreadcrumb(pathname) {
-  if (pathname.startsWith('/table/')) return ['сесії', 'стіл']
-  if (pathname.startsWith('/sessions/')) return ['сесії', 'лобі']
-  if (pathname === '/sessions') return ['сесії']
-  if (pathname.startsWith('/characters/')) return ['дослідники', 'картка']
-  if (pathname === '/characters') return ['дослідники']
-  if (pathname === '/profile') return ['профіль']
-  if (pathname === '/story-editor') return ['сюжет']
+function getBreadcrumb(pathname, t) {
+  if (pathname.startsWith('/table/')) return [t('breadcrumb.sessions'), t('breadcrumb.table')]
+  if (pathname.startsWith('/sessions/')) return [t('breadcrumb.sessions'), t('breadcrumb.lobby')]
+  if (pathname === '/sessions') return [t('breadcrumb.sessions')]
+  if (pathname.startsWith('/characters/')) return [t('breadcrumb.investigators'), t('breadcrumb.card')]
+  if (pathname === '/characters') return [t('breadcrumb.investigators')]
+  if (pathname === '/profile') return [t('breadcrumb.profile')]
+  if (pathname === '/story-editor') return [t('breadcrumb.story')]
   return []
 }
 
 export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t, i18n } = useTranslation()
   const user = useAuthStore((s) => s.user)
-  const crumbs = getBreadcrumb(location.pathname)
-  const { grain, showLatin } = useUIStore()
+  const crumbs = getBreadcrumb(location.pathname, t)
+  const { grain, showLatin, lang } = useUIStore()
 
   useEffect(() => {
     document.documentElement.style.setProperty('--grain-opacity', grain ? '0.07' : '0')
   }, [grain])
+
+  useEffect(() => {
+    if (i18n.language !== lang) i18n.changeLanguage(lang)
+  }, [lang, i18n])
+
+  const NAV_ITEMS = getNavItems(t)
 
   return (
     <>
@@ -57,17 +67,17 @@ export default function AppLayout() {
               <SigilGlyph />
               <div>
                 <div className="nav__brand-title" style={{ fontStyle: 'italic' }}>
-                  <GlitchText>Поклик</GlitchText>
+                  <GlitchText>{t('nav.title1')}</GlitchText>
                 </div>
                 <div className="nav__brand-title">
-                  <GlitchText>Ктулху</GlitchText>
+                  <GlitchText>{t('nav.title2')}</GlitchText>
                 </div>
               </div>
             </div>
-            <div className="nav__brand-sub">архів аркгему · est. mcmxxvi</div>
+            <div className="nav__brand-sub">{t('nav.sub')}</div>
           </div>
 
-          <div className="nav__section-label">Навігація</div>
+          <div className="nav__section-label">{t('nav.navigation')}</div>
 
           {NAV_ITEMS.map(({ to, num, label, latin }) => (
             <NavLink
@@ -91,7 +101,7 @@ export default function AppLayout() {
               <span style={{ color: 'var(--ochre-dim)' }}>mcmxxvi</span>
             </div>
             <div className="nav__foot-row">
-              <span>Фаза II</span>
+              <span>{t('nav.phaseII')}</span>
               <span style={{ color: 'var(--blood)', fontSize: 10 }}>●</span>
             </div>
           </div>
@@ -100,7 +110,7 @@ export default function AppLayout() {
         <div className="main">
           <header className="topbar">
             <div className="topbar__crumb">
-              <span style={{ color: 'var(--ochre-dim)' }}>Аркгем</span>
+              <span style={{ color: 'var(--ochre-dim)' }}>{t('breadcrumb.arkham')}</span>
               {crumbs.map((c, i) => (
                 <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span className="sep" style={{ color: 'var(--ochre-deep)' }}>∴</span>

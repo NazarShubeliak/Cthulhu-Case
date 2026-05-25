@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getCharacters, createCharacter } from '../../api/characters.js'
 
 function CharacterCard({ character, onClick }) {
+  const { t } = useTranslation()
   const hpPct = Math.min(100, (character.hp_current / character.hp_max) * 100)
   const sanPct = Math.min(100, (character.sanity_current / character.sanity_max) * 100)
 
@@ -10,12 +12,12 @@ function CharacterCard({ character, onClick }) {
     <div className="char-card" onClick={onClick}>
       <div className="char-card__name">{character.name}</div>
       <div className="char-card__occ">
-        {character.occupation || 'Невідома професія'}
+        {character.occupation || t('chars.unknownOcc')}
         {character.age ? ` · ${character.age} р.` : ''}
       </div>
       <div className="char-card__vitals">
         <div className="char-card__vital-row">
-          <span className="char-card__vital-label">Здоров'я</span>
+          <span className="char-card__vital-label">{t('chars.health')}</span>
           <div className="stat-bar" style={{ flex: 1 }}>
             <div
               className="stat-bar__fill"
@@ -30,7 +32,7 @@ function CharacterCard({ character, onClick }) {
           </span>
         </div>
         <div className="char-card__vital-row">
-          <span className="char-card__vital-label">Санітет</span>
+          <span className="char-card__vital-label">{t('chars.sanity')}</span>
           <div className="stat-bar" style={{ flex: 1 }}>
             <div
               className="stat-bar__fill"
@@ -50,6 +52,7 @@ function CharacterCard({ character, onClick }) {
 }
 
 function NewCharacterModal({ onClose, onCreate }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState({ name: '', occupation: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -57,7 +60,7 @@ function NewCharacterModal({ onClose, onCreate }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.name.trim()) {
-      setError("Введіть ім'я персонажа.")
+      setError(t('chars.nameError'))
       return
     }
     setLoading(true)
@@ -69,9 +72,9 @@ function NewCharacterModal({ onClose, onCreate }) {
       const data = err.response?.data
       if (typeof data === 'object') {
         const msgs = Object.values(data).flat()
-        setError(msgs[0] || 'Помилка створення.')
+        setError(msgs[0] || t('chars.createError'))
       } else {
-        setError('Помилка сервера.')
+        setError(t('chars.serverError'))
       }
     } finally {
       setLoading(false)
@@ -81,40 +84,40 @@ function NewCharacterModal({ onClose, onCreate }) {
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal-box">
-        <div className="modal-title">Новий дослідник</div>
+        <div className="modal-title">{t('chars.modalTitle')}</div>
         {error && <div className="auth-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label" htmlFor="char-name">
-              Ім'я персонажа
+              {t('chars.nameLabel')}
             </label>
             <input
               id="char-name"
               className="form-input"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Елеонор Армітедж"
+              placeholder={t('chars.namePlaceholder')}
               autoFocus
             />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="char-occ">
-              Професія
+              {t('chars.occLabel')}
             </label>
             <input
               id="char-occ"
               className="form-input"
               value={form.occupation}
               onChange={(e) => setForm((f) => ({ ...f, occupation: e.target.value }))}
-              placeholder="Бібліотекарка, журналіст..."
+              placeholder={t('chars.occPlaceholder')}
             />
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 28 }}>
             <button type="submit" className="btn btn--primary" disabled={loading}>
-              {loading ? 'Створення...' : 'Відкрити досьє'}
+              {loading ? t('chars.creating') : t('chars.createBtn')}
             </button>
             <button type="button" className="btn btn--ghost" onClick={onClose}>
-              Скасувати
+              {t('chars.cancel')}
             </button>
           </div>
         </form>
@@ -125,6 +128,7 @@ function NewCharacterModal({ onClose, onCreate }) {
 
 export default function CharacterListPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [characters, setCharacters] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -144,13 +148,10 @@ export default function CharacterListPage() {
     <div className="page">
       <header className="page-header">
         <div className="page-header__eyebrow">
-          № i · дослідники · investigatores
+          {t('chars.eyebrow')}
         </div>
-        <h1 className="page-header__title">Досьє слідчих</h1>
-        <p className="page-header__sub">
-          Кожен дослідник — окреме досьє. Тут зберігаються картки всіх ваших
-          персонажів, їхній стан і навички.
-        </p>
+        <h1 className="page-header__title">{t('chars.title')}</h1>
+        <p className="page-header__sub">{t('chars.sub')}</p>
       </header>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -158,7 +159,7 @@ export default function CharacterListPage() {
           className="btn btn--primary"
           onClick={() => setShowModal(true)}
         >
-          + Новий дослідник
+          {t('chars.newBtn')}
         </button>
       </div>
 
@@ -173,21 +174,19 @@ export default function CharacterListPage() {
             color: 'var(--moss-pale)',
           }}
         >
-          Завантаження архіву...
+          {t('chars.loading')}
         </div>
       )}
 
       {!loading && characters.length === 0 && (
         <div className="empty-state">
-          <div className="empty-state__title">Архів порожній</div>
-          <div className="empty-state__sub">
-            Жодного досьє ще не відкрито · Почніть перше розслідування
-          </div>
+          <div className="empty-state__title">{t('chars.empty')}</div>
+          <div className="empty-state__sub">{t('chars.emptySub')}</div>
           <button
             className="btn btn--primary"
             onClick={() => setShowModal(true)}
           >
-            Відкрити перше досьє
+            {t('chars.openFirst')}
           </button>
         </div>
       )}

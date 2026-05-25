@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { register } from '../../api/auth.js'
 import useAuthStore from '../../store/authStore.js'
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const setAuth = useAuthStore((s) => s.setAuth)
 
   const [form, setForm] = useState({
@@ -25,7 +27,7 @@ export default function RegisterPage() {
     setError('')
 
     if (form.password !== form.password2) {
-      setError('Паролі не збігаються.')
+      setError(t('auth.passwordMismatch'))
       return
     }
 
@@ -45,9 +47,9 @@ export default function RegisterPage() {
         setError(Array.isArray(data.username) ? data.username[0] : data.username)
       } else if (typeof data === 'object') {
         const msgs = Object.values(data).flat()
-        setError(msgs[0] || 'Помилка реєстрації.')
+        setError(msgs[0] || t('auth.registerError'))
       } else {
-        setError('Помилка сервера.')
+        setError(t('auth.serverError'))
       }
     } finally {
       setLoading(false)
@@ -68,17 +70,17 @@ export default function RegisterPage() {
             marginBottom: 16,
           }}
         >
-          Університет Міскатонік · Реєстратура
+          {t('auth.miskatonic')}
         </div>
-        <h1 className="auth-title">Нове досьє</h1>
-        <p className="auth-sub">Зареєструйтесь, щоб почати розслідування</p>
+        <h1 className="auth-title">{t('auth.registerTitle')}</h1>
+        <p className="auth-sub">{t('auth.registerSub')}</p>
 
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label" htmlFor="username">
-              Логін
+              {t('auth.username')}
             </label>
             <input
               id="username"
@@ -87,7 +89,7 @@ export default function RegisterPage() {
               className="form-input"
               value={form.username}
               onChange={handleChange}
-              placeholder="ім'я дослідника"
+              placeholder={t('auth.usernamePlaceholder')}
               required
               autoComplete="username"
             />
@@ -95,7 +97,7 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="email">
-              Електронна пошта
+              {t('auth.email')}
             </label>
             <input
               id="email"
@@ -111,7 +113,7 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="password">
-              Пароль
+              {t('auth.password')}
             </label>
             <input
               id="password"
@@ -120,7 +122,7 @@ export default function RegisterPage() {
               className="form-input"
               value={form.password}
               onChange={handleChange}
-              placeholder="мінімум 8 символів"
+              placeholder={t('auth.passwordMin')}
               required
               autoComplete="new-password"
             />
@@ -128,7 +130,7 @@ export default function RegisterPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="password2">
-              Підтвердження пароля
+              {t('auth.passwordConfirm')}
             </label>
             <input
               id="password2"
@@ -137,7 +139,7 @@ export default function RegisterPage() {
               className="form-input"
               value={form.password2}
               onChange={handleChange}
-              placeholder="повторіть пароль"
+              placeholder={t('auth.passwordConfirmPlaceholder')}
               required
               autoComplete="new-password"
             />
@@ -149,13 +151,13 @@ export default function RegisterPage() {
             style={{ width: '100%', padding: '12px 16px', marginTop: 8 }}
             disabled={loading}
           >
-            {loading ? 'Реєстрація...' : 'Відкрити досьє'}
+            {loading ? t('auth.registering') : t('auth.openDossier')}
           </button>
         </form>
 
         <div className="auth-switch">
-          Вже є акаунт?{' '}
-          <Link to="/login">Увійти до архіву</Link>
+          {t('auth.hasAccount')}{' '}
+          <Link to="/login">{t('auth.enterArchive')}</Link>
         </div>
       </div>
     </div>

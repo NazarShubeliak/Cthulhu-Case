@@ -1,32 +1,29 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import useAuthStore from '../../store/authStore.js'
 import { getSession, startSession, deleteSession, leaveSession, setSessionCharacter, getMySessionCharacter, loadCampaign } from '../../api/sessions.js'
 import { getCharacters } from '../../api/characters.js'
 import { getCampaigns } from '../../api/campaigns.js'
 
-const STATUS_LABELS = {
-  lobby: 'Лобі',
-  active: 'Активна',
-  closed: 'Закрита',
-}
-
 function StatusChip({ status }) {
+  const { t } = useTranslation()
   return (
     <span className={`status-chip status-chip--${status}`}>
-      {STATUS_LABELS[status] ?? status}
+      {t(`status.${status}`, { defaultValue: status })}
     </span>
   )
 }
 
 function PlayerRow({ player, isMaster }) {
+  const { t } = useTranslation()
   const initials = player.username?.slice(0, 2).toUpperCase() ?? '??'
   return (
     <div className="player-row">
       <div className="player-avatar">{initials}</div>
       <span className="player-name">{player.username}</span>
       {isMaster && (
-        <span className="player-badge">Майстер</span>
+        <span className="player-badge">{t('lobby.master')}</span>
       )}
     </div>
   )
@@ -35,6 +32,7 @@ function PlayerRow({ player, isMaster }) {
 export default function LobbyPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const user = useAuthStore((s) => s.user)
 
   const [session, setSession] = useState(null)
@@ -53,9 +51,9 @@ export default function LobbyPage() {
     setLoading(true)
     getSession(id)
       .then((res) => setSession(res.data))
-      .catch(() => setError('Сесію не знайдено або відмовлено у доступі.'))
+      .catch(() => setError(t('lobby.notFound')))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     load()
@@ -87,10 +85,10 @@ export default function LobbyPage() {
     setLoadSuccess(null)
     try {
       const res = await loadCampaign(id, campaignId)
-      setLoadSuccess(`Завантажено ${res.data.created} ассетів на стіл`)
+      setLoadSuccess(t('lobby.loadedAssets', { count: res.data.created }))
       setShowCampaignPicker(false)
     } catch (err) {
-      setError(err.response?.data?.error || 'Помилка завантаження кампанії.')
+      setError(err.response?.data?.error || t('lobby.loadError'))
     } finally {
       setLoadingCampaign(false)
     }
@@ -114,45 +112,41 @@ export default function LobbyPage() {
       await startSession(id)
       navigate(`/table/${id}`)
     } catch (err) {
-      setError(err.response?.data?.error || 'Помилка запуску сесії.')
+      setError(err.response?.data?.error || t('lobby.sessionError'))
     } finally {
       setActionLoading(false)
     }
   }
 
   async function handleClose() {
-    if (!window.confirm('Видалити сесію? Це незворотня дія.')) return
+    if (!window.confirm(t('lobby.deleteConfirm'))) return
     setActionLoading(true)
     try {
       await deleteSession(id)
       navigate('/sessions')
     } catch (err) {
-      setError(err.response?.data?.error || 'Помилка видалення сесії.')
+      setError(err.response?.data?.error || t('lobby.closeError'))
       setActionLoading(false)
     }
   }
 
   async function handleLeave() {
-    if (!window.confirm('Покинути сесію?')) return
+    if (!window.confirm(t('lobby.leaveConfirm'))) return
     setActionLoading(true)
     try {
       await leaveSession(id)
       navigate('/sessions')
     } catch (err) {
-      setError(err.response?.data?.error || 'Помилка виходу.')
+      setError(err.response?.data?.error || t('lobby.leaveError'))
     } finally {
       setActionLoading(false)
     }
   }
 
-  function copyId() {
-    navigator.clipboard.writeText(String(id)).catch(() => {})
-  }
-
   if (loading) {
     return (
       <div style={{ padding: '60px 48px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--moss-pale)', letterSpacing: '0.2em' }}>
-        Завантаження...
+        {t('lobby.loading')}
       </div>
     )
   }
@@ -162,7 +156,7 @@ export default function LobbyPage() {
       <div style={{ padding: '60px 48px' }}>
         <div className="auth-error">{error}</div>
         <button className="btn btn--ghost" onClick={() => navigate('/sessions')} style={{ marginTop: 16 }}>
-          ← Назад до лобі
+          {t('lobby.back')}
         </button>
       </div>
     )
@@ -218,15 +212,13 @@ export default function LobbyPage() {
             marginBottom: 12,
           }}
         >
-          Учасники
+          {t('lobby.participants')}
         </div>
 
-        {/* Master row */}
         {session?.master && (
           <PlayerRow player={session.master} isMaster />
         )}
 
-        {/* Players rows */}
         {session?.players?.map((p) => (
           <PlayerRow key={p.id} player={p} isMaster={false} />
         ))}
@@ -242,11 +234,10 @@ export default function LobbyPage() {
               borderBottom: '1px solid var(--ochre-deep)',
             }}
           >
-            Гравці ще не приєдналися
+            {t('lobby.noPlayers')}
           </div>
         )}
 
-        {/* Load campaign success message */}
         {loadSuccess && (
           <div style={{
             fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ochre)',
@@ -257,7 +248,6 @@ export default function LobbyPage() {
           </div>
         )}
 
-        {/* Actions */}
         <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
           {isMaster ? (
             <>
@@ -267,7 +257,7 @@ export default function LobbyPage() {
                   onClick={handleStart}
                   disabled={actionLoading}
                 >
-                  {actionLoading ? '...' : 'Розпочати сесію'}
+                  {actionLoading ? '...' : t('lobby.startSession')}
                 </button>
               )}
               {session?.status === 'active' && (
@@ -275,7 +265,7 @@ export default function LobbyPage() {
                   className="btn btn--ghost"
                   onClick={() => navigate(`/table/${id}`)}
                 >
-                  Відкрити стіл
+                  {t('lobby.openTable')}
                 </button>
               )}
               {session?.status !== 'closed' && campaigns.length > 0 && (
@@ -284,7 +274,7 @@ export default function LobbyPage() {
                   onClick={() => setShowCampaignPicker(v => !v)}
                   disabled={loadingCampaign}
                 >
-                  {loadingCampaign ? '...' : 'Завантажити кампанію'}
+                  {loadingCampaign ? '...' : t('lobby.loadCampaign')}
                 </button>
               )}
               {session?.status !== 'closed' && (
@@ -293,7 +283,7 @@ export default function LobbyPage() {
                   onClick={handleClose}
                   disabled={actionLoading}
                 >
-                  Закрити сесію
+                  {t('lobby.closeSession')}
                 </button>
               )}
             </>
@@ -303,7 +293,7 @@ export default function LobbyPage() {
               onClick={handleLeave}
               disabled={actionLoading}
             >
-              {actionLoading ? '...' : 'Покинути сесію'}
+              {actionLoading ? '...' : t('lobby.leaveSession')}
             </button>
           )}
 
@@ -311,11 +301,10 @@ export default function LobbyPage() {
             className="btn btn--ghost"
             onClick={() => navigate('/sessions')}
           >
-            ← Усі сесії
+            {t('lobby.allSessions')}
           </button>
         </div>
 
-        {/* Campaign picker */}
         {showCampaignPicker && campaigns.length > 0 && (
           <div style={{
             marginTop: 16,
@@ -327,7 +316,7 @@ export default function LobbyPage() {
               fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em',
               textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 10,
             }}>
-              Оберіть кампанію
+              {t('lobby.selectCampaign')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {campaigns.map(c => (
@@ -356,7 +345,7 @@ export default function LobbyPage() {
                   </div>
                   {c.asset_count > 0 && (
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--ochre)', letterSpacing: '0.2em' }}>
-                      {c.asset_count} ассетів
+                      {c.asset_count} {t('lobby.assets')}
                     </div>
                   )}
                 </button>
@@ -378,10 +367,9 @@ export default function LobbyPage() {
             marginBottom: 16,
           }}
         >
-          Інформація
+          {t('lobby.info')}
         </div>
 
-        {/* Session ID copy box */}
         <div style={{ marginBottom: 24 }}>
           <div
             style={{
@@ -393,7 +381,7 @@ export default function LobbyPage() {
               marginBottom: 6,
             }}
           >
-            Код для входу
+            {t('lobby.joinCode')}
           </div>
           <div className="copy-box">
             <span style={{ letterSpacing: '0.3em', fontSize: 16, fontFamily: 'var(--font-mono)' }}>
@@ -404,12 +392,11 @@ export default function LobbyPage() {
               style={{ padding: '4px 10px', fontSize: 9 }}
               onClick={() => navigator.clipboard.writeText(session?.join_code ?? '').catch(() => {})}
             >
-              Копіювати
+              {t('lobby.copy')}
             </button>
           </div>
         </div>
 
-        {/* Info box */}
         <div
           style={{
             background: 'var(--ink-2)',
@@ -418,10 +405,10 @@ export default function LobbyPage() {
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <InfoRow label="Майстер" value={session?.master?.username ?? '—'} />
-            <InfoRow label="Гравців" value={session?.players?.length ?? 0} />
-            <InfoRow label="Статус" value={STATUS_LABELS[session?.status] ?? session?.status} />
-            <InfoRow label="Створено" value={createdDate} />
+            <InfoRow label={t('lobby.masterLabel')} value={session?.master?.username ?? '—'} />
+            <InfoRow label={t('lobby.playersCount')} value={session?.players?.length ?? 0} />
+            <InfoRow label={t('lobby.statusLabel')} value={t(`status.${session?.status}`, { defaultValue: session?.status })} />
+            <InfoRow label={t('lobby.created')} value={createdDate} />
           </div>
         </div>
 
@@ -431,7 +418,7 @@ export default function LobbyPage() {
               fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em',
               textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 10,
             }}>
-              Ваш персонаж
+              {t('lobby.yourCharacter')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {characters.map((c) => (
@@ -463,7 +450,7 @@ export default function LobbyPage() {
                   </div>
                   {boundCharId === c.id && (
                     <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--ochre)', letterSpacing: '0.2em' }}>
-                      ОБРАНО
+                      {t('lobby.selected')}
                     </div>
                   )}
                 </button>
@@ -479,7 +466,7 @@ export default function LobbyPage() {
               style={{ width: '100%' }}
               onClick={() => navigate(`/table/${id}`)}
             >
-              Увійти до столу
+              {t('lobby.enterTable')}
             </button>
           </div>
         )}

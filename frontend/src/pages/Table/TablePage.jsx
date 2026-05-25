@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import useAuthStore from '../../store/authStore.js'
 import useTableStore from '../../store/tableStore.js'
 import useWebSocket from '../../hooks/useWebSocket.js'
@@ -8,18 +9,21 @@ import EvidenceBoard from './EvidenceBoard.jsx'
 
 // ── Constants ──
 
-const CARD_TYPES = [
-  { value: 'document', label: 'Документ' },
-  { value: 'photo', label: 'Фото' },
-  { value: 'note', label: 'Нотатка' },
-  { value: 'npc', label: 'Досьє' },
-]
-
-const STATUS_LABELS = { lobby: 'Лобі', active: 'Активна', closed: 'Закрита' }
+function getCardTypes(t) {
+  return [
+    { value: 'document', label: t('cardType.document') },
+    { value: 'photo',    label: t('cardType.photo') },
+    { value: 'note',     label: t('cardType.note') },
+    { value: 'npc',      label: t('cardType.npc') },
+  ]
+}
 
 // ── Create card form (master only) ──
 
 function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated, open, onClose, initialType, initialPos, initialTarget }) {
+  const { t } = useTranslation()
+  const CARD_TYPES = getCardTypes(t)
+
   const [type, setType] = useState(initialType ?? 'document')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -77,7 +81,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
       onCreated(res.data)
       onClose()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Помилка створення картки.')
+      setError(err.response?.data?.detail || t('table.createError'))
     } finally {
       setLoading(false)
     }
@@ -107,10 +111,10 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
       {error && <div className="auth-error" style={{ marginBottom: 10 }}>{error}</div>}
       <form onSubmit={handleSubmit}>
         <div className="form-group" style={{ marginBottom: 10 }}>
-          <label className="form-label">Куди</label>
+          <label className="form-label">{t('table.destination')}</label>
           <select className="form-input" value={target} onChange={(e) => setTarget(e.target.value)}>
-            <option value="public">Загальний стіл</option>
-            <option value="personal">Особистий</option>
+            <option value="public">{t('table.publicTable')}</option>
+            <option value="personal">{t('table.personal')}</option>
             {isMaster && players.map((p) => (
               <option key={p.id} value={p.id}>→ {p.username}</option>
             ))}
@@ -118,8 +122,8 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
         </div>
 
         <div className="form-group">
-          <label className="form-label">{type === 'npc' ? 'Ім\'я' : 'Назва'}</label>
-          <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === 'npc' ? 'Ім\'я персонажа...' : 'Заголовок...'} />
+          <label className="form-label">{type === 'npc' ? t('npc.nameLabel') : t('npc.titleLabel')}</label>
+          <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={type === 'npc' ? t('npc.namePlaceholder') : t('npc.titlePlaceholder')} />
         </div>
 
         {type === 'npc' ? (
@@ -137,57 +141,57 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
                   }
                 </div>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                  {imagePreview ? 'Змінити фото' : 'Додати фото (необов\'язково)'}
+                  {imagePreview ? t('npc.changePhoto') : t('npc.addPhoto')}
                 </span>
                 <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
               </label>
               {imagePreview && (
                 <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
                   style={{ marginTop: 4, background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 9 }}>
-                  × прибрати фото
+                  {t('npc.removePhoto')}
                 </button>
               )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div className="form-group" style={{ marginBottom: 10 }}>
-                <label className="form-label">Роль / Посада</label>
-                <input className="form-input" value={npc.role} onChange={(e) => setNpcField('role', e.target.value)} placeholder="Детектив, крамар..." />
+                <label className="form-label">{t('npc.role')}</label>
+                <input className="form-input" value={npc.role} onChange={(e) => setNpcField('role', e.target.value)} placeholder={t('npc.rolePlaceholder')} />
               </div>
               <div className="form-group" style={{ marginBottom: 10 }}>
-                <label className="form-label">Вік</label>
-                <input className="form-input" value={npc.age} onChange={(e) => setNpcField('age', e.target.value)} placeholder="35..." />
+                <label className="form-label">{t('npc.age')}</label>
+                <input className="form-input" value={npc.age} onChange={(e) => setNpcField('age', e.target.value)} placeholder={t('npc.agePlaceholder')} />
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Статус</label>
+              <label className="form-label">{t('npc.status')}</label>
               <select className="form-input" value={npc.status} onChange={(e) => setNpcField('status', e.target.value)}>
-                <option value="">— невідомо —</option>
-                <option value="живий">Живий</option>
-                <option value="мертвий">Мертвий</option>
-                <option value="зниклий">Зниклий</option>
-                <option value="підозрюваний">Підозрюваний</option>
+                <option value="">{t('npc.statusUnknown')}</option>
+                <option value="живий">{t('npc.alive')}</option>
+                <option value="мертвий">{t('npc.dead')}</option>
+                <option value="зниклий">{t('npc.missing')}</option>
+                <option value="підозрюваний">{t('npc.suspect')}</option>
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label">Зовнішність</label>
-              <textarea className="form-input" value={npc.appearance} onChange={(e) => setNpcField('appearance', e.target.value)} placeholder="Як виглядає, одяг, особливі прикмети..." rows={2} />
+              <label className="form-label">{t('npc.appearance')}</label>
+              <textarea className="form-input" value={npc.appearance} onChange={(e) => setNpcField('appearance', e.target.value)} placeholder={t('npc.appearancePlaceholder')} rows={2} />
             </div>
             <div className="form-group">
-              <label className="form-label">Характер</label>
-              <textarea className="form-input" value={npc.character} onChange={(e) => setNpcField('character', e.target.value)} placeholder="Поведінка, манери, страхи..." rows={2} />
+              <label className="form-label">{t('npc.character')}</label>
+              <textarea className="form-input" value={npc.character} onChange={(e) => setNpcField('character', e.target.value)} placeholder={t('npc.characterPlaceholder')} rows={2} />
             </div>
             <div className="form-group">
-              <label className="form-label">Зв&apos;язки</label>
-              <textarea className="form-input" value={npc.connections} onChange={(e) => setNpcField('connections', e.target.value)} placeholder="З ким пов'язаний, де буває..." rows={2} />
+              <label className="form-label">{t('npc.connections')}</label>
+              <textarea className="form-input" value={npc.connections} onChange={(e) => setNpcField('connections', e.target.value)} placeholder={t('npc.connectionPlaceholder')} rows={2} />
             </div>
             <div className="form-group" style={{ marginBottom: 12 }}>
-              <label className="form-label" style={{ color: 'rgba(196,122,114,0.8)' }}>Секрет</label>
-              <textarea className="form-input" value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} placeholder="Що приховує..." rows={2} style={{ borderColor: 'rgba(122,42,37,0.5)' }} />
+              <label className="form-label" style={{ color: 'rgba(196,122,114,0.8)' }}>{t('npc.secret')}</label>
+              <textarea className="form-input" value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} placeholder={t('npc.secretPlaceholder')} rows={2} style={{ borderColor: 'rgba(122,42,37,0.5)' }} />
             </div>
           </>
         ) : type === 'photo' ? (
           <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Зображення</label>
+            <label className="form-label">{t('photo.label')}</label>
             <label style={{
               display: 'block', border: '1px dashed var(--ochre-deep)',
               padding: imagePreview ? 0 : '20px 0', textAlign: 'center',
@@ -196,7 +200,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
               {imagePreview
                 ? <img src={imagePreview} alt="" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
                 : <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.18em' }}>
-                    Клікни щоб обрати фото
+                    {t('photo.click')}
                   </span>
               }
               <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
@@ -204,19 +208,19 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
             {imagePreview && (
               <button type="button" onClick={() => { setImageFile(null); setImagePreview(null) }}
                 style={{ marginTop: 4, background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontFamily: 'var(--font-mono)', fontSize: 9 }}>
-                × прибрати фото
+                {t('npc.removePhoto')}
               </button>
             )}
           </div>
         ) : (
           <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">Зміст</label>
-            <textarea className="form-input" value={content} onChange={(e) => setContent(e.target.value)} placeholder="Текст..." rows={type === 'document' ? 5 : 3} />
+            <label className="form-label">{t('table.content')}</label>
+            <textarea className="form-input" value={content} onChange={(e) => setContent(e.target.value)} placeholder={t('table.text')} rows={type === 'document' ? 5 : 3} />
           </div>
         )}
 
         <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim() || (type === 'photo' && !imageFile)}>
-          {loading ? 'Збереження...' : 'Додати картку'}
+          {loading ? t('table.saving') : t('table.addCard')}
         </button>
       </form>
     </div>
@@ -228,6 +232,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
 export default function TablePage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const user = useAuthStore((s) => s.user)
   const { setCards, setThreads, addCard, addConnectedUser, connectedUsers, diceLog, reset } = useTableStore()
 
@@ -259,7 +264,6 @@ export default function TablePage() {
       setCards(cardsRes.data.results ?? cardsRes.data)
       setThreads(threadsRes.data.results ?? threadsRes.data)
 
-      // seed connected users from players list
       const players = sessRes.data.players ?? []
       players.forEach((p) => addConnectedUser({ user_id: p.id, username: p.username }))
       if (sessRes.data.master) {
@@ -290,9 +294,15 @@ export default function TablePage() {
   if (loading) {
     return (
       <div style={{ padding: 60, fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--moss-pale)', letterSpacing: '0.2em' }}>
-        Завантаження столу...
+        {t('table.loading')}
       </div>
     )
+  }
+
+  const STATUS_LABELS = {
+    lobby: t('status.lobby'),
+    active: t('status.active'),
+    closed: t('status.closed'),
   }
 
   return (
@@ -305,7 +315,7 @@ export default function TablePage() {
         flexShrink: 0,
       }}>
         <button className="btn btn--ghost" style={{ padding: '4px 10px', fontSize: 10 }} onClick={() => navigate(`/sessions/${id}`)}>
-          ← Лобі
+          {t('table.lobby')}
         </button>
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontStyle: 'italic', color: 'var(--cream)' }}>
           {session?.name}
@@ -327,7 +337,7 @@ export default function TablePage() {
           style={{ padding: '4px 10px', fontSize: 10, position: 'relative' }}
           onClick={() => setDiceLogOpen((v) => !v)}
         >
-          Кидки {diceLog.length > 0 && (
+          {t('table.diceLog')} {diceLog.length > 0 && (
             <span style={{
               marginLeft: 4, background: 'var(--blood)', color: '#fff',
               borderRadius: 8, fontSize: 8, padding: '1px 5px',
@@ -367,7 +377,6 @@ export default function TablePage() {
         }}
       />
 
-
       {/* Dice log panel */}
       {diceLogOpen && (
         <div style={{
@@ -381,14 +390,14 @@ export default function TablePage() {
             padding: '10px 16px', borderBottom: '1px solid var(--ochre-deep)', flexShrink: 0,
           }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
-              Журнал кидків
+              {t('table.diceLogTitle')}
             </span>
             <button onClick={() => setDiceLogOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--moss)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
             {diceLog.length === 0 && (
               <div style={{ padding: '24px 16px', fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--moss)', letterSpacing: '0.16em', textAlign: 'center' }}>
-                Кидків ще немає
+                {t('table.noDice')}
               </div>
             )}
             {diceLog.map((entry, i) => {
@@ -412,7 +421,7 @@ export default function TablePage() {
                     )}
                     {isPrivate && (
                       <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', fontSize: 8, color: 'var(--blood)', letterSpacing: '0.14em' }}>
-                        приватний
+                        {t('table.private')}
                       </span>
                     )}
                   </div>
@@ -448,20 +457,20 @@ export default function TablePage() {
 
       {/* Dice roll toasts */}
       <div style={{ position: 'fixed', bottom: 80, left: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {diceToasts.map((t) => (
-          <div key={t.id} style={{
+        {diceToasts.map((toast) => (
+          <div key={toast.id} style={{
             background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
             padding: '10px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
             fontFamily: 'var(--font-mono)', animation: 'fadeInUp 0.2s ease',
           }}>
             <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 4 }}>
-              {t.rolled_by} · {t.count}{t.dice_type}
+              {toast.rolled_by} · {toast.count}{toast.dice_type}
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 28, color: 'var(--ochre-bright)', lineHeight: 1 }}>{t.total}</span>
-              {t.count > 1 && (
+              <span style={{ fontSize: 28, color: 'var(--ochre-bright)', lineHeight: 1 }}>{toast.total}</span>
+              {toast.count > 1 && (
                 <span style={{ fontSize: 10, color: 'var(--moss-pale)' }}>
-                  [{t.results.join(' + ')}]
+                  [{toast.results.join(' + ')}]
                 </span>
               )}
             </div>

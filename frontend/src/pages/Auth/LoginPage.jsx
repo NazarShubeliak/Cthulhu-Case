@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { login } from '../../api/auth.js'
 import useAuthStore from '../../store/authStore.js'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const setAuth = useAuthStore((s) => s.setAuth)
 
   const [form, setForm] = useState({ username: '', password: '' })
@@ -30,9 +32,9 @@ export default function LoginPage() {
         setError(data.non_field_errors[0])
       } else if (typeof data === 'object') {
         const msgs = Object.values(data).flat()
-        setError(msgs[0] || 'Помилка входу.')
+        setError(msgs[0] || t('auth.loginError'))
       } else {
-        setError('Помилка сервера.')
+        setError(t('auth.serverError'))
       }
     } finally {
       setLoading(false)
@@ -53,17 +55,17 @@ export default function LoginPage() {
             marginBottom: 16,
           }}
         >
-          Університет Міскатонік · Реєстратура
+          {t('auth.miskatonic')}
         </div>
-        <h1 className="auth-title">Вхід до Архіву</h1>
-        <p className="auth-sub">Ідентифікуйте себе, щоб отримати доступ</p>
+        <h1 className="auth-title">{t('auth.loginTitle')}</h1>
+        <p className="auth-sub">{t('auth.loginSub')}</p>
 
         {error && <div className="auth-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label" htmlFor="username">
-              Логін
+              {t('auth.username')}
             </label>
             <input
               id="username"
@@ -72,7 +74,7 @@ export default function LoginPage() {
               className="form-input"
               value={form.username}
               onChange={handleChange}
-              placeholder="ім'я дослідника"
+              placeholder={t('auth.usernamePlaceholder')}
               required
               autoComplete="username"
             />
@@ -80,7 +82,7 @@ export default function LoginPage() {
 
           <div className="form-group">
             <label className="form-label" htmlFor="password">
-              Пароль
+              {t('auth.password')}
             </label>
             <input
               id="password"
@@ -89,7 +91,7 @@ export default function LoginPage() {
               className="form-input"
               value={form.password}
               onChange={handleChange}
-              placeholder="секретний код"
+              placeholder={t('auth.passwordPlaceholder')}
               required
               autoComplete="current-password"
             />
@@ -101,13 +103,13 @@ export default function LoginPage() {
             style={{ width: '100%', padding: '12px 16px', marginTop: 8 }}
             disabled={loading}
           >
-            {loading ? 'Перевірка...' : 'Увійти до архіву'}
+            {loading ? t('auth.checking') : t('auth.loginBtn')}
           </button>
         </form>
 
         <div className="auth-switch">
-          Ще не зареєстровані?{' '}
-          <Link to="/register">Створити досьє</Link>
+          {t('auth.noAccount')}{' '}
+          <Link to="/register">{t('auth.createDossier')}</Link>
         </div>
       </div>
     </div>

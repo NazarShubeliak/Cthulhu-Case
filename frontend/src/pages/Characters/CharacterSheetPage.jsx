@@ -1,31 +1,25 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { getCharacter, updateCharacter, updateSkill, rollDice, improveSkills, createEquipmentItem, updateEquipmentItem, deleteEquipmentItem, createMentalScar, deleteMentalScar } from '../../api/characters.js'
 import useDebounce from '../../hooks/useDebounce.js'
 
 // ── Stat definitions ─────────────────────────────────────────────────────────
 
 const STAT_DEFS = [
-  { key: 'str_stat', abbr: 'STR', uk: 'Сила',       lat: 'Vis' },
-  { key: 'con_stat', abbr: 'CON', uk: 'Тіло',       lat: 'Soma' },
-  { key: 'siz_stat', abbr: 'SIZ', uk: 'Зріст',      lat: 'Statura' },
-  { key: 'dex_stat', abbr: 'DEX', uk: 'Спритність', lat: 'Manus' },
-  { key: 'app_stat', abbr: 'APP', uk: 'Подоба',     lat: 'Forma' },
-  { key: 'int_stat', abbr: 'INT', uk: 'Розум',      lat: 'Mens' },
-  { key: 'pow_stat', abbr: 'POW', uk: 'Воля',       lat: 'Voluntas' },
-  { key: 'edu_stat', abbr: 'EDU', uk: 'Освіта',     lat: 'Doctrina' },
+  { key: 'str_stat', abbr: 'STR', tKey: 'stats.str', lat: 'Vis' },
+  { key: 'con_stat', abbr: 'CON', tKey: 'stats.con', lat: 'Soma' },
+  { key: 'siz_stat', abbr: 'SIZ', tKey: 'stats.siz', lat: 'Statura' },
+  { key: 'dex_stat', abbr: 'DEX', tKey: 'stats.dex', lat: 'Manus' },
+  { key: 'app_stat', abbr: 'APP', tKey: 'stats.app', lat: 'Forma' },
+  { key: 'int_stat', abbr: 'INT', tKey: 'stats.int', lat: 'Mens' },
+  { key: 'pow_stat', abbr: 'POW', tKey: 'stats.pow', lat: 'Voluntas' },
+  { key: 'edu_stat', abbr: 'EDU', tKey: 'stats.edu', lat: 'Doctrina' },
 ]
 
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100']
 
-const TIER_LABELS = {
-  critical: 'Критичний успіх',
-  extreme:  'Екстремальний',
-  hard:     'Складний успіх',
-  regular:  'Успіх',
-  failure:  'Провал',
-  fumble:   'Провальний кидок',
-}
+// TIER_LABELS are built per-component using t() to support i18n
 
 // ── Helper: derive frontend stats from raw ───────────────────────────────────
 
@@ -178,6 +172,7 @@ function VitalCounter({ label, current, max, onChange, color }) {
 }
 
 function StatBox({ stat, value, onChange }) {
+  const { t } = useTranslation()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
 
@@ -217,7 +212,7 @@ function StatBox({ stat, value, onChange }) {
               marginTop: 1,
             }}
           >
-            {stat.uk}
+            {t(stat.tKey)}
           </div>
           <div
             style={{
@@ -343,6 +338,15 @@ function SkillRow({ skill, onUpdate }) {
 }
 
 function DicePanel({ characterId, skills }) {
+  const { t } = useTranslation()
+  const TIER_LABELS = {
+    critical: t('tier.critical'),
+    extreme:  t('tier.extreme'),
+    hard:     t('tier.hard'),
+    regular:  t('tier.regular'),
+    failure:  t('tier.failure'),
+    fumble:   t('tier.fumble'),
+  }
   const [diceType, setDiceType] = useState('d100')
   const [diceCount, setDiceCount] = useState(1)
   const [selectedSkillId, setSelectedSkillId] = useState('')
@@ -382,7 +386,7 @@ function DicePanel({ characterId, skills }) {
           marginBottom: 14,
         }}
       >
-        Кубики · Dice Roller
+        {t('table.diceLog')} · Dice Roller
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -526,6 +530,7 @@ function DicePanel({ characterId, skills }) {
 export default function CharacterSheetPage() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const [char, setChar] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -680,7 +685,7 @@ export default function CharacterSheetPage() {
           letterSpacing: '0.2em',
         }}
       >
-        Завантаження досьє...
+        {t('chars.loading')}
       </div>
     )
   }
@@ -804,17 +809,17 @@ export default function CharacterSheetPage() {
             }}
           >
             <PaperField
-              label="Ім'я"
+              label={t('sheet.name')}
               value={char.name}
               onChange={(v) => handleChange('name', v)}
             />
             <PaperField
-              label="Професія"
+              label={t('sheet.occupation')}
               value={char.occupation}
               onChange={(v) => handleChange('occupation', v)}
             />
             <PaperField
-              label="Вік"
+              label={t('sheet.age')}
               value={char.age != null ? String(char.age) : ''}
               onChange={(v) => {
                 const n = parseInt(v, 10)
@@ -822,12 +827,12 @@ export default function CharacterSheetPage() {
               }}
             />
             <PaperField
-              label="Місце проживання"
+              label={t('sheet.residence')}
               value={char.residence}
               onChange={(v) => handleChange('residence', v)}
             />
             <PaperField
-              label="Місце народження"
+              label={t('sheet.birthplace')}
               value={char.birthplace}
               onChange={(v) => handleChange('birthplace', v)}
               colSpan={2}
@@ -854,7 +859,7 @@ export default function CharacterSheetPage() {
                   color: '#2a2418',
                 }}
               >
-                Характеристики
+                {t('sheet.characteristics')}
               </div>
               <div
                 style={{
@@ -865,7 +870,7 @@ export default function CharacterSheetPage() {
                   color: '#7a6440',
                 }}
               >
-                клацніть значення, щоб змінити
+                {t('sheet.characteristics')}
               </div>
             </div>
             <div
@@ -896,28 +901,28 @@ export default function CharacterSheetPage() {
             }}
           >
             <VitalCounter
-              label="Здоров'я"
+              label={t('sheet.health')}
               current={char.hp_current}
               max={char.hp_max}
               onChange={(v) => handleChange('hp_current', v)}
               color="#7a2a25"
             />
             <VitalCounter
-              label="Санітет"
+              label={t('sheet.sanity')}
               current={char.sanity_current}
               max={char.sanity_max}
               onChange={(v) => handleChange('sanity_current', v)}
               color="#3b5a45"
             />
             <VitalCounter
-              label="Магія"
+              label={t('sheet.magic')}
               current={char.mp_current}
               max={char.mp_max}
               onChange={(v) => handleChange('mp_current', v)}
               color="#5d3f6e"
             />
             <VitalCounter
-              label="Везіння"
+              label={t('sheet.luck')}
               current={char.luck_current}
               max={char.luck_max}
               onChange={(v) => handleChange('luck_current', v)}
@@ -936,7 +941,7 @@ export default function CharacterSheetPage() {
                 marginBottom: 4,
               }}
             >
-              Передісторія
+              {t('sheet.backstory')}
             </div>
             <div
               style={{
@@ -1025,7 +1030,7 @@ export default function CharacterSheetPage() {
               }}
             >
               <div>
-                <div className="eyebrow" style={{ marginBottom: 6 }}>Навички</div>
+                <div className="eyebrow" style={{ marginBottom: 6 }}>{t('sheet.skills')}</div>
                 <div
                   style={{
                     fontFamily: 'var(--font-display)',
@@ -1053,7 +1058,7 @@ export default function CharacterSheetPage() {
                     onClick={handleImproveSkills}
                     disabled={improving}
                   >
-                    {improving ? '...' : 'Підвищити навички'}
+                    {improving ? '...' : `${t('sheet.skills')} ↑`}
                   </button>
                 )}
               </div>
@@ -1136,7 +1141,7 @@ export default function CharacterSheetPage() {
             <span className="corner-tr" /><span className="corner-bl" />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
               <div>
-                <div className="eyebrow" style={{ marginBottom: 6 }}>Спорядження</div>
+                <div className="eyebrow" style={{ marginBottom: 6 }}>{t('sheet.equipment')}</div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic' }}>
                   У саквояжі та в кишенях
                 </div>
@@ -1196,7 +1201,7 @@ export default function CharacterSheetPage() {
               <input
                 value={newItemName}
                 onChange={(e) => setNewItemName(e.target.value)}
-                placeholder="Назва предмета..."
+                placeholder={t('sheet.itemPlaceholder')}
                 style={{
                   flex: 1,
                   background: 'var(--ink-2)',
@@ -1233,9 +1238,9 @@ export default function CharacterSheetPage() {
           {/* Mental Scars */}
           <div className="card corners" style={{ padding: 24, marginTop: 8, borderColor: '#5a2a25' }}>
             <span className="corner-tr" /><span className="corner-bl" />
-            <div className="eyebrow" style={{ marginBottom: 6, color: '#c47a72' }}>Шрами розуму</div>
+            <div className="eyebrow" style={{ marginBottom: 6, color: '#c47a72' }}>{t('sheet.mentalScars')}</div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', marginBottom: 16 }}>
-              Фобії та манії
+              {t('sheet.phobias')}
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: mentalScars.length > 0 ? 16 : 0 }}>
@@ -1261,7 +1266,7 @@ export default function CharacterSheetPage() {
               <input
                 value={newScarName}
                 onChange={(e) => setNewScarName(e.target.value)}
-                placeholder="Назва фобії або манії..."
+                placeholder={t('sheet.scarPlaceholder')}
                 style={{
                   flex: 1,
                   background: 'var(--ink-2)',
@@ -1280,7 +1285,7 @@ export default function CharacterSheetPage() {
                 className={newScarType === 'phobia' ? 'chip chip--danger' : 'chip chip--cool'}
                 style={{ cursor: 'pointer', border: 'none', whiteSpace: 'nowrap' }}
               >
-                {newScarType === 'phobia' ? 'Фобія' : 'Манія'}
+                {newScarType === 'phobia' ? t('sheet.phobia') : t('sheet.mania')}
               </button>
               <button className="btn btn--primary" style={{ padding: '6px 14px', fontSize: 12, background: '#7a2a25', borderColor: '#5a2a25' }} disabled={addingScar}>
                 +
@@ -1294,7 +1299,7 @@ export default function CharacterSheetPage() {
             onClick={() => navigate('/characters')}
             style={{ alignSelf: 'flex-start' }}
           >
-            ← Назад до архіву
+            ← {t('chars.title')}
           </button>
         </div>
       </div>
