@@ -30,7 +30,61 @@ body {
   color: var(--cream);
   font-family: var(--font-body);
   min-height: 100vh;
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Grain texture */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9000;
+  opacity: var(--grain-opacity, 0.07);
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.9  0 0 0 0 0.86  0 0 0 0 0.76  0 0 0 0.65 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Vignette */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 8999;
+  background:
+    radial-gradient(110% 80% at 50% 0%, transparent 50%, rgba(0,0,0,0.4) 100%),
+    radial-gradient(80% 60% at 50% 110%, transparent 40%, rgba(0,0,0,0.3) 100%);
+}
+
+/* Cursor lamp */
+.lamp-layer {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 8998;
+  opacity: var(--lamp-opacity, 0);
+  transition: opacity .6s cubic-bezier(.2,.6,.2,1);
+  background:
+    radial-gradient(
+      260px circle at var(--mx, 50%) var(--my, 50%),
+      rgba(216, 180, 110, 0.14) 0%,
+      rgba(216, 180, 110, 0.06) 30%,
+      transparent 65%
+    ),
+    radial-gradient(
+      800px circle at var(--mx, 50%) var(--my, 50%),
+      transparent 0%,
+      rgba(0,0,0,0.15) 60%,
+      rgba(0,0,0,0.28) 100%
+    );
+}
+
+/* Glitch text hover shimmer */
+.glitch-text { display: inline-block; }
+.glitch-text span { display: inline-block; transition: transform .25s var(--ease), color .25s var(--ease); }
+.glitch-text:hover span:nth-child(3n)   { transform: translateY(-1px); color: var(--ochre-bright); }
+.glitch-text:hover span:nth-child(3n+1) { transform: translateY(1px); }
+.glitch-text:hover span:nth-child(5n)   { transform: translateX(0.5px) translateY(-0.5px); }
 
 /* Shell layout */
 .shell {
@@ -127,6 +181,25 @@ body {
   font-size: 10px;
   color: var(--ochre-dim);
   width: 16px;
+}
+
+.nav__item-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nav__item-latin {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 10px;
+  color: var(--moss);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.nav__item--active .nav__item-latin {
+  color: var(--ochre-dim);
 }
 
 .nav__item-icon {

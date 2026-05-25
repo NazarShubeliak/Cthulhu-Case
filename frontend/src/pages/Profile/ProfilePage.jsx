@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getMe, updateMe, logout } from '../../api/auth.js'
 import { getCharacters } from '../../api/characters.js'
 import useAuthStore from '../../store/authStore.js'
+import useUIStore from '../../store/uiStore.js'
 
 const ROLE_LABELS = {
   player: 'Гравець',
@@ -33,6 +34,7 @@ export default function ProfilePage() {
   const [saveMsg, setSaveMsg] = useState('')
   const [charCount, setCharCount] = useState(null)
   const fileRef = useRef(null)
+  const { lamp, grain, glitchText, showLatin, setLamp, setGrain, setGlitchText, setShowLatin } = useUIStore()
 
   useEffect(() => {
     getMe()
@@ -253,6 +255,51 @@ export default function ProfilePage() {
                 {saveMsg}
               </span>
             )}
+          </div>
+        </div>
+
+        {/* Appearance */}
+        <div className="card" style={{ padding: 28, gridColumn: 'span 2' }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>Вигляд</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', marginBottom: 20 }}>
+            Атмосфера архіву
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {[
+              { label: 'Курсор-ліхтар',     sub: 'Освітлення слідує за вказівником миші', value: lamp,      set: setLamp },
+              { label: 'Зернистість',         sub: 'Субтильна текстура старого паперу',    value: grain,     set: setGrain },
+              { label: 'Тремтіння літер',     sub: 'Символи трясуться при наведенні',      value: glitchText, set: setGlitchText },
+              { label: 'Латинські підписи',   sub: 'Латинь під назвами розділів у навігації', value: showLatin, set: setShowLatin },
+            ].map(({ label, sub, value, set }) => (
+              <div
+                key={label}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '14px 0', borderBottom: '1px solid var(--ochre-deep)',
+                }}
+              >
+                <div>
+                  <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--cream)' }}>{label}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.16em', color: 'var(--moss-pale)', marginTop: 2 }}>{sub}</div>
+                </div>
+                <button
+                  onClick={() => set(!value)}
+                  style={{
+                    width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer',
+                    background: value ? 'var(--ochre)' : 'var(--ink-3)',
+                    position: 'relative', transition: 'background .2s',
+                    flexShrink: 0,
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 3, left: value ? 23 : 3,
+                    width: 18, height: 18, borderRadius: '50%',
+                    background: value ? 'var(--ink-0)' : 'var(--moss)',
+                    transition: 'left .2s, background .2s',
+                  }} />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
