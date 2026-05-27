@@ -12,7 +12,7 @@ export default defineConfig({
       usePolling: true,
     },
     proxy: {
-      '/api': { target: backendUrl, changeOrigin: true },
+      '/api': { target: backendUrl },
       '/media': { target: backendUrl, changeOrigin: true },
       '/ws': { target: wsUrl, ws: true, changeOrigin: true },
     },
