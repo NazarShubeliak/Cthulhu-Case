@@ -275,6 +275,7 @@
     "passwordChanged": "Пароль змінено",
     "passwordError": "Помилка зміни пароля.",
     "wrongPassword": "Невірний поточний пароль.",
+    "edit": "Редагувати",
     "actionsEyebrow": "Дії",
     "logout": "Вийти з архіву",
     "roles": {

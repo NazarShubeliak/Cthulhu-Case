@@ -154,30 +154,16 @@ export default function ProfilePage() {
 
             {/* Info */}
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: 28,
-                    fontStyle: 'italic',
-                    color: 'var(--cream)',
-                  }}
-                >
-                  {user?.username ?? '—'}
-                </div>
-                <button
-                  onClick={() => setShowEditModal(true)}
-                  style={{
-                    background: 'none', border: '1px solid var(--ochre-deep)', cursor: 'pointer',
-                    fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em',
-                    color: 'var(--moss)', textTransform: 'uppercase', padding: '3px 10px',
-                    transition: 'border-color .15s, color .15s',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--ochre)'; e.currentTarget.style.color = 'var(--ochre)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--ochre-deep)'; e.currentTarget.style.color = 'var(--moss)' }}
-                >
-                  {t('profile.change')}
-                </button>
+              <div
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 28,
+                  fontStyle: 'italic',
+                  color: 'var(--cream)',
+                  marginBottom: 6,
+                }}
+              >
+                {user?.username ?? '—'}
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span className="chip">
@@ -360,10 +346,16 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Logout */}
+        {/* Actions */}
         <div className="card" style={{ padding: 24, gridColumn: 'span 2' }}>
           <div className="eyebrow" style={{ marginBottom: 12 }}>{t('profile.actionsEyebrow')}</div>
           <div style={{ display: 'flex', gap: 12 }}>
+            <button
+              className="btn btn--primary"
+              onClick={() => setShowEditModal(true)}
+            >
+              {t('profile.edit')}
+            </button>
             <button
               className="btn btn--danger"
               onClick={handleLogout}

@@ -275,6 +275,7 @@
     "passwordChanged": "Password changed",
     "passwordError": "Error changing password.",
     "wrongPassword": "Wrong current password.",
+    "edit": "Edit Profile",
     "actionsEyebrow": "Actions",
     "logout": "Leave the Archive",
     "roles": {
