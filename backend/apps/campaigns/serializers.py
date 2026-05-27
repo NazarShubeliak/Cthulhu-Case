@@ -97,7 +97,7 @@ class ActListSerializer(serializers.ModelSerializer):
 
 class CampaignSerializer(serializers.ModelSerializer):
     master = UserSerializer(read_only=True)
-    acts = ActListSerializer(many=True, read_only=True)
+    acts = ActSerializer(many=True, read_only=True)
 
     class Meta:
         model = Campaign

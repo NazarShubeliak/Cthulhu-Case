@@ -50,7 +50,10 @@ class SessionViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def join(self, request, pk=None):
-        session = self.get_object()
+        try:
+            session = Session.objects.get(pk=pk)
+        except Session.DoesNotExist:
+            return Response({'error': 'Сесію не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
         if session.status == 'closed':
             return Response({'error': 'Сесія закрита.'}, status=status.HTTP_400_BAD_REQUEST)
         if session.master == request.user:

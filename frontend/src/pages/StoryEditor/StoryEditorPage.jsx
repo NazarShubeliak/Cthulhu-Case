@@ -314,6 +314,7 @@ function SceneDetail({ campaign, scene, onUpdated }) {
     fd.append('name', npcForm.name.trim())
     fd.append('description', npcForm.description.trim())
     fd.append('secret_info', npcForm.secret_info.trim())
+    fd.append('scene_ids', scene.id)
     const res = await createNPC(campaign.id, fd)
     setData(prev => ({ ...prev, npcs: [...(prev.npcs ?? []), res.data] }))
     setNpcForm({ show: false, name: '', description: '', secret_info: '' })

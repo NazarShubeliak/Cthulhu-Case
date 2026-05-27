@@ -67,8 +67,6 @@ class ActViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
-        if self.action == 'list':
-            return ActListSerializer
         return ActSerializer
 
     def get_queryset(self):
@@ -159,6 +157,9 @@ class SceneCardViewSet(viewsets.ModelViewSet):
                 player = User.objects.get(pk=sent_to_id)
             except User.DoesNotExist:
                 return Response({'error': 'Гравця не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+            session = card.session
+            if not session.players.filter(pk=player.pk).exists():
+                return Response({'error': 'Гравець не є учасником цієї сесії.'}, status=status.HTTP_400_BAD_REQUEST)
             card.owner = player
             card.is_public = False
         else:
