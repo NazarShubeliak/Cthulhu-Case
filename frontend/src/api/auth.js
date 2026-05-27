@@ -9,6 +9,8 @@ export const logout = (refreshToken) =>
 
 export const getMe = () => client.get('/auth/me/')
 
+export const changePassword = (data) => client.post('/auth/change-password/', data)
+
 export const updateMe = (data) => {
   const formData = new FormData()
   Object.entries(data).forEach(([key, value]) => {

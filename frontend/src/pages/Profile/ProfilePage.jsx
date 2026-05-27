@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getMe, updateMe, logout } from '../../api/auth.js'
+import { getMe, updateMe, changePassword, logout } from '../../api/auth.js'
 import { getCharacters } from '../../api/characters.js'
 import useAuthStore from '../../store/authStore.js'
 import useUIStore from '../../store/uiStore.js'
@@ -30,6 +30,17 @@ export default function ProfilePage() {
   const [saveMsg, setSaveMsg] = useState('')
   const [charCount, setCharCount] = useState(null)
   const fileRef = useRef(null)
+
+  const [username, setUsername] = useState(user?.username ?? '')
+  const [email, setEmail] = useState(user?.email ?? '')
+  const [accountSaving, setAccountSaving] = useState(false)
+  const [accountMsg, setAccountMsg] = useState('')
+
+  const [currentPwd, setCurrentPwd] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [confirmPwd, setConfirmPwd] = useState('')
+  const [pwdSaving, setPwdSaving] = useState(false)
+  const [pwdMsg, setPwdMsg] = useState('')
   const { lamp, grain, glitchText, showLatin, lang, setLamp, setGrain, setGlitchText, setShowLatin, setLang } = useUIStore()
 
   useEffect(() => {
@@ -37,6 +48,8 @@ export default function ProfilePage() {
       .then((res) => {
         setUser(res.data)
         setBio(res.data.bio ?? '')
+        setUsername(res.data.username ?? '')
+        setEmail(res.data.email ?? '')
       })
       .catch(console.error)
 
@@ -60,6 +73,54 @@ export default function ProfilePage() {
       setSaveMsg(t('profile.error'))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSaveAccount = async () => {
+    setAccountSaving(true)
+    setAccountMsg('')
+    try {
+      const res = await updateMe({ username, email })
+      setUser(res.data)
+      setAccountMsg(t('profile.accountSaved'))
+      setTimeout(() => setAccountMsg(''), 2000)
+    } catch (err) {
+      const detail = err?.response?.data
+      if (detail?.username) {
+        setAccountMsg(t('profile.usernameTaken'))
+      } else {
+        setAccountMsg(t('profile.accountError'))
+      }
+    } finally {
+      setAccountSaving(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (newPwd !== confirmPwd) {
+      setPwdMsg(t('auth.passwordMismatch'))
+      return
+    }
+    setPwdSaving(true)
+    setPwdMsg('')
+    try {
+      await changePassword({ current_password: currentPwd, new_password: newPwd, new_password2: confirmPwd })
+      setPwdMsg(t('profile.passwordChanged'))
+      setCurrentPwd('')
+      setNewPwd('')
+      setConfirmPwd('')
+      setTimeout(() => setPwdMsg(''), 3000)
+    } catch (err) {
+      const detail = err?.response?.data
+      if (detail?.current_password) {
+        setPwdMsg(t('profile.wrongPassword'))
+      } else if (detail?.new_password) {
+        setPwdMsg(detail.new_password[0] ?? t('profile.passwordError'))
+      } else {
+        setPwdMsg(t('profile.passwordError'))
+      }
+    } finally {
+      setPwdSaving(false)
     }
   }
 
@@ -258,6 +319,101 @@ export default function ProfilePage() {
                 }}
               >
                 {saveMsg}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Account */}
+        <div className="card" style={{ padding: 28, gridColumn: 'span 2' }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>{t('profile.accountEyebrow')}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', marginBottom: 20 }}>
+            {t('profile.accountTitle')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div className="form-group">
+              <label className="form-label">{t('profile.usernameLabel')}</label>
+              <input
+                className="form-input"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('profile.emailLabel')}</label>
+              <input
+                className="form-input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn--primary" onClick={handleSaveAccount} disabled={accountSaving}>
+              {accountSaving ? t('profile.savingAccount') : t('profile.saveAccount')}
+            </button>
+            {accountMsg && (
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.18em',
+                color: accountMsg === t('profile.accountSaved') ? 'var(--moss-pale)' : 'var(--blood-bright)',
+              }}>
+                {accountMsg}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Security */}
+        <div className="card" style={{ padding: 28, gridColumn: 'span 2' }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>{t('profile.securityEyebrow')}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', marginBottom: 20 }}>
+            {t('profile.securityTitle')}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
+            <div className="form-group">
+              <label className="form-label">{t('profile.currentPassword')}</label>
+              <input
+                className="form-input"
+                type="password"
+                value={currentPwd}
+                onChange={(e) => setCurrentPwd(e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('profile.newPassword')}</label>
+              <input
+                className="form-input"
+                type="password"
+                value={newPwd}
+                onChange={(e) => setNewPwd(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('profile.confirmPassword')}</label>
+              <input
+                className="form-input"
+                type="password"
+                value={confirmPwd}
+                onChange={(e) => setConfirmPwd(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn--primary" onClick={handleChangePassword} disabled={pwdSaving || !currentPwd || !newPwd || !confirmPwd}>
+              {pwdSaving ? t('profile.changingPassword') : t('profile.changePassword')}
+            </button>
+            {pwdMsg && (
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.18em',
+                color: pwdMsg === t('profile.passwordChanged') ? 'var(--moss-pale)' : 'var(--blood-bright)',
+              }}>
+                {pwdMsg}
               </span>
             )}
           </div>
