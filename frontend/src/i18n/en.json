@@ -274,12 +274,12 @@
   },
   "about": {
     "eyebrow": "№ v · about · de nobis",
-    "title": "Taver near the river",
-    "titleSub": "TNTR",
+    "title": "Frog & Force",
+    "titleSub": "Studio",
     "sub": "A small studio building digital tools for tabletop RPG communities.",
     "missionEyebrow": "Mission",
     "missionTitle": "Stories that deserve a proper stage",
-    "missionText": "TNTR was born at a table — from dice, candles, and the desire to make a game master's life easier and players' adventures deeper. We build digital spaces where stories come to life, clues connect, and no session is lost to logistics.",
+    "missionText": "Frog & Force was born at a table — from dice, candles, and the desire to make a game master's life easier and players' adventures deeper. We build digital spaces where stories come to life, clues connect, and no session is lost to logistics.",
     "projectEyebrow": "Flagship Project",
     "projectTitle": "Cthulhu Case",
     "projectText": "A complete platform for playing Call of Cthulhu online. Character sheets with full CoC 7e mechanics, a virtual evidence board with red threads, session management, a real-time table, and a story editor for the keeper. Everything investigators and their keeper need — in one archive.",
@@ -291,7 +291,7 @@
     "pillar3Title": "Players at the centre",
     "pillar3Text": "Personal cards, private notes, character sheet that never loses data.",
     "backToArchive": "← Back to Archive",
-    "footer": "tntr · taver near the river",
+    "footer": "frog & force",
     "footerSub": "building worlds, one session at a time"
   },
   "landing": {

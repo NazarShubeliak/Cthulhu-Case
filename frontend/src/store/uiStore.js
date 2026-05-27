@@ -8,7 +8,7 @@ const useUIStore = create(
       grain: true,
       glitchText: true,
       showLatin: true,
-      lang: 'uk',
+      lang: 'en',
 
       setLamp: (v) => set({ lamp: v }),
       setGrain: (v) => set({ grain: v }),
