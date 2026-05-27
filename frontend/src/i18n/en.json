@@ -31,21 +31,21 @@
     "title1": "Call of",
     "title2": "Cthulhu",
     "sub": "arkham archive · est. mcmxxvi",
-    "vestibule": "Vestibule",
+    "vestibule": "Investigations",
     "investigators": "Investigators",
-    "profile": "Profile",
-    "story": "Story",
+    "profile": "Personal File",
+    "story": "Keeper's Archive",
     "phaseII": "Phase II"
   },
   "breadcrumb": {
     "arkham": "Arkham",
-    "sessions": "sessions",
-    "table": "table",
-    "lobby": "lobby",
+    "sessions": "investigations",
+    "table": "evidence room",
+    "lobby": "case",
     "investigators": "investigators",
     "card": "card",
-    "profile": "profile",
-    "story": "story"
+    "profile": "personal file",
+    "story": "keeper's archive"
   },
   "status": {
     "lobby": "Lobby",
@@ -53,8 +53,8 @@
     "closed": "Closed"
   },
   "sessions": {
-    "eyebrow": "№ ii · sessions · sessionae",
-    "title": "Arkham Lobby",
+    "eyebrow": "№ ii · investigations · investigationes",
+    "title": "Investigator's Table",
     "sub": "Waiting rooms before the start of investigations. Find your group or open new doors into the darkness.",
     "codeInput": "Session Code",
     "join": "Join",
@@ -318,8 +318,8 @@
     "footerYears": "mcmxxvi — mmxxvi · a hundred years of silence"
   },
   "se": {
-    "eyebrow": "№ iv · story · fabula",
-    "title": "Story Editor",
+    "eyebrow": "№ iv · archive · archivum",
+    "title": "Keeper's Archive",
     "sub": "Build your campaign scene by scene. Only the master sees this section.",
     "loading": "Loading...",
     "campaigns": "Campaigns",

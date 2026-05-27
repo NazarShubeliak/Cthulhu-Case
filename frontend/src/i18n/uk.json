@@ -31,21 +31,21 @@
     "title1": "Поклик",
     "title2": "Ктулху",
     "sub": "архів аркгему · est. mcmxxvi",
-    "vestibule": "Вестибюль",
-    "investigators": "Дослідники",
-    "profile": "Профіль",
-    "story": "Сюжет",
+    "vestibule": "Розслідування",
+    "investigators": "Слідчі",
+    "profile": "Особиста справа",
+    "story": "Архів хранителя",
     "phaseII": "Фаза II"
   },
   "breadcrumb": {
     "arkham": "Аркгем",
-    "sessions": "сесії",
-    "table": "стіл",
-    "lobby": "лобі",
-    "investigators": "дослідники",
+    "sessions": "розслідування",
+    "table": "кімната доказів",
+    "lobby": "справа",
+    "investigators": "слідчі",
     "card": "картка",
-    "profile": "профіль",
-    "story": "сюжет"
+    "profile": "особиста справа",
+    "story": "архів хранителя"
   },
   "status": {
     "lobby": "Лобі",
@@ -53,8 +53,8 @@
     "closed": "Закрита"
   },
   "sessions": {
-    "eyebrow": "№ ii · сесії · sessionae",
-    "title": "Лобі Аркгему",
+    "eyebrow": "№ ii · розслідування · investigationes",
+    "title": "Стіл слідчого",
     "sub": "Зали очікування перед початком розслідувань. Знайдіть свою групу або відкрийте нові двері в темряву.",
     "codeInput": "Код сесії",
     "join": "Увійти",
@@ -318,8 +318,8 @@
     "footerYears": "mcmxxvi — mmxxvi · сто років мовчання"
   },
   "se": {
-    "eyebrow": "№ iv · сюжет · fabula",
-    "title": "Редактор Сюжету",
+    "eyebrow": "№ iv · архів · archivum",
+    "title": "Архів Хранителя",
     "sub": "Будуйте кампанію сцена за сценою. Тільки майстер бачить цей розділ.",
     "loading": "Завантаження...",
     "campaigns": "Кампанії",
