@@ -177,11 +177,12 @@ class SessionViewSet(viewsets.ModelViewSet):
                 pos_y=row * (CARD_H + GAP),
             )
             cards.append(card)
-        Card.objects.bulk_create(cards)
-        created = Card.objects.filter(session=session, created_by=request.user).order_by('-id')[:len(cards)]
+        created_objs = Card.objects.bulk_create(cards)
+        created_ids = [c.id for c in created_objs]
+        created_qs = Card.objects.filter(id__in=created_ids).select_related('created_by', 'owner')
         return Response({
-            'created': len(cards),
-            'cards': CardSerializer(created, many=True, context={'request': request}).data,
+            'created': len(created_ids),
+            'cards': CardSerializer(created_qs, many=True, context={'request': request}).data,
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])

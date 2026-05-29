@@ -1,9 +1,16 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import useAuthStore from '../store/authStore'
 import useTableStore from '../store/tableStore'
 
+const RECONNECT_BASE_MS = 1_000
+const RECONNECT_MAX_MS = 30_000
+
 export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
   const wsRef = useRef(null)
+  const retryDelay = useRef(RECONNECT_BASE_MS)
+  const retryTimer = useRef(null)
+  const mountedRef = useRef(false)
+  const connectRef = useRef(null)
   const accessToken = useAuthStore((s) => s.accessToken)
   const {
     addCard, updateCard, moveCard, removeCard,
@@ -14,13 +21,17 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
     addDiceLog,
   } = useTableStore()
 
-  useEffect(() => {
-    if (!sessionId || !accessToken) return
+  const connect = useCallback(() => {
+    if (!mountedRef.current || !sessionId || !accessToken) return
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/ws/session/${sessionId}/?token=${accessToken}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
+
+    ws.onopen = () => {
+      retryDelay.current = RECONNECT_BASE_MS
+    }
 
     ws.onmessage = (e) => {
       let msg
@@ -31,9 +42,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
           addCard(msg.card)
           break
         case 'card.moved':
-          if (msg.moved_by !== currentUserId) {
-            moveCard(msg.card_id, msg.pos_x, msg.pos_y)
-          }
+          if (msg.moved_by !== currentUserId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
           break
         case 'card.published':
           updateCard(msg.card)
@@ -73,8 +82,44 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
 
     ws.onerror = () => {}
 
-    return () => ws.close()
-  }, [sessionId, accessToken, currentUserId]) // eslint-disable-line react-hooks/exhaustive-deps
+    ws.onclose = (e) => {
+      wsRef.current = null
+      if (!mountedRef.current) return
+      // Не перепідключатись при навмисному закритті або помилці авторизації
+      if (e.code === 1000 || e.code === 4001 || e.code === 4003) return
+
+      retryTimer.current = setTimeout(() => {
+        retryDelay.current = Math.min(retryDelay.current * 2, RECONNECT_MAX_MS)
+        connectRef.current?.()
+      }, retryDelay.current)
+    }
+  }, [
+    sessionId, accessToken, currentUserId,
+    addCard, updateCard, moveCard, removeCard,
+    addThread, removeThread,
+    addNote, updateNote, removeNote,
+    addConnectedUser, replaceCard, addDiceLog,
+    onDiceRolled,
+  ])
+
+  // Завжди тримаємо актуальну версію connect у ref,
+  // щоб onclose викликав її без stale closure
+  connectRef.current = connect
+
+  useEffect(() => {
+    mountedRef.current = true
+    retryDelay.current = RECONNECT_BASE_MS
+    connect()
+    return () => {
+      mountedRef.current = false
+      clearTimeout(retryTimer.current)
+      const ws = wsRef.current
+      if (ws) {
+        wsRef.current = null
+        ws.close(1000)
+      }
+    }
+  }, [connect])
 
   return wsRef
 }

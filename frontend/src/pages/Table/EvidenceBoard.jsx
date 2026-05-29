@@ -109,11 +109,7 @@ function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, currentUserId,
               fill="none"
               onClick={() => {
                 const canDelete = isMaster || (t.created_by?.id !== masterId)
-                if (canDelete && window.confirm('Видалити нитку?')) {
-                  deleteThread(sessionId, t.id)
-                    .then(() => useTableStore.getState().removeThread(t.id))
-                    .catch(() => {})
-                }
+                if (canDelete) onDeleteThread(t.id)
               }}
             />
           </g>
@@ -660,6 +656,109 @@ function SaveBar({ onSave, onClose, saving, dirty, dark }) {
   )
 }
 
+// ── Confirm modal ──
+
+function ConfirmModal({ message, onConfirm, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'Enter') { onConfirm(); onClose() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onConfirm, onClose])
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 600,
+      background: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
+        padding: '24px 28px', minWidth: 280,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 11,
+          color: 'var(--cream)', marginBottom: 20,
+          letterSpacing: '0.04em', lineHeight: 1.5,
+        }}>
+          {message}
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 14px' }} onClick={onClose}>
+            Скасувати
+          </button>
+          <button
+            className="btn btn--primary"
+            style={{ fontSize: 10, padding: '4px 14px', background: 'rgba(122,42,37,0.25)', borderColor: 'var(--blood)', color: '#c87070' }}
+            onClick={() => { onConfirm(); onClose() }}
+          >
+            Видалити
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Prompt modal ──
+
+function PromptModal({ label, placeholder, onConfirm, onClose }) {
+  const [value, setValue] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'Enter') { onConfirm(value); onClose() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [value, onConfirm, onClose])
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 600,
+      background: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
+        padding: '24px 28px', minWidth: 300,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 9,
+          letterSpacing: '0.28em', textTransform: 'uppercase',
+          color: 'var(--moss)', marginBottom: 12,
+        }}>
+          {label}
+        </div>
+        <input
+          ref={inputRef}
+          className="form-input"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder ?? ''}
+          style={{ width: '100%', boxSizing: 'border-box', marginBottom: 16 }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 14px' }} onClick={onClose}>
+            Скасувати
+          </button>
+          <button className="btn btn--primary" style={{ fontSize: 10, padding: '4px 14px' }} onClick={() => { onConfirm(value); onClose() }}>
+            Підтвердити
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Dice popup ──
 
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100']
@@ -881,6 +980,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
   const [contextMenu, setContextMenu] = useState(null)
   const [boardMenu, setBoardMenu] = useState(null)
   const [diceOpen, setDiceOpen] = useState(false)
+  const [confirmModal, setConfirmModal] = useState(null)
+  const [promptModal, setPromptModal] = useState(null)
   const stageRef = useRef(null)
   const moveTimer = useRef(null)
   const zoomRef = useRef(zoom)
@@ -1008,19 +1109,26 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
   }, [])
 
   // ── Connect mode: click card to create thread ──
-  const handleCardClick = useCallback(async (e, cardId) => {
+  const handleCardClick = useCallback((e, cardId) => {
     if (!connectMode || !selectedId || cardId === selectedId) return
     e.stopPropagation()
-    const label = window.prompt('Підпис нитки (необов\'язково):') ?? ''
-    try {
-      const res = await createThread(sessionId, {
-        card_from_id: selectedId,
-        card_to_id: cardId,
-        label: label.trim(),
-      })
-      useTableStore.getState().addThread(res.data)
-    } catch {}
-    setConnectMode(false)
+    const fromId = selectedId
+    setPromptModal({
+      label: 'Підпис нитки',
+      placeholder: 'необов\'язково',
+      onConfirm: async (value) => {
+        try {
+          const res = await createThread(sessionId, {
+            card_from_id: fromId,
+            card_to_id: cardId,
+            label: value.trim(),
+          })
+          useTableStore.getState().addThread(res.data)
+        } catch {}
+        setConnectMode(false)
+      },
+      onClose: () => { setPromptModal(null); setConnectMode(false) },
+    })
   }, [connectMode, selectedId, sessionId])
 
   // Escape to cancel connect mode
@@ -1056,15 +1164,19 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     } catch {}
   }
 
-  async function handleCtxDelete() {
+  function handleCtxDelete() {
     const card = contextMenu?.card
     if (!card) return
     closeContextMenu()
-    if (!window.confirm('Видалити картку?')) return
-    try {
-      await deleteCard(sessionId, card.id)
-      useTableStore.getState().removeCard(card.id)
-    } catch {}
+    setConfirmModal({
+      message: `Видалити картку «${card.title}»?`,
+      onConfirm: async () => {
+        try {
+          await deleteCard(sessionId, card.id)
+          useTableStore.getState().removeCard(card.id)
+        } catch {}
+      },
+    })
   }
 
   const visibleCards = tab === 'public'
@@ -1162,7 +1274,15 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           <ThreadsLayer
             cards={visibleCards}
             threads={visibleThreads}
-            onDeleteThread={(tid) => useTableStore.getState().removeThread(tid)}
+            onDeleteThread={(tid) => setConfirmModal({
+              message: 'Видалити нитку між картками?',
+              onConfirm: async () => {
+                try {
+                  await deleteThread(sessionId, tid)
+                  useTableStore.getState().removeThread(tid)
+                } catch {}
+              },
+            })}
             isMaster={isMaster}
             currentUserId={currentUserId}
             masterId={masterId}
@@ -1258,6 +1378,25 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           onConnect={() => { setSelectedId(contextMenu.card.id); setConnectMode(true) }}
           onDelete={handleCtxDelete}
           onClose={closeContextMenu}
+        />
+      )}
+
+      {/* ── Confirm modal ── */}
+      {confirmModal && (
+        <ConfirmModal
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
+
+      {/* ── Prompt modal ── */}
+      {promptModal && (
+        <PromptModal
+          label={promptModal.label}
+          placeholder={promptModal.placeholder}
+          onConfirm={promptModal.onConfirm}
+          onClose={promptModal.onClose}
         />
       )}
     </div>
