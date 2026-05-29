@@ -257,13 +257,19 @@ class CardViewSet(viewsets.ModelViewSet):
         ):
             raise PermissionDenied('Недостатньо прав для редагування цієї картки.')
         card = serializer.save()
-        broadcast(session.id, {
-            'type': 'card.moved',
-            'card_id': card.id,
-            'pos_x': card.pos_x,
-            'pos_y': card.pos_y,
-            'moved_by': self.request.user.id,
-        })
+        if position_only:
+            broadcast(session.id, {
+                'type': 'card.moved',
+                'card_id': card.id,
+                'pos_x': card.pos_x,
+                'pos_y': card.pos_y,
+                'moved_by': self.request.user.id,
+            })
+        else:
+            broadcast(session.id, {
+                'type': 'card.updated',
+                'card': CardSerializer(card, context={'request': self.request}).data,
+            })
 
     def perform_destroy(self, instance):
         session = self.get_session()
