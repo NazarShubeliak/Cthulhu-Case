@@ -1,16 +1,13 @@
 import random
 import string
 
-from django.db import models
+from django.db import models, IntegrityError
 from django.conf import settings
 
 
 def _generate_join_code():
     chars = string.ascii_uppercase + string.digits
-    while True:
-        code = ''.join(random.choices(chars, k=6))
-        if not Session.objects.filter(join_code=code).exists():
-            return code
+    return ''.join(random.choices(chars, k=6))
 
 
 class Session(models.Model):
@@ -34,7 +31,14 @@ class Session(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.join_code:
-            self.join_code = _generate_join_code()
+            # Генеруємо код і повторюємо при колізії — БД гарантує унікальність атомарно
+            while True:
+                self.join_code = _generate_join_code()
+                try:
+                    super().save(*args, **kwargs)
+                    return
+                except IntegrityError:
+                    continue
         super().save(*args, **kwargs)
 
     class Meta:
