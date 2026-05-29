@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cthulhu} -d ${DB_NAME:-cthulhu_db}"]
       interval: 5s
@@ -20,7 +20,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -36,7 +36,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DEBUG=True
+      - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-prod}
       - DB_NAME=${DB_NAME:-cthulhu_db}
       - DB_USER=${DB_USER:-cthulhu}

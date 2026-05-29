@@ -206,28 +206,28 @@ class CharacterViewSet(viewsets.ModelViewSet):
         data = DiceRollSerializer(dice_roll).data
         data['tier'] = tier
 
-        # Broadcast to session if character is bound
+        # Broadcast to all sessions this character is bound to
         try:
             from apps.game_sessions.models import SessionCharacter
             from asgiref.sync import async_to_sync
             from channels.layers import get_channel_layer
-            binding = SessionCharacter.objects.get(character=character)
-            async_to_sync(get_channel_layer().group_send)(
-                f'session_{binding.session_id}',
-                {
-                    'type': 'dice.rolled',
-                    'dice_type': dice_type,
-                    'count': dice_count,
-                    'results': results,
-                    'total': total,
-                    'rolled_by': request.user.username,
-                    'rolled_by_id': request.user.id,
-                    'character_name': character.name,
-                    'skill_name': skill.name if skill else None,
-                    'tier': tier,
-                    'visible_to_all': bool(visible_to_all),
-                },
-            )
+            bindings = SessionCharacter.objects.filter(character=character)
+            channel_layer = get_channel_layer()
+            payload = {
+                'type': 'dice.rolled',
+                'dice_type': dice_type,
+                'count': dice_count,
+                'results': results,
+                'total': total,
+                'rolled_by': request.user.username,
+                'rolled_by_id': request.user.id,
+                'character_name': character.name,
+                'skill_name': skill.name if skill else None,
+                'tier': tier,
+                'visible_to_all': bool(visible_to_all),
+            }
+            for binding in bindings:
+                async_to_sync(channel_layer.group_send)(f'session_{binding.session_id}', payload)
         except Exception:
             pass
 

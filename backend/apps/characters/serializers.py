@@ -6,7 +6,7 @@ class SkillSerializer(serializers.ModelSerializer):
     class Meta:
         model = Skill
         fields = ('id', 'character', 'name', 'base_value', 'current_value', 'checked')
-        read_only_fields = ('id',)
+        read_only_fields = ('id', 'character')
 
 
 class DiceRollSerializer(serializers.ModelSerializer):

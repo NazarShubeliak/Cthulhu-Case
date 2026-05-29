@@ -538,6 +538,7 @@ export default function CharacterSheetPage() {
   const pendingRef = useRef({})
   const [improving, setImproving] = useState(false)
   const [improvementResults, setImprovementResults] = useState(null)
+  const [improveError, setImproveError] = useState('')
   const [equipment, setEquipment] = useState([])
   const [newItemName, setNewItemName] = useState('')
   const [newItemNotes, setNewItemNotes] = useState('')
@@ -605,6 +606,7 @@ export default function CharacterSheetPage() {
 
   const handleImproveSkills = async () => {
     setImproving(true)
+    setImproveError('')
     try {
       const res = await improveSkills(id)
       const results = res.data.results
@@ -617,8 +619,7 @@ export default function CharacterSheetPage() {
       }))
       setImprovementResults(results)
     } catch (err) {
-      console.error('improve-skills error:', err?.response?.status, err?.response?.data)
-      alert('Помилка: ' + (err?.response?.data?.error ?? err?.message ?? 'невідома'))
+      setImproveError(err?.response?.data?.error ?? 'Помилка підвищення навичок.')
     } finally {
       setImproving(false)
     }
@@ -1060,6 +1061,11 @@ export default function CharacterSheetPage() {
                   >
                     {improving ? '...' : `${t('sheet.skills')} ↑`}
                   </button>
+                )}
+                {improveError && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--blood)', letterSpacing: '0.12em' }}>
+                    {improveError}
+                  </div>
                 )}
               </div>
             </div>

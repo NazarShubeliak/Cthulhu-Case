@@ -166,6 +166,19 @@ class SceneCardViewSet(viewsets.ModelViewSet):
             card.is_public = True
 
         card.save()
+
+        try:
+            from apps.game_sessions.serializers import CardSerializer as GameCardSerializer
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            card_data = GameCardSerializer(card, context={'request': request}).data
+            async_to_sync(get_channel_layer().group_send)(
+                f'session_{card.session_id}',
+                {'type': 'card.created', 'card': card_data},
+            )
+        except Exception:
+            pass
+
         scene_card.sent_to_id = sent_to_id
         scene_card.is_sent = True
         scene_card.save()

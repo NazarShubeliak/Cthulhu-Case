@@ -1,10 +1,57 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import useAuthStore from '../../store/authStore.js'
 import { getSession, startSession, deleteSession, leaveSession, setSessionCharacter, getMySessionCharacter, loadCampaign } from '../../api/sessions.js'
 import { getCharacters } from '../../api/characters.js'
 import { getCampaigns } from '../../api/campaigns.js'
+
+function ConfirmModal({ message, onConfirm, onClose }) {
+  const inputRef = useRef(null)
+  useEffect(() => {
+    inputRef.current?.focus()
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      if (e.key === 'Enter') { onConfirm(); onClose() }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onConfirm, onClose])
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 500,
+      background: 'rgba(0,0,0,0.55)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div ref={inputRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
+        padding: '24px 28px', minWidth: 280,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.7)', outline: 'none',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-mono)', fontSize: 11,
+          color: 'var(--cream)', marginBottom: 20,
+          letterSpacing: '0.04em', lineHeight: 1.5,
+        }}>
+          {message}
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 14px' }} onClick={onClose}>
+            Скасувати
+          </button>
+          <button
+            className="btn btn--primary"
+            style={{ fontSize: 10, padding: '4px 14px', background: 'rgba(122,42,37,0.25)', borderColor: 'var(--blood)', color: '#c87070' }}
+            onClick={() => { onConfirm(); onClose() }}
+          >
+            Підтвердити
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function StatusChip({ status }) {
   const { t } = useTranslation()
@@ -46,6 +93,7 @@ export default function LobbyPage() {
   const [showCampaignPicker, setShowCampaignPicker] = useState(false)
   const [loadingCampaign, setLoadingCampaign] = useState(false)
   const [loadSuccess, setLoadSuccess] = useState(null)
+  const [confirmModal, setConfirmModal] = useState(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -118,29 +166,36 @@ export default function LobbyPage() {
     }
   }
 
-  async function handleClose() {
-    if (!window.confirm(t('lobby.deleteConfirm'))) return
-    setActionLoading(true)
-    try {
-      await deleteSession(id)
-      navigate('/sessions')
-    } catch (err) {
-      setError(err.response?.data?.error || t('lobby.closeError'))
-      setActionLoading(false)
-    }
+  function handleClose() {
+    setConfirmModal({
+      message: t('lobby.deleteConfirm'),
+      onConfirm: async () => {
+        setActionLoading(true)
+        try {
+          await deleteSession(id)
+          navigate('/sessions')
+        } catch (err) {
+          setError(err.response?.data?.error || t('lobby.closeError'))
+          setActionLoading(false)
+        }
+      },
+    })
   }
 
-  async function handleLeave() {
-    if (!window.confirm(t('lobby.leaveConfirm'))) return
-    setActionLoading(true)
-    try {
-      await leaveSession(id)
-      navigate('/sessions')
-    } catch (err) {
-      setError(err.response?.data?.error || t('lobby.leaveError'))
-    } finally {
-      setActionLoading(false)
-    }
+  function handleLeave() {
+    setConfirmModal({
+      message: t('lobby.leaveConfirm'),
+      onConfirm: async () => {
+        setActionLoading(true)
+        try {
+          await leaveSession(id)
+          navigate('/sessions')
+        } catch (err) {
+          setError(err.response?.data?.error || t('lobby.leaveError'))
+          setActionLoading(false)
+        }
+      },
+    })
   }
 
   if (loading) {
@@ -471,6 +526,14 @@ export default function LobbyPage() {
           </div>
         )}
       </div>
+
+      {confirmModal && (
+        <ConfirmModal
+          message={confirmModal.message}
+          onConfirm={confirmModal.onConfirm}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
     </div>
   )
 }
