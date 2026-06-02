@@ -57,6 +57,7 @@ class Card(models.Model):
         ('photo', 'Фото'),
         ('note', 'Нотатка'),
         ('npc', 'НПС'),
+        ('sketch', 'Ескіз'),
     ]
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='cards')
     type = models.CharField(max_length=20, choices=CARD_TYPES, default='document')
@@ -70,6 +71,7 @@ class Card(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='owned_cards'
     )
+    drawing_data = models.JSONField(default=list, blank=True)
     is_public = models.BooleanField(default=False)
     is_pinned = models.BooleanField(default=False)
     pos_x = models.FloatField(default=0)

@@ -197,7 +197,8 @@
     "document": "Document",
     "photo": "Photo",
     "note": "Note",
-    "npc": "Dossier"
+    "npc": "Dossier",
+    "sketch": "Sketch"
   },
   "npc": {
     "nameLabel": "Name",
@@ -294,7 +295,7 @@
   },
   "about": {
     "eyebrow": "№ v · about · de nobis",
-    "title": "Frog & Force",
+    "title": "Frog & Forge",
     "titleSub": "Studio",
     "sub": "A small studio building digital tools for tabletop RPG communities.",
     "missionEyebrow": "Mission",

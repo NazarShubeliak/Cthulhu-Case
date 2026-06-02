@@ -42,6 +42,11 @@ export const getMySessionCharacter = (sessionId) => api.get(`/sessions/${session
 export const loadCampaign = (sessionId, campaignId) =>
   api.post(`/sessions/${sessionId}/load-campaign/`, { campaign_id: campaignId })
 
+export const saveDrawingStrokes = (sessionId, cardId, strokes) =>
+  api.patch(`/sessions/${sessionId}/cards/${cardId}/drawing/`, { strokes })
+export const clearDrawing = (sessionId, cardId) =>
+  api.patch(`/sessions/${sessionId}/cards/${cardId}/drawing/`, { clear: true })
+
 export const getNotes = (sessionId) => api.get(`/sessions/${sessionId}/notes/`)
 export const createNote = (sessionId, data) => api.post(`/sessions/${sessionId}/notes/`, data)
 export const updateNote = (sessionId, noteId, data) => api.patch(`/sessions/${sessionId}/notes/${noteId}/`, data)

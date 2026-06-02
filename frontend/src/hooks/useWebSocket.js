@@ -5,7 +5,7 @@ import useTableStore from '../store/tableStore'
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 
-export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
+export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onDrawingStroke) {
   const wsRef = useRef(null)
   const retryDelay = useRef(RECONNECT_BASE_MS)
   const retryTimer = useRef(null)
@@ -20,6 +20,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
     replaceCard,
     addDiceLog,
   } = useTableStore()
+
+  const onDrawingStrokeRef = useRef(onDrawingStroke)
+  useEffect(() => { onDrawingStrokeRef.current = onDrawingStroke }, [onDrawingStroke])
 
   const connect = useCallback(() => {
     if (!mountedRef.current || !sessionId || !accessToken) return
@@ -74,6 +77,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled) {
         case 'dice.rolled':
           addDiceLog(msg)
           if (onDiceRolled) onDiceRolled(msg)
+          break
+        case 'drawing.stroke':
+          if (msg.sender_id !== currentUserId) onDrawingStrokeRef.current?.(msg)
           break
         default:
           break

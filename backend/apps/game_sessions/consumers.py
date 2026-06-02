@@ -37,7 +37,17 @@ class TableConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        pass
+        try:
+            msg = json.loads(text_data)
+        except Exception:
+            return
+        if msg.get('type') == 'drawing.stroke':
+            await self.channel_layer.group_send(self.group_name, {
+                'type': 'drawing.stroke',
+                'card_id': msg.get('card_id'),
+                'points': msg.get('points', []),
+                'sender_id': self.user.id,
+            })
 
     # ── Event handlers (type dots → method underscores) ──
 
@@ -82,6 +92,14 @@ class TableConsumer(AsyncWebsocketConsumer):
             'type': 'player.joined',
             'user_id': event['user_id'],
             'username': event['username'],
+        }))
+
+    async def drawing_stroke(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'drawing.stroke',
+            'card_id': event['card_id'],
+            'points': event['points'],
+            'sender_id': event['sender_id'],
         }))
 
     async def dice_rolled(self, event):

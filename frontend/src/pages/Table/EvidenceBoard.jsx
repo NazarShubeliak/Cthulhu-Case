@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import useTableStore from '../../store/tableStore'
-import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice } from '../../api/sessions'
+import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing } from '../../api/sessions'
 
 // ── Constants ──
 
@@ -19,11 +19,18 @@ const NOTE_H = 160
 const PHOTO_W = 220
 const PHOTO_H = 260
 
+const SKETCH_W = 280
+const SKETCH_H = 280
+const SKETCH_CANVAS_W = 840
+const SKETCH_CANVAS_H = 560
+const SKETCH_COLOR = '#2a1f0e'
+
 const KIND_COLOR = {
   document: '#f5f0e0',
   photo: '#d8d4cc',
   note: '#ecdfc0',
   npc: '#e8e0d0',
+  sketch: '#f0ebe0',
 }
 
 const KIND_LAT = {
@@ -31,9 +38,10 @@ const KIND_LAT = {
   photo: 'Imago',
   note: 'Nota',
   npc: 'Persona',
+  sketch: 'Adumbratio',
 }
 
-const KIND_ROT = { document: -1, photo: 2, note: -2, npc: 1 }
+const KIND_ROT = { document: -1, photo: 2, note: -2, npc: 1, sketch: 0 }
 
 // ── Thread SVG layer ──
 
@@ -42,6 +50,7 @@ function cardDims(type) {
   if (type === 'npc') return { w: NPC_W, h: NPC_H }
   if (type === 'note') return { w: NOTE_W, h: NOTE_H }
   if (type === 'photo') return { w: PHOTO_W, h: PHOTO_H }
+  if (type === 'sketch') return { w: SKETCH_W, h: SKETCH_H }
   return { w: CARD_W, h: CARD_H }
 }
 
@@ -443,6 +452,295 @@ function PhotoCard({ card, selected, connectMode }) {
   )
 }
 
+// ── Drawing helpers ──
+
+function renderStrokes(ctx, strokes, scaleX = 1, scaleY = 1) {
+  ctx.strokeStyle = SKETCH_COLOR
+  ctx.lineWidth = Math.max(1.5, 2 * scaleX)
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  for (const stroke of strokes) {
+    if (!stroke || stroke.length < 2) continue
+    ctx.beginPath()
+    ctx.moveTo(stroke[0].x * scaleX, stroke[0].y * scaleY)
+    for (let i = 1; i < stroke.length; i++) {
+      ctx.lineTo(stroke[i].x * scaleX, stroke[i].y * scaleY)
+    }
+    ctx.stroke()
+  }
+}
+
+function SketchCard({ card, selected, connectMode }) {
+  const canvasRef = useRef(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const scaleX = SKETCH_W / SKETCH_CANVAS_W
+    const scaleY = (SKETCH_H - 40) / SKETCH_CANVAS_H
+    renderStrokes(ctx, card.drawing_data ?? [], scaleX, scaleY)
+  }, [card.drawing_data])
+
+  return (
+    <div style={{
+      background: KIND_COLOR.sketch,
+      width: SKETCH_W,
+      height: SKETCH_H,
+      boxShadow: selected
+        ? '0 0 0 2px var(--ochre), 0 12px 32px rgba(0,0,0,0.75)'
+        : connectMode
+        ? '0 0 0 2px var(--blood), 0 8px 20px rgba(0,0,0,0.5)'
+        : '2px 4px 8px rgba(0,0,0,0.4), 4px 8px 24px rgba(0,0,0,0.35)',
+      display: 'flex', flexDirection: 'column',
+      border: '1px solid #c8b890',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '6px 10px',
+        fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.28em',
+        textTransform: 'uppercase', color: '#8a7450',
+        borderBottom: '1px solid #c8b890',
+        flexShrink: 0,
+      }}>
+        <span>Ескіз</span>
+        <span style={{ fontStyle: 'italic', fontFamily: 'var(--font-display)', textTransform: 'none', letterSpacing: '0.08em' }}>Adumbratio</span>
+      </div>
+      <canvas
+        ref={canvasRef}
+        width={SKETCH_W}
+        height={SKETCH_H - 40}
+        style={{ display: 'block', flex: 1 }}
+      />
+      <div style={{
+        padding: '4px 10px',
+        fontFamily: 'var(--font-display)', fontStyle: 'italic',
+        fontSize: 13, color: '#2a1f0e',
+        borderTop: '1px solid #c8b890',
+        flexShrink: 0,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {card.title}
+      </div>
+    </div>
+  )
+}
+
+// ── Sketch full-screen editor ──
+
+function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsRef, drawingStrokeHandlerRef }) {
+  const savedCanvasRef = useRef(null)
+  const liveCanvasRef = useRef(null)
+  const isDrawingRef = useRef(false)
+  const currentStrokeRef = useRef([])
+  const lastSendTimeRef = useRef(0)
+
+  const canClear = isMaster || card.created_by?.id === currentUserId
+
+  function renderSaved(data) {
+    const canvas = savedCanvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, SKETCH_CANVAS_W, SKETCH_CANVAS_H)
+    renderStrokes(ctx, data ?? card.drawing_data ?? [])
+  }
+
+  useEffect(() => {
+    renderSaved(card.drawing_data)
+  }, [card.drawing_data]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Register handler for live strokes from other users
+  useEffect(() => {
+    if (!drawingStrokeHandlerRef) return
+    drawingStrokeHandlerRef.current = (msg) => {
+      if (msg.card_id !== card.id) return
+      const pts = msg.points
+      if (!pts || pts.length < 2) return
+      const ctx = liveCanvasRef.current?.getContext('2d')
+      if (!ctx) return
+      ctx.strokeStyle = SKETCH_COLOR
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.beginPath()
+      ctx.moveTo(pts[0].x, pts[0].y)
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+      ctx.stroke()
+    }
+    return () => { if (drawingStrokeHandlerRef) drawingStrokeHandlerRef.current = null }
+  }, [card.id, drawingStrokeHandlerRef])
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  function getCanvasPoint(e) {
+    const canvas = liveCanvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: (e.clientX - rect.left) * (SKETCH_CANVAS_W / rect.width),
+      y: (e.clientY - rect.top) * (SKETCH_CANVAS_H / rect.height),
+    }
+  }
+
+  function handleMouseDown(e) {
+    if (e.button !== 0) return
+    isDrawingRef.current = true
+    const pt = getCanvasPoint(e)
+    currentStrokeRef.current = [pt]
+    const ctx = liveCanvasRef.current?.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = SKETCH_COLOR
+      ctx.beginPath()
+      ctx.arc(pt.x, pt.y, 1, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  function handleMouseMove(e) {
+    if (!isDrawingRef.current) return
+    const pt = getCanvasPoint(e)
+    const stroke = currentStrokeRef.current
+    stroke.push(pt)
+    if (stroke.length < 2) return
+
+    const ctx = liveCanvasRef.current?.getContext('2d')
+    if (ctx) {
+      ctx.strokeStyle = SKETCH_COLOR
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      ctx.beginPath()
+      ctx.moveTo(stroke[stroke.length - 2].x, stroke[stroke.length - 2].y)
+      ctx.lineTo(stroke[stroke.length - 1].x, stroke[stroke.length - 1].y)
+      ctx.stroke()
+    }
+
+    const now = Date.now()
+    if (now - lastSendTimeRef.current > 33 && wsRef?.current?.readyState === 1) {
+      lastSendTimeRef.current = now
+      wsRef.current.send(JSON.stringify({
+        type: 'drawing.stroke',
+        card_id: card.id,
+        points: stroke.slice(-2),
+      }))
+    }
+  }
+
+  async function handleMouseUp() {
+    if (!isDrawingRef.current) return
+    isDrawingRef.current = false
+    const stroke = [...currentStrokeRef.current]
+    currentStrokeRef.current = []
+    if (stroke.length === 0) return
+    const ctx = liveCanvasRef.current?.getContext('2d')
+    if (ctx) ctx.clearRect(0, 0, SKETCH_CANVAS_W, SKETCH_CANVAS_H)
+    try {
+      await saveDrawingStrokes(sessionId, card.id, [stroke])
+    } catch {}
+  }
+
+  async function handleClear() {
+    try {
+      await apiClearDrawing(sessionId, card.id)
+    } catch {}
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 500,
+        background: 'rgba(0,0,0,0.78)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 40,
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {/* Header */}
+        <div style={{
+          background: '#1e1608', padding: '8px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderBottom: '1px solid #c8b890',
+        }}>
+          <div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.28em', textTransform: 'uppercase', color: '#8a7450', marginRight: 12 }}>
+              Ескіз · Adumbratio
+            </span>
+            <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 17, color: '#e8dfc0' }}>
+              {card.title}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {canClear && (
+              <button
+                onClick={handleClear}
+                style={{
+                  background: 'none', border: '1px solid rgba(122,42,37,0.4)',
+                  color: '#a05050', fontFamily: 'var(--font-mono)', fontSize: 9,
+                  letterSpacing: '0.18em', textTransform: 'uppercase',
+                  padding: '3px 10px', cursor: 'pointer',
+                }}
+              >
+                Очистити
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: 'none', border: '1px solid rgba(184,153,104,0.3)',
+                color: '#8a7450', fontFamily: 'var(--font-mono)', fontSize: 9,
+                letterSpacing: '0.18em', textTransform: 'uppercase',
+                padding: '3px 10px', cursor: 'pointer',
+              }}
+            >
+              Закрити
+            </button>
+          </div>
+        </div>
+
+        {/* Canvas stack */}
+        <div style={{ position: 'relative', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+          <canvas
+            ref={savedCanvasRef}
+            width={SKETCH_CANVAS_W}
+            height={SKETCH_CANVAS_H}
+            style={{ display: 'block', background: KIND_COLOR.sketch, maxWidth: 'calc(100vw - 80px)', maxHeight: 'calc(100vh - 160px)' }}
+          />
+          <canvas
+            ref={liveCanvasRef}
+            width={SKETCH_CANVAS_W}
+            height={SKETCH_CANVAS_H}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            style={{
+              position: 'absolute', inset: 0,
+              cursor: 'crosshair',
+              maxWidth: 'calc(100vw - 80px)', maxHeight: 'calc(100vh - 160px)',
+            }}
+          />
+        </div>
+
+        {/* Hint */}
+        <div style={{
+          background: '#1a1208', padding: '5px 16px',
+          fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.18em',
+          color: '#5a5038', textAlign: 'center',
+        }}>
+          Малюйте мишею · усі учасники бачать зміни в реальному часі
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContextMenu, isMaster }) {
   const rot = KIND_ROT[card.type] ?? 0
   const dims = cardDims(card.type)
@@ -480,7 +778,8 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContext
       {card.type === 'npc' && <NpcCard {...sharedProps} />}
       {card.type === 'note' && <NoteCard {...sharedProps} />}
       {card.type === 'photo' && <PhotoCard {...sharedProps} />}
-      {card.type !== 'document' && card.type !== 'npc' && card.type !== 'note' && card.type !== 'photo' && <DefaultCard {...sharedProps} />}
+      {card.type === 'sketch' && <SketchCard {...sharedProps} />}
+      {card.type !== 'document' && card.type !== 'npc' && card.type !== 'note' && card.type !== 'photo' && card.type !== 'sketch' && <DefaultCard {...sharedProps} />}
     </div>
   )
 }
@@ -495,7 +794,7 @@ const fvInput = (extra = {}) => ({
   ...extra,
 })
 
-function CardFullView({ card, isMaster, sessionId, onClose, onSaved }) {
+function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSaved, wsRef, drawingStrokeHandlerRef }) {
   const initNpc = () => {
     const d = parseNpcContent(card.content)
     return { role: d.role ?? '', age: d.age ?? '', status: d.status ?? '',
@@ -824,6 +1123,7 @@ const BOARD_CARD_TYPES = [
   { value: 'npc',      label: 'Досьє' },
   { value: 'note',     label: 'Нотатка' },
   { value: 'photo',    label: 'Фото' },
+  { value: 'sketch',   label: 'Ескіз' },
 ]
 
 function BoardContextMenu({ x, y, onSelect, onClose, onDiceRoll }) {
@@ -967,7 +1267,7 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
-export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, connectedUsers, sessionName, onBoardCreate }) {
+export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, onBoardCreate }) {
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
   const [dragging, setDragging] = useState(null)
@@ -1336,13 +1636,27 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       />
 
       {/* ── Full view modal ── */}
-      {fullViewCard && (
+      {fullViewCard && fullViewCard.type !== 'sketch' && (
         <CardFullView
           card={fullViewCard}
           isMaster={isMaster}
           sessionId={sessionId}
+          currentUserId={currentUserId}
           onClose={() => setFullViewCard(null)}
           onSaved={(updated) => setFullViewCard(updated)}
+          wsRef={wsRef}
+          drawingStrokeHandlerRef={drawingStrokeHandlerRef}
+        />
+      )}
+      {fullViewCard && fullViewCard.type === 'sketch' && (
+        <SketchFullView
+          card={fullViewCard}
+          isMaster={isMaster}
+          sessionId={sessionId}
+          currentUserId={currentUserId}
+          onClose={() => setFullViewCard(null)}
+          wsRef={wsRef}
+          drawingStrokeHandlerRef={drawingStrokeHandlerRef}
         />
       )}
 

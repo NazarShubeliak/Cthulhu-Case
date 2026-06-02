@@ -292,6 +292,26 @@ class CardViewSet(viewsets.ModelViewSet):
         broadcast(session.id, {'type': 'card.published', 'card': data})
         return Response(data)
 
+    @action(detail=True, methods=['patch'])
+    def drawing(self, request, session_pk=None, pk=None):
+        card = self.get_object()
+        if card.type != 'sketch':
+            return Response({'error': 'Only sketch cards support drawing.'}, status=status.HTTP_400_BAD_REQUEST)
+        if request.data.get('clear'):
+            session = self.get_session()
+            if request.user != session.master and request.user != card.created_by:
+                return Response({'error': 'Недостатньо прав.'}, status=status.HTTP_403_FORBIDDEN)
+            card.drawing_data = []
+        else:
+            new_strokes = request.data.get('strokes', [])
+            if not isinstance(new_strokes, list):
+                return Response({'error': 'Invalid strokes format.'}, status=status.HTTP_400_BAD_REQUEST)
+            card.drawing_data = card.drawing_data + new_strokes
+        card.save(update_fields=['drawing_data'])
+        data = CardSerializer(card, context={'request': request}).data
+        broadcast(card.session_id, {'type': 'card.updated', 'card': data})
+        return Response(data)
+
     @action(detail=True, methods=['post'])
     def pin(self, request, session_pk=None, pk=None):
         card = self.get_object()

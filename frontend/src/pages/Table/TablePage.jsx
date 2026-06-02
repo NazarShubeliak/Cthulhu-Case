@@ -15,6 +15,7 @@ function getCardTypes(t) {
     { value: 'photo',    label: t('cardType.photo') },
     { value: 'note',     label: t('cardType.note') },
     { value: 'npc',      label: t('cardType.npc') },
+    { value: 'sketch',   label: t('cardType.sketch') },
   ]
 }
 
@@ -212,6 +213,10 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
               </button>
             )}
           </div>
+        ) : type === 'sketch' ? (
+          <div style={{ padding: '12px 0 4px', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em' }}>
+            Порожній аркуш для спільного малювання · Tabula Rasa
+          </div>
         ) : (
           <div className="form-group" style={{ marginBottom: 12 }}>
             <label className="form-label">{t('table.content')}</label>
@@ -219,7 +224,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
           </div>
         )}
 
-        <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim() || (type === 'photo' && !imageFile)}>
+        <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim() || (type === 'photo' && !imageFile) || (type === 'sketch' && !title.trim())}>
           {loading ? t('table.saving') : t('table.addCard')}
         </button>
       </form>
@@ -244,13 +249,16 @@ export default function TablePage() {
   const [boundChar, setBoundChar] = useState(null)
   const toastId = useRef(0)
 
+  const drawingStrokeHandlerRef = useRef(null)
+
   const addDiceToast = useCallback((msg) => {
     const id = ++toastId.current
     setDiceToasts((prev) => [...prev, { id, ...msg }])
     setTimeout(() => setDiceToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
   }, [])
 
-  useWebSocket(id, user?.id, addDiceToast)
+  const onDrawingStroke = useCallback((msg) => { drawingStrokeHandlerRef.current?.(msg) }, [])
+  const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -355,6 +363,8 @@ export default function TablePage() {
           masterId={session?.master?.id}
           connectedUsers={connectedUsers}
           sessionName={session?.name ?? ''}
+          wsRef={wsRef}
+          drawingStrokeHandlerRef={drawingStrokeHandlerRef}
           onBoardCreate={(type, boardX, boardY, tab) =>
             setCreateConfig({ open: true, type, pos: { x: boardX, y: boardY }, tab })
           }
