@@ -104,6 +104,12 @@ export default function LobbyPage() {
       .finally(() => setLoading(false))
   }, [id, t])
 
+  const silentRefresh = useCallback(() => {
+    getSession(id)
+      .then((res) => setSession(res.data))
+      .catch(() => {})
+  }, [id])
+
   useEffect(() => {
     load()
   }, [load])
@@ -111,9 +117,9 @@ export default function LobbyPage() {
   // Poll every 5s while session is open so the master sees new players
   useEffect(() => {
     if (!session || session.status === 'closed') return
-    const timer = setInterval(load, 5000)
+    const timer = setInterval(silentRefresh, 5000)
     return () => clearInterval(timer)
-  }, [session?.status, load])
+  }, [session?.status, silentRefresh])
 
   useEffect(() => {
     if (!session || session.is_master) return
