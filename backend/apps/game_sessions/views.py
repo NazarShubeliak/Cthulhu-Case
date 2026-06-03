@@ -245,7 +245,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         session = self.get_session()
         card = serializer.save(session=session, created_by=self.request.user)
-        if card.is_public:
+        if card.is_public or card.owner_id:
             broadcast(session.id, {
                 'type': 'card.created',
                 'card': CardSerializer(card, context={'request': self.request}).data,
