@@ -40,6 +40,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
     }
 
     ws.onmessage = (e) => {
+      if (!mountedRef.current) return
       let msg
       try { msg = JSON.parse(e.data) } catch { return }
 
