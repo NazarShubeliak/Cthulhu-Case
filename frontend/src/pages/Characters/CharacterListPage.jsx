@@ -13,7 +13,7 @@ function CharacterCard({ character, onClick }) {
       <div className="char-card__name">{character.name}</div>
       <div className="char-card__occ">
         {character.occupation || t('chars.unknownOcc')}
-        {character.age ? ` · ${character.age} р.` : ''}
+        {character.age ? ` · ${character.age} ${t('board.yrsShort')}` : ''}
       </div>
       <div className="char-card__vitals">
         <div className="char-card__vital-row">
