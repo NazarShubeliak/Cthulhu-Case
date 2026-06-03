@@ -41,12 +41,21 @@ class TableConsumer(AsyncWebsocketConsumer):
             msg = json.loads(text_data)
         except Exception:
             return
-        if msg.get('type') == 'drawing.stroke':
+        msg_type = msg.get('type')
+        if msg_type == 'drawing.stroke':
             await self.channel_layer.group_send(self.group_name, {
                 'type': 'drawing.stroke',
                 'card_id': msg.get('card_id'),
                 'points': msg.get('points', []),
                 'sender_id': self.user.id,
+            })
+        elif msg_type == 'card.moving':
+            await self.channel_layer.group_send(self.group_name, {
+                'type': 'card.moving',
+                'card_id': msg.get('card_id'),
+                'pos_x': msg.get('pos_x'),
+                'pos_y': msg.get('pos_y'),
+                'moved_by': self.user.id,
             })
 
     # ── Event handlers (type dots → method underscores) ──
@@ -57,6 +66,15 @@ class TableConsumer(AsyncWebsocketConsumer):
     async def card_moved(self, event):
         await self.send(text_data=json.dumps({
             'type': 'card.moved',
+            'card_id': event['card_id'],
+            'pos_x': event['pos_x'],
+            'pos_y': event['pos_y'],
+            'moved_by': event['moved_by'],
+        }))
+
+    async def card_moving(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'card.moving',
             'card_id': event['card_id'],
             'pos_x': event['pos_x'],
             'pos_y': event['pos_y'],

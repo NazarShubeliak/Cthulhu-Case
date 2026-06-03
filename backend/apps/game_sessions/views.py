@@ -214,10 +214,7 @@ class SessionViewSet(viewsets.ModelViewSet):
         return Response(payload)
 
 
-class CardViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    serializer_class = CardSerializer
-
+class SessionMixin:
     def get_session(self):
         session_pk = self.kwargs['session_pk']
         user = self.request.user
@@ -228,6 +225,11 @@ class CardViewSet(viewsets.ModelViewSet):
         if not session.is_participant(user):
             raise PermissionDenied('Ви не учасник цієї сесії.')
         return session
+
+
+class CardViewSet(SessionMixin, viewsets.ModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = CardSerializer
 
     def get_queryset(self):
         session = self.get_session()
@@ -323,20 +325,9 @@ class CardViewSet(viewsets.ModelViewSet):
         return Response(data)
 
 
-class ThreadViewSet(viewsets.ModelViewSet):
+class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ThreadSerializer
-
-    def get_session(self):
-        session_pk = self.kwargs['session_pk']
-        user = self.request.user
-        try:
-            session = Session.objects.get(pk=session_pk)
-        except Session.DoesNotExist:
-            raise NotFound('Сесію не знайдено.')
-        if not session.is_participant(user):
-            raise PermissionDenied('Ви не учасник цієї сесії.')
-        return session
 
     def get_queryset(self):
         session = self.get_session()
@@ -355,29 +346,15 @@ class ThreadViewSet(viewsets.ModelViewSet):
         })
 
     def perform_destroy(self, instance):
-        session = self.get_session()
-        if session.master != self.request.user and instance.created_by == session.master:
-            raise PermissionDenied('Не можна видалити нитку майстра.')
         session_id = instance.session_id
         thread_id = instance.id
         instance.delete()
         broadcast(session_id, {'type': 'thread.deleted', 'thread_id': thread_id})
 
 
-class NoteViewSet(viewsets.ModelViewSet):
+class NoteViewSet(SessionMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = NoteSerializer
-
-    def get_session(self):
-        session_pk = self.kwargs['session_pk']
-        user = self.request.user
-        try:
-            session = Session.objects.get(pk=session_pk)
-        except Session.DoesNotExist:
-            raise NotFound('Сесію не знайдено.')
-        if not session.is_participant(user):
-            raise PermissionDenied('Ви не учасник цієї сесії.')
-        return session
 
     def get_queryset(self):
         session = self.get_session()

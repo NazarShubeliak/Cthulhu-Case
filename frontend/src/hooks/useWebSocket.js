@@ -44,6 +44,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
         case 'card.created':
           addCard(msg.card)
           break
+        case 'card.moving':
+          if (msg.moved_by !== currentUserId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
+          break
         case 'card.moved':
           if (msg.moved_by !== currentUserId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
           break

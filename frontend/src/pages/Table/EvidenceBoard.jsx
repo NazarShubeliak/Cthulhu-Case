@@ -1287,6 +1287,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
   const [dragging, setDragging] = useState(null)
+  const lastMoveSendRef = useRef(0)
   const [zoom, setZoom] = useState(0.8)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [panning, setPanning] = useState(null)
@@ -1357,6 +1358,12 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       const pos_x = e.clientX / zoom - dragging.offsetX
       const pos_y = e.clientY / zoom - dragging.offsetY
       useTableStore.getState().moveCard(dragging.id, pos_x, pos_y)
+
+      const now = Date.now()
+      if (now - lastMoveSendRef.current > 33 && wsRef?.current?.readyState === 1) {
+        lastMoveSendRef.current = now
+        wsRef.current.send(JSON.stringify({ type: 'card.moving', card_id: dragging.id, pos_x, pos_y }))
+      }
     }
     const onUp = (e) => {
       const card = useTableStore.getState().cards.find((c) => c.id === dragging.id)
