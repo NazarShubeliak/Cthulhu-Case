@@ -215,7 +215,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
           </div>
         ) : type === 'sketch' ? (
           <div style={{ padding: '12px 0 4px', fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em' }}>
-            Порожній аркуш для спільного малювання · Tabula Rasa
+            {t('board.sketchHint')}
           </div>
         ) : (
           <div className="form-group" style={{ marginBottom: 12 }}>

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import useTableStore from '../../store/tableStore'
 import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing } from '../../api/sessions'
 
@@ -179,10 +180,10 @@ function DocumentCard({ card, selected, connectMode }) {
 }
 
 const STATUS_COLOR = {
-  'живий': '#3a6040',
-  'мертвий': '#7a2a25',
-  'зниклий': '#6a5020',
-  'підозрюваний': '#4a3a70',
+  alive: '#3a6040',
+  dead: '#7a2a25',
+  missing: '#6a5020',
+  suspect: '#4a3a70',
 }
 
 function parseNpcContent(raw) {
@@ -191,7 +192,8 @@ function parseNpcContent(raw) {
 }
 
 function NpcField({ label, value, secret }) {
-  const text = value || 'невідомо'
+  const { t } = useTranslation()
+  const text = value || t('board.unknown')
   return (
     <div style={{ marginBottom: 7 }}>
       <div style={{
@@ -213,6 +215,7 @@ function NpcField({ label, value, secret }) {
 }
 
 function NpcCard({ card, selected, connectMode, isMaster }) {
+  const { t } = useTranslation()
   const d = parseNpcContent(card.content)
   const statusColor = STATUS_COLOR[d.status] ?? '#5a5040'
 
@@ -251,7 +254,7 @@ function NpcCard({ card, selected, connectMode, isMaster }) {
         padding: '5px 12px', display: 'flex', justifyContent: 'space-between',
         flexShrink: 0,
       }}>
-        <span>Особова справа · Persona</span>
+        <span>Persona</span>
         <span style={{ opacity: 0.5 }}>{card.created_by?.username ?? ''}</span>
       </div>
 
@@ -288,7 +291,7 @@ function NpcCard({ card, selected, connectMode, isMaster }) {
               )}
               {d.age && (
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8.5, color: '#8a7450', letterSpacing: '0.08em' }}>
-                  · {d.age} р.
+                  · {d.age} {t('board.yrsShort')}
                 </span>
               )}
             </div>
@@ -299,16 +302,16 @@ function NpcCard({ card, selected, connectMode, isMaster }) {
                 textTransform: 'uppercase', padding: '1px 6px',
                 border: `1px solid ${statusColor}`,
                 color: statusColor,
-              }}>{d.status}</div>
+              }}>{t(`npc.${d.status}`, d.status)}</div>
             )}
           </div>
         </div>
 
         {/* Sections */}
-        {(d.appearance !== undefined || !card.content) && <NpcField label="Зовнішність" value={d.appearance} />}
-        {(d.character !== undefined || !card.content) && <NpcField label="Характер" value={d.character} />}
-        {(d.connections !== undefined || !card.content) && <NpcField label="Зв'язки" value={d.connections} />}
-        {isMaster && <NpcField label="Секрет" value={d.secret} secret />}
+        {(d.appearance !== undefined || !card.content) && <NpcField label={t('npc.appearance')} value={d.appearance} />}
+        {(d.character !== undefined || !card.content) && <NpcField label={t('npc.character')} value={d.character} />}
+        {(d.connections !== undefined || !card.content) && <NpcField label={t('npc.connections')} value={d.connections} />}
+        {isMaster && <NpcField label={t('npc.secret')} value={d.secret} secret />}
 
         <div style={{ marginTop: 'auto', paddingTop: 6 }} />
       </div>
@@ -409,6 +412,7 @@ function DefaultCard({ card, selected, connectMode }) {
 }
 
 function PhotoCard({ card, selected, connectMode }) {
+  const { t } = useTranslation()
   const shadow = selected
     ? '0 0 0 2px var(--ochre), 0 12px 32px rgba(0,0,0,0.75)'
     : connectMode
@@ -435,7 +439,7 @@ function PhotoCard({ card, selected, connectMode }) {
               width: '100%', height: '100%',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: 'var(--font-mono)', fontSize: 9, color: '#8a8070', letterSpacing: '0.14em',
-            }}>немає зображення</div>
+            }}>{t('board.noImage')}</div>
         }
       </div>
 
@@ -471,6 +475,7 @@ function renderStrokes(ctx, strokes, scaleX = 1, scaleY = 1) {
 }
 
 function SketchCard({ card, selected, connectMode }) {
+  const { t } = useTranslation()
   const canvasRef = useRef(null)
 
   useEffect(() => {
@@ -505,7 +510,7 @@ function SketchCard({ card, selected, connectMode }) {
         borderBottom: '1px solid #c8b890',
         flexShrink: 0,
       }}>
-        <span>Ескіз</span>
+        <span>{t('cardType.sketch')}</span>
         <span style={{ fontStyle: 'italic', fontFamily: 'var(--font-display)', textTransform: 'none', letterSpacing: '0.08em' }}>Adumbratio</span>
       </div>
       <canvas
@@ -531,6 +536,7 @@ function SketchCard({ card, selected, connectMode }) {
 // ── Sketch full-screen editor ──
 
 function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsRef, drawingStrokeHandlerRef }) {
+  const { t } = useTranslation()
   const savedCanvasRef = useRef(null)
   const liveCanvasRef = useRef(null)
   const isDrawingRef = useRef(false)
@@ -686,7 +692,7 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
         }}>
           <div>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.28em', textTransform: 'uppercase', color: '#8a7450', marginRight: 12 }}>
-              Ескіз · Adumbratio
+              {t('cardType.sketch')} · Adumbratio
             </span>
             <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 17, color: '#e8dfc0' }}>
               {card.title}
@@ -703,7 +709,7 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
                   padding: '3px 10px', cursor: 'pointer',
                 }}
               >
-                Очистити
+                {t('board.clear')}
               </button>
             )}
             <button
@@ -715,7 +721,7 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
                 padding: '3px 10px', cursor: 'pointer',
               }}
             >
-              Закрити
+              {t('board.close')}
             </button>
           </div>
         </div>
@@ -750,7 +756,7 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
           fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.18em',
           color: '#5a5038', textAlign: 'center',
         }}>
-          Малюйте мишею · усі учасники бачать зміни в реальному часі
+          {t('board.drawHint')}
         </div>
       </div>
     </div>
@@ -811,6 +817,7 @@ const fvInput = (extra = {}) => ({
 })
 
 function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSaved, wsRef, drawingStrokeHandlerRef }) {
+  const { t } = useTranslation()
   const initNpc = () => {
     const d = parseNpcContent(card.content)
     return { role: d.role ?? '', age: d.age ?? '', status: d.status ?? '',
@@ -894,10 +901,10 @@ function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSav
           <div style={{ background: '#f8f4ec', padding: '16px 16px 12px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', maxWidth: 640 }}>
             {card.image
               ? <img src={card.image} alt={card.title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
-              : <div style={{ width: 400, height: 300, background: '#c8c0b0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a8070', fontFamily: 'var(--font-mono)', fontSize: 10 }}>немає зображення</div>
+              : <div style={{ width: 400, height: 300, background: '#c8c0b0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a8070', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{t('board.noImage')}</div>
             }
             <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 16, color: '#2a2010', marginTop: 12, textAlign: 'center' }}>{card.title}</div>
-            <button onClick={onClose} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: '1px solid #9a8860', color: '#7a6440', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: 'pointer' }}>Закрити</button>
+            <button onClick={onClose} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: '1px solid #9a8860', color: '#7a6440', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: 'pointer' }}>{t('board.close')}</button>
           </div>
         )}
 
@@ -906,7 +913,7 @@ function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSav
           <div style={{ background: '#ddd0b8', width: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', border: '1px solid #9a8860', overflow: 'hidden', position: 'relative' }}>
             <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%,-50%) rotate(-18deg)', fontFamily: 'var(--font-mono)', fontSize: 72, fontWeight: 'bold', letterSpacing: '0.18em', color: 'rgba(122,42,37,0.06)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>ДОСЬЄ</div>
             <div style={{ background: '#1e1608', color: '#c8a84a', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.32em', textTransform: 'uppercase', padding: '8px 20px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Особова справа · Persona</span>
+              <span>Persona</span>
               <span style={{ opacity: 0.5 }}>{card.created_by?.username ?? ''}</span>
             </div>
             <div style={{ padding: '24px 28px', position: 'relative' }}>
@@ -919,31 +926,31 @@ function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSav
                 </div>
                 <div style={{ flex: 1 }}>
                   <input value={title} onChange={(e) => setTitle(e.target.value)}
-                    style={{ ...fvInput(), fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 24, color: '#1a1208', marginBottom: 8 }} placeholder="Ім'я..." />
+                    style={{ ...fvInput(), fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 24, color: '#1a1208', marginBottom: 8 }} placeholder={t('npc.namePlaceholder')} />
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 8, marginBottom: 8 }}>
-                    <input value={npc.role} onChange={(e) => setNpcField('role', e.target.value)} placeholder="Роль / Посада..."
+                    <input value={npc.role} onChange={(e) => setNpcField('role', e.target.value)} placeholder={t('npc.rolePlaceholder')}
                       style={{ ...fvInput(), fontFamily: 'var(--font-mono)', fontSize: 11, color: '#5a4820' }} />
-                    <input value={npc.age} onChange={(e) => setNpcField('age', e.target.value)} placeholder="Вік..."
+                    <input value={npc.age} onChange={(e) => setNpcField('age', e.target.value)} placeholder={t('npc.agePlaceholder')}
                       style={{ ...fvInput(), fontFamily: 'var(--font-mono)', fontSize: 11, color: '#8a7450' }} />
                   </div>
                   <select value={npc.status} onChange={(e) => setNpcField('status', e.target.value)}
                     style={{ ...fvInput({ resize: 'none' }), fontFamily: 'var(--font-mono)', fontSize: 10, color: STATUS_COLOR[npc.status] ?? '#5a5040' }}>
-                    <option value="">— статус —</option>
-                    {Object.keys(STATUS_COLOR).map((s) => <option key={s} value={s}>{s}</option>)}
+                    <option value="">{t('npc.statusUnknown')}</option>
+                    {Object.keys(STATUS_COLOR).map((s) => <option key={s} value={s}>{t(`npc.${s}`)}</option>)}
                   </select>
                 </div>
               </div>
-              {[['Зовнішність', 'appearance'], ['Характер', 'character'], ["Зв'язки", 'connections']].map(([label, field]) => (
+              {[['appearance', 'appearance'], ['character', 'character'], ['connections', 'connections']].map(([key, field]) => (
                 <div key={field} style={{ marginBottom: 14 }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#8a7450', marginBottom: 4 }}>{label}</div>
-                  <textarea value={npc[field]} onChange={(e) => setNpcField(field, e.target.value)} rows={2} placeholder="невідомо"
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#8a7450', marginBottom: 4 }}>{t(`npc.${key}`)}</div>
+                  <textarea value={npc[field]} onChange={(e) => setNpcField(field, e.target.value)} rows={2} placeholder={t('npc.unknown')}
                     style={{ ...fvInput(), fontFamily: 'Georgia, serif', fontSize: 13, lineHeight: 1.6, color: '#2a2010' }} />
                 </div>
               ))}
               {isMaster && (
                 <div style={{ marginTop: 4, padding: '10px 14px', background: 'rgba(122,42,37,0.1)', borderLeft: '3px solid rgba(122,42,37,0.4)' }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(196,100,90,0.8)', marginBottom: 4 }}>Секрет</div>
-                  <textarea value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} rows={2} placeholder="невідомо"
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(196,100,90,0.8)', marginBottom: 4 }}>{t('npc.secret')}</div>
+                  <textarea value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} rows={2} placeholder={t('npc.unknown')}
                     style={{ ...fvInput(), fontFamily: 'Georgia, serif', fontSize: 13, lineHeight: 1.6, color: '#3a1008' }} />
                 </div>
               )}
@@ -957,15 +964,16 @@ function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSav
 }
 
 function SaveBar({ onSave, onClose, saving, dirty, dark }) {
+  const { t } = useTranslation()
   const color = dark ? '#5a4820' : '#7a6440'
   const border = dark ? 'rgba(90,72,32,0.3)' : 'rgba(122,98,64,0.3)'
   return (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16, paddingTop: 12, borderTop: `1px solid ${border}` }}>
       <button onClick={onClose} style={{ background: 'none', border: `1px solid ${border}`, color, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: 'pointer' }}>
-        Закрити
+        {t('board.close')}
       </button>
       <button onClick={onSave} disabled={saving || !dirty} style={{ background: dirty ? 'rgba(122,98,64,0.15)' : 'none', border: `1px solid ${dirty ? color : border}`, color: dirty ? color : border, fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: dirty ? 'pointer' : 'default' }}>
-        {saving ? 'Збереження...' : 'Зберегти'}
+        {saving ? t('board.saving') : t('board.save')}
       </button>
     </div>
   )
@@ -974,6 +982,7 @@ function SaveBar({ onSave, onClose, saving, dirty, dark }) {
 // ── Confirm modal ──
 
 function ConfirmModal({ message, onConfirm, onClose }) {
+  const { t } = useTranslation()
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose()
@@ -1003,14 +1012,14 @@ function ConfirmModal({ message, onConfirm, onClose }) {
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 14px' }} onClick={onClose}>
-            Скасувати
+            {t('board.cancel')}
           </button>
           <button
             className="btn btn--primary"
             style={{ fontSize: 10, padding: '4px 14px', background: 'rgba(122,42,37,0.25)', borderColor: 'var(--blood)', color: '#c87070' }}
             onClick={() => { onConfirm(); onClose() }}
           >
-            Видалити
+            {t('board.delete')}
           </button>
         </div>
       </div>
@@ -1021,6 +1030,7 @@ function ConfirmModal({ message, onConfirm, onClose }) {
 // ── Prompt modal ──
 
 function PromptModal({ label, placeholder, onConfirm, onClose }) {
+  const { t } = useTranslation()
   const [value, setValue] = useState('')
   const inputRef = useRef(null)
 
@@ -1063,10 +1073,10 @@ function PromptModal({ label, placeholder, onConfirm, onClose }) {
         />
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 14px' }} onClick={onClose}>
-            Скасувати
+            {t('board.cancel')}
           </button>
           <button className="btn btn--primary" style={{ fontSize: 10, padding: '4px 14px' }} onClick={() => { onConfirm(value); onClose() }}>
-            Підтвердити
+            {t('board.confirm')}
           </button>
         </div>
       </div>
@@ -1085,6 +1095,7 @@ const diceCountBtn = {
 }
 
 function DicePopup({ sessionId, onClose }) {
+  const { t } = useTranslation()
   const [diceType, setDiceType] = useState('d100')
   const [count, setCount] = useState(1)
   const [rolling, setRolling] = useState(false)
@@ -1106,7 +1117,7 @@ function DicePopup({ sessionId, onClose }) {
         padding: 20, width: 240, boxShadow: '0 8px 28px rgba(0,0,0,0.7)',
       }}>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 14 }}>
-          Кубик · Alea
+          {t('board.diceTitle')}
         </div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 14 }}>
           {DICE_TYPES.map((d) => (
@@ -1119,13 +1130,13 @@ function DicePopup({ sessionId, onClose }) {
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em' }}>Кількість:</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--moss)', letterSpacing: '0.14em' }}>{t('board.diceCount')}</span>
           <button onClick={() => setCount((c) => Math.max(1, c - 1))} style={diceCountBtn}>−</button>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--ochre)', minWidth: 20, textAlign: 'center' }}>{count}</span>
           <button onClick={() => setCount((c) => Math.min(10, c + 1))} style={diceCountBtn}>+</button>
         </div>
         <button className="btn btn--primary" style={{ width: '100%', fontSize: 11 }} onClick={handleRoll} disabled={rolling}>
-          {rolling ? '...' : `Кинути ${count}${diceType}`}
+          {rolling ? '...' : t('board.diceRoll', { count, type: diceType })}
         </button>
       </div>
     </>
@@ -1134,15 +1145,10 @@ function DicePopup({ sessionId, onClose }) {
 
 // ── Board context menu (right-click on empty space) ──
 
-const BOARD_CARD_TYPES = [
-  { value: 'document', label: 'Документ' },
-  { value: 'npc',      label: 'Досьє' },
-  { value: 'note',     label: 'Нотатка' },
-  { value: 'photo',    label: 'Фото' },
-  { value: 'sketch',   label: 'Ескіз' },
-]
+const BOARD_CARD_TYPE_VALUES = ['document', 'npc', 'note', 'photo', 'sketch']
 
 function BoardContextMenu({ x, y, onSelect, onClose, onDiceRoll }) {
+  const { t } = useTranslation()
   return (
     <>
       <div onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose() }} style={{ position: 'fixed', inset: 0, zIndex: 800 }} />
@@ -1156,15 +1162,15 @@ function BoardContextMenu({ x, y, onSelect, onClose, onDiceRoll }) {
           letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)',
           borderBottom: '1px solid rgba(184,153,104,0.15)',
         }}>
-          Додати картку
+          {t('board.addCard')}
         </div>
-        {BOARD_CARD_TYPES.map((t) => (
-          <CtxItem key={t.value} label={t.label} onClick={() => { onSelect(t.value); onClose() }} />
+        {BOARD_CARD_TYPE_VALUES.map((v) => (
+          <CtxItem key={v} label={t(`cardType.${v}`)} onClick={() => { onSelect(v); onClose() }} />
         ))}
         {onDiceRoll && (
           <>
             <div style={{ borderTop: '1px solid rgba(184,153,104,0.15)', margin: '2px 0' }} />
-            <CtxItem label="🎲 Кинути кубик" onClick={() => { onDiceRoll(); onClose() }} />
+            <CtxItem label={t('board.rollDice')} onClick={() => { onDiceRoll(); onClose() }} />
           </>
         )}
       </div>
@@ -1199,6 +1205,7 @@ function CtxItem({ label, onClick, danger }) {
 }
 
 function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, onFullView, onPin, onPublish, onConnect, onDelete, onClose }) {
+  const { t } = useTranslation()
   return (
     <>
       <div
@@ -1214,14 +1221,14 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, onFullV
         minWidth: 170,
         overflow: 'hidden',
       }}>
-        <CtxItem label="Переглянути" onClick={() => { onFullView(); onClose() }} />
-        <CtxItem label={card.is_pinned ? 'Відкріпити' : 'Закріпити'} onClick={() => { onPin(); onClose() }} />
+        <CtxItem label={t('board.view')} onClick={() => { onFullView(); onClose() }} />
+        <CtxItem label={card.is_pinned ? t('board.unpin') : t('board.pin')} onClick={() => { onPin(); onClose() }} />
         {(isMaster || isOwn) && !card.is_public && (
-          <CtxItem label={isMaster ? 'На стіл' : 'Винести'} onClick={() => { onPublish(); onClose() }} />
+          <CtxItem label={isMaster ? t('board.toTable') : t('board.reveal')} onClick={() => { onPublish(); onClose() }} />
         )}
-        <CtxItem label="+ Нитка" onClick={() => { onConnect(); onClose() }} />
+        <CtxItem label={t('board.thread')} onClick={() => { onConnect(); onClose() }} />
         {(isMaster || card.created_by?.id !== masterId) && (
-          <CtxItem label="Видалити" onClick={onDelete} danger />
+          <CtxItem label={t('board.delete')} onClick={onDelete} danger />
         )}
       </div>
     </>
@@ -1231,11 +1238,12 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, onFullV
 // ── Detail rail (bottom bar) ──
 
 function DetailRail({ card, connectMode, onCancelConnect }) {
+  const { t } = useTranslation()
   if (!card) {
     return (
       <div style={railStyle}>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
-          оберіть картку · клацніть і перетягуйте для переміщення
+          {t('board.selectCard')}
         </span>
       </div>
     )
@@ -1262,10 +1270,10 @@ function DetailRail({ card, connectMode, onCancelConnect }) {
       {connectMode && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--blood)', letterSpacing: '0.18em' }}>
-            оберіть іншу картку для нитки
+            {t('board.selectThread')}
           </span>
           <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 10px' }} onClick={onCancelConnect}>
-            Скасувати
+            {t('board.cancel')}
           </button>
         </div>
       )}
@@ -1284,6 +1292,7 @@ const railStyle = {
 // ── Main EvidenceBoard ──
 
 export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, onBoardCreate }) {
+  const { t } = useTranslation()
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
   const [dragging, setDragging] = useState(null)
@@ -1437,8 +1446,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     e.stopPropagation()
     const fromId = selectedId
     setPromptModal({
-      label: 'Підпис нитки',
-      placeholder: 'необов\'язково',
+      label: t('board.threadLabel'),
+      placeholder: t('board.optional'),
       onConfirm: async (value) => {
         try {
           const res = await createThread(sessionId, {
@@ -1492,7 +1501,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     if (!card) return
     closeContextMenu()
     setConfirmModal({
-      message: `Видалити картку «${card.title}»?`,
+      message: t('board.deleteCard', { name: card.title }),
       onConfirm: async () => {
         try {
           await deleteCard(sessionId, card.id)
@@ -1523,7 +1532,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       }}>
         <div>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
-            Дошка доказів · Mensa Probationum
+            {t('board.evidenceBoard')} · Mensa Probationum
           </div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', color: 'var(--cream)', marginTop: 2 }}>
             {sessionName}
@@ -1532,7 +1541,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {/* Tab switcher */}
-          {[['public', 'Загальний стіл'], ['personal', 'Особистий']].map(([k, l]) => (
+          {[['public', t('board.tabPublic')], ['personal', t('board.tabPersonal')]].map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} style={{
               padding: '4px 14px', fontFamily: 'var(--font-mono)', fontSize: 9,
               letterSpacing: '0.18em', textTransform: 'uppercase', cursor: 'pointer',
@@ -1598,7 +1607,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
             cards={visibleCards}
             threads={visibleThreads}
             onDeleteThread={(tid) => setConfirmModal({
-              message: 'Видалити нитку між картками?',
+              message: t('board.deleteThread'),
               onConfirm: async () => {
                 try {
                   await deleteThread(sessionId, tid)
@@ -1636,7 +1645,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
             {Math.round(zoom * 100)}%
           </div>
           <ZoomBtn label="−" onClick={() => setZoom((z) => Math.max(0.3, +(z - 0.1).toFixed(1)))} />
-          <ZoomBtn label="⌂" onClick={() => { setZoom(0.8); setPan({ x: 0, y: 0 }) }} title="Скинути" />
+          <ZoomBtn label="⌂" onClick={() => { setZoom(0.8); setPan({ x: 0, y: 0 }) }} title={t('board.resetZoom')} />
         </div>
 
         {/* Empty state */}
@@ -1646,7 +1655,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
             fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.28em',
             textTransform: 'uppercase', color: 'var(--moss)', textAlign: 'center',
           }}>
-            {tab === 'public' ? 'Загальний стіл порожній · Mensa Vacua' : 'Особистих карток немає · Nullae Chartae'}
+            {tab === 'public' ? t('board.emptyPublic') : t('board.emptyPersonal')}
           </div>
         )}
       </div>

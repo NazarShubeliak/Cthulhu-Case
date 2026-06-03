@@ -289,7 +289,7 @@ function SkillRow({ skill, onUpdate }) {
           checked={skill.checked}
           onChange={(e) => onUpdate({ ...skill, checked: e.target.checked })}
           style={{ accentColor: 'var(--ochre)', cursor: 'pointer' }}
-          title="Позначити для підвищення"
+          title={t('sheet.markForImprovement')}
         />
         <span
           style={{
@@ -404,7 +404,7 @@ function DicePanel({ characterId, skills }) {
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="eyebrow" style={{ fontSize: 9 }}>Кількість:</span>
+          <span className="eyebrow" style={{ fontSize: 9 }}>{t('board.diceCount')}</span>
           <input
             type="number"
             value={diceCount}
@@ -441,7 +441,7 @@ function DicePanel({ characterId, skills }) {
                 outline: 'none',
               }}
             >
-              <option value="">— навичка —</option>
+              <option value="">{t('sheet.skillSelect')}</option>
               {skills.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name} ({s.current_value}%)
@@ -461,7 +461,7 @@ function DicePanel({ characterId, skills }) {
             style={{ accentColor: 'var(--ochre)' }}
           />
           <span className="eyebrow" style={{ fontSize: 9, cursor: 'pointer' }}>
-            Публічний кидок
+            {t('sheet.publicRoll')}
           </span>
         </label>
         <button
@@ -470,7 +470,7 @@ function DicePanel({ characterId, skills }) {
           disabled={rolling}
           style={{ marginLeft: 'auto', padding: '6px 18px' }}
         >
-          {rolling ? '...' : 'Кинути'}
+          {rolling ? '...' : t('sheet.rollBtn')}
         </button>
       </div>
 
@@ -697,10 +697,10 @@ export default function CharacterSheetPage() {
     <div className="page" style={{ maxWidth: 1300 }}>
       <header className="page-header">
         <div className="page-header__eyebrow">
-          № ii · картка дослідника · investigator dossier
+          № ii · {t('chars.title')} · investigator dossier
         </div>
         <h1 className="page-header__title">
-          Дослідник:{' '}
+          {t('sheet.investigatorLabel')}:{' '}
           <em style={{ color: 'var(--ochre-bright)', fontStyle: 'italic' }}>
             {char.name || '—'}
           </em>
@@ -713,8 +713,7 @@ export default function CharacterSheetPage() {
           }}
         >
           <p className="page-header__sub">
-            Заповнюйте поля, наче складаєте офіційне досьє для Міскатонікської ради
-            опікунів.
+            {t('sheet.investigatorSub')}
           </p>
           {saveStatus === 'saving' && (
             <span
@@ -725,7 +724,7 @@ export default function CharacterSheetPage() {
                 color: 'var(--ochre-dim)',
               }}
             >
-              зберігається...
+              {t('sheet.saving')}
             </span>
           )}
           {saveStatus === 'saved' && (
@@ -737,7 +736,7 @@ export default function CharacterSheetPage() {
                 color: 'var(--moss-pale)',
               }}
             >
-              збережено
+              {t('sheet.saved')}
             </span>
           )}
         </div>
@@ -750,7 +749,7 @@ export default function CharacterSheetPage() {
           style={{ padding: '44px 48px', position: 'relative' }}
         >
           <div className="stamp" style={{ top: 32, right: 32 }}>
-            конфіденційно
+            {t('sheet.confidential')}
           </div>
 
           {/* Dossier header */}
@@ -771,7 +770,7 @@ export default function CharacterSheetPage() {
                 marginBottom: 4,
               }}
             >
-              Університет Міскатонік · реєстраційна картка дослідника
+              {t('sheet.regHeader')}
             </div>
             <div
               style={{
@@ -782,7 +781,7 @@ export default function CharacterSheetPage() {
                 lineHeight: 1.1,
               }}
             >
-              форма 7 — досьє слідчого
+              {t('sheet.form7')}
             </div>
             <div
               style={{
@@ -795,8 +794,8 @@ export default function CharacterSheetPage() {
                 color: '#7a6440',
               }}
             >
-              <span>№ архіву {String(char.id).padStart(4, '0')}-c</span>
-              <span>оновлено: {new Date(char.updated_at).toLocaleDateString('uk-UA')}</span>
+              <span>{t('sheet.archiveNo')} {String(char.id).padStart(4, '0')}-c</span>
+              <span>{t('sheet.updatedAt')} {new Date(char.updated_at).toLocaleDateString()}</span>
             </div>
           </div>
 
@@ -954,7 +953,7 @@ export default function CharacterSheetPage() {
                 marginBottom: 12,
               }}
             >
-              біографія / зачіпки / страхи
+              {t('sheet.bio')}
             </div>
             <PaperField
               label=""
@@ -996,7 +995,7 @@ export default function CharacterSheetPage() {
                 color: '#7a6440',
               }}
             >
-              підпис хранителя
+              {t('sheet.sigKeeper')}
             </div>
           </div>
           <div
@@ -1012,8 +1011,8 @@ export default function CharacterSheetPage() {
               color: '#7a6440',
             }}
           >
-            <span>підпис дослідника</span>
-            <span>підпис хранителя</span>
+            <span>{t('sheet.sigInvestigator')}</span>
+            <span>{t('sheet.sigKeeper')}</span>
           </div>
         </div>
 
@@ -1039,7 +1038,7 @@ export default function CharacterSheetPage() {
                     fontStyle: 'italic',
                   }}
                 >
-                  Те, що дослідник вміє
+                  {t('sheet.skillsSub')}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1050,7 +1049,7 @@ export default function CharacterSheetPage() {
                     color: 'var(--ochre-dim)',
                   }}
                 >
-                  {char.skills?.length ?? 0} навичок
+                  {t('sheet.skillCount', { count: char.skills?.length ?? 0 })}
                 </div>
                 {(char.skills ?? []).some((s) => s.checked) && (
                   <button
@@ -1097,7 +1096,7 @@ export default function CharacterSheetPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'var(--moss)' }}>
-                    Результати підвищення
+                    {t('sheet.improveTitle')}
                   </span>
                   <button
                     className="btn btn--ghost"
@@ -1124,14 +1123,14 @@ export default function CharacterSheetPage() {
                       {r.name}
                     </span>
                     <span style={{ color: 'var(--moss-pale)', fontSize: 10 }}>
-                      кидок: {r.roll}
+                      {t('sheet.rollLabel')} {r.roll}
                     </span>
                     {r.improved ? (
                       <span style={{ color: 'var(--ochre-bright)' }}>
                         {r.old_value} → {r.new_value} <span style={{ color: 'var(--moss)' }}>(+{r.improvement})</span>
                       </span>
                     ) : (
-                      <span style={{ color: 'var(--moss)' }}>без змін</span>
+                      <span style={{ color: 'var(--moss)' }}>{t('sheet.noChange')}</span>
                     )}
                   </div>
                 ))}
@@ -1149,11 +1148,11 @@ export default function CharacterSheetPage() {
               <div>
                 <div className="eyebrow" style={{ marginBottom: 6 }}>{t('sheet.equipment')}</div>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic' }}>
-                  У саквояжі та в кишенях
+                  {t('sheet.equipSub')}
                 </div>
               </div>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ochre-dim)' }}>
-                {equipment.length} предм.
+                {t('sheet.itemCount', { count: equipment.length })}
               </span>
             </div>
 
@@ -1176,7 +1175,7 @@ export default function CharacterSheetPage() {
                     <input
                       value={item.notes}
                       onChange={(e) => handleUpdateItemNotes(item.id, e.target.value)}
-                      placeholder="нотатка"
+                      placeholder={t('sheet.note')}
                       style={{
                         width: 90,
                         background: 'transparent',
@@ -1194,7 +1193,7 @@ export default function CharacterSheetPage() {
                     <button
                       onClick={() => handleDeleteItem(item.id)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--moss)', fontSize: 13, padding: '0 2px', lineHeight: 1 }}
-                      title="Видалити"
+                      title={t('board.delete')}
                     >
                       ✕
                     </button>
@@ -1223,7 +1222,7 @@ export default function CharacterSheetPage() {
               <input
                 value={newItemNotes}
                 onChange={(e) => setNewItemNotes(e.target.value)}
-                placeholder="нотатка"
+                placeholder={t('sheet.note')}
                 style={{
                   width: 90,
                   background: 'var(--ink-2)',
@@ -1260,7 +1259,7 @@ export default function CharacterSheetPage() {
                   <button
                     onClick={() => handleDeleteScar(scar.id)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: 11, padding: 0, lineHeight: 1, opacity: 0.7 }}
-                    title="Видалити"
+                    title={t('board.delete')}
                   >
                     ✕
                   </button>

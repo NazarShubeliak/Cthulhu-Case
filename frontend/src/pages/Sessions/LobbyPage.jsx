@@ -7,6 +7,7 @@ import { getCharacters } from '../../api/characters.js'
 import { getCampaigns } from '../../api/campaigns.js'
 
 function ConfirmModal({ message, onConfirm, onClose }) {
+  const { t } = useTranslation()
   const inputRef = useRef(null)
   useEffect(() => {
     inputRef.current?.focus()
@@ -38,14 +39,14 @@ function ConfirmModal({ message, onConfirm, onClose }) {
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button className="btn btn--ghost" style={{ fontSize: 10, padding: '4px 14px' }} onClick={onClose}>
-            Скасувати
+            {t('board.cancel')}
           </button>
           <button
             className="btn btn--primary"
             style={{ fontSize: 10, padding: '4px 14px', background: 'rgba(122,42,37,0.25)', borderColor: 'var(--blood)', color: '#c87070' }}
             onClick={() => { onConfirm(); onClose() }}
           >
-            Підтвердити
+            {t('board.confirm')}
           </button>
         </div>
       </div>
