@@ -1291,7 +1291,7 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
-export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, onBoardCreate }) {
+export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, onBoardCreate, tab, onTabChange }) {
   const { t } = useTranslation()
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
@@ -1302,7 +1302,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
   const [panning, setPanning] = useState(null)
   const [connectMode, setConnectMode] = useState(false)
   const [fullViewCard, setFullViewCard] = useState(null)
-  const [tab, setTab] = useState('public')
+  const setTab = onTabChange
   const [contextMenu, setContextMenu] = useState(null)
   const [boardMenu, setBoardMenu] = useState(null)
   const [diceOpen, setDiceOpen] = useState(false)

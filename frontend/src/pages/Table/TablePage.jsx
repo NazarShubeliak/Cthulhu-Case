@@ -245,6 +245,7 @@ export default function TablePage() {
   const [loading, setLoading] = useState(true)
   const [diceToasts, setDiceToasts] = useState([])
   const [cardToasts, setCardToasts] = useState([])
+  const [boardTab, setBoardTab] = useState('public')
   const [createConfig, setCreateConfig] = useState({ open: false, type: 'document', pos: null })
   const [diceLogOpen, setDiceLogOpen] = useState(false)
   const [boundChar, setBoundChar] = useState(null)
@@ -262,6 +263,7 @@ export default function TablePage() {
     const id = ++toastId.current
     setCardToasts((prev) => [...prev, { id, card }])
     setTimeout(() => setCardToasts((prev) => prev.filter((t) => t.id !== id)), 6000)
+    setBoardTab('personal')
   }, [])
 
   const onDrawingStroke = useCallback((msg) => { drawingStrokeHandlerRef.current?.(msg) }, [])
@@ -372,6 +374,8 @@ export default function TablePage() {
           sessionName={session?.name ?? ''}
           wsRef={wsRef}
           drawingStrokeHandlerRef={drawingStrokeHandlerRef}
+          tab={boardTab}
+          onTabChange={setBoardTab}
           onBoardCreate={(type, boardX, boardY, tab) =>
             setCreateConfig({ open: true, type, pos: { x: boardX, y: boardY }, tab })
           }
@@ -383,7 +387,7 @@ export default function TablePage() {
         onClose={() => setCreateConfig((c) => ({ ...c, open: false }))}
         initialType={createConfig.type}
         initialPos={createConfig.pos}
-        initialTarget={createConfig.tab === 'personal' ? 'personal' : 'public'}
+        initialTarget={boardTab === 'personal' ? 'personal' : 'public'}
         sessionId={id}
         isMaster={isMaster}
         currentUserId={user?.id}
