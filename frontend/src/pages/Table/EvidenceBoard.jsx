@@ -244,7 +244,7 @@ function NpcCard({ card, selected, connectMode, isMaster }) {
         letterSpacing: '0.18em', textTransform: 'uppercase',
         color: 'rgba(122,42,37,0.07)', pointerEvents: 'none',
         whiteSpace: 'nowrap', zIndex: 0,
-      }}>ДОСЬЄ</div>
+      }}>{t('npc.dossier')}</div>
 
       {/* Header bar */}
       <div style={{
@@ -911,7 +911,7 @@ function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSav
         {/* ── NPC dossier ── */}
         {card.type === 'npc' && (
           <div style={{ background: '#ddd0b8', width: 560, boxShadow: '0 20px 60px rgba(0,0,0,0.8)', border: '1px solid #9a8860', overflow: 'hidden', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%,-50%) rotate(-18deg)', fontFamily: 'var(--font-mono)', fontSize: 72, fontWeight: 'bold', letterSpacing: '0.18em', color: 'rgba(122,42,37,0.06)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>ДОСЬЄ</div>
+            <div style={{ position: 'absolute', top: '40%', left: '50%', transform: 'translate(-50%,-50%) rotate(-18deg)', fontFamily: 'var(--font-mono)', fontSize: 72, fontWeight: 'bold', letterSpacing: '0.18em', color: 'rgba(122,42,37,0.06)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>{t('npc.dossier')}</div>
             <div style={{ background: '#1e1608', color: '#c8a84a', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.32em', textTransform: 'uppercase', padding: '8px 20px', display: 'flex', justifyContent: 'space-between' }}>
               <span>Persona</span>
               <span style={{ opacity: 0.5 }}>{card.created_by?.username ?? ''}</span>
