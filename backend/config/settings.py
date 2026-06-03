@@ -4,11 +4,20 @@ from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-in-prod-cthulhu-2024')
-
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+_DEV_SECRET = 'dev-secret-key-change-in-prod-cthulhu-2024'
+SECRET_KEY = config('SECRET_KEY', default=_DEV_SECRET)
+
+if not DEBUG:
+    if SECRET_KEY == _DEV_SECRET:
+        raise RuntimeError('SECRET_KEY must be changed from the default value when DEBUG=False.')
+    _allowed = config('ALLOWED_HOSTS', default='')
+    if not _allowed:
+        raise RuntimeError('ALLOWED_HOSTS must be set when DEBUG=False.')
+    ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',')]
+else:
+    ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
