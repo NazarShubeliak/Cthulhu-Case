@@ -537,6 +537,7 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
   const currentStrokeRef = useRef([])
   const lastSendTimeRef = useRef(0)
 
+  const liveCard = useTableStore((state) => state.cards.find((c) => c.id === card.id)) ?? card
   const canClear = isMaster || card.created_by?.id === currentUserId
 
   function renderSaved(data) {
@@ -544,12 +545,12 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, SKETCH_CANVAS_W, SKETCH_CANVAS_H)
-    renderStrokes(ctx, data ?? card.drawing_data ?? [])
+    renderStrokes(ctx, data ?? [])
   }
 
   useEffect(() => {
-    renderSaved(card.drawing_data)
-  }, [card.drawing_data]) // eslint-disable-line react-hooks/exhaustive-deps
+    renderSaved(liveCard.drawing_data)
+  }, [liveCard.drawing_data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Register handler for live strokes from other users
   useEffect(() => {
@@ -638,8 +639,23 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
     const stroke = [...currentStrokeRef.current]
     currentStrokeRef.current = []
     if (stroke.length === 0) return
-    const ctx = liveCanvasRef.current?.getContext('2d')
-    if (ctx) ctx.clearRect(0, 0, SKETCH_CANVAS_W, SKETCH_CANVAS_H)
+
+    // Commit stroke to savedCanvas immediately so it doesn't disappear while waiting for server
+    const savedCtx = savedCanvasRef.current?.getContext('2d')
+    if (savedCtx && stroke.length >= 2) {
+      savedCtx.strokeStyle = SKETCH_COLOR
+      savedCtx.lineWidth = 2
+      savedCtx.lineCap = 'round'
+      savedCtx.lineJoin = 'round'
+      savedCtx.beginPath()
+      savedCtx.moveTo(stroke[0].x, stroke[0].y)
+      for (let i = 1; i < stroke.length; i++) savedCtx.lineTo(stroke[i].x, stroke[i].y)
+      savedCtx.stroke()
+    }
+
+    const liveCtx = liveCanvasRef.current?.getContext('2d')
+    if (liveCtx) liveCtx.clearRect(0, 0, SKETCH_CANVAS_W, SKETCH_CANVAS_H)
+
     try {
       await saveDrawingStrokes(sessionId, card.id, [stroke])
     } catch {}

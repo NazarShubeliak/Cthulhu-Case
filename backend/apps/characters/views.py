@@ -135,7 +135,7 @@ class CharacterViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         if has_stat_change:
-            derived = recalculate_derived(instance, request.data)
+            derived = recalculate_derived(instance, serializer.validated_data)
             serializer.save(**derived)
         else:
             serializer.save()
