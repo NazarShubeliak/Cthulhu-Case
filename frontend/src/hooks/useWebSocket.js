@@ -16,7 +16,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
     addCard, updateCard, moveCard, removeCard,
     addThread, removeThread,
     addNote, updateNote, removeNote,
-    addConnectedUser,
+    addConnectedUser, removeConnectedUser,
     replaceCard,
     addDiceLog,
   } = useTableStore()
@@ -77,6 +77,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
         case 'player.joined':
           addConnectedUser({ user_id: msg.user_id, username: msg.username })
           break
+        case 'player.left':
+          removeConnectedUser(msg.user_id)
+          break
         case 'dice.rolled':
           addDiceLog(msg)
           if (onDiceRolled) onDiceRolled(msg)
@@ -107,7 +110,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
     addCard, updateCard, moveCard, removeCard,
     addThread, removeThread,
     addNote, updateNote, removeNote,
-    addConnectedUser, replaceCard, addDiceLog,
+    addConnectedUser, removeConnectedUser, replaceCard, addDiceLog,
     onDiceRolled,
   ])
 

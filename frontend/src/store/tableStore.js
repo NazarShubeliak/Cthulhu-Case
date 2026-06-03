@@ -47,6 +47,8 @@ const useTableStore = create((set) => ({
         ? s.connectedUsers
         : [...s.connectedUsers, user],
     })),
+  removeConnectedUser: (userId) =>
+    set((s) => ({ connectedUsers: s.connectedUsers.filter((u) => u.user_id !== userId) })),
 
   addDiceLog: (entry) =>
     set((s) => ({ diceLog: [{ ...entry, ts: Date.now() }, ...s.diceLog].slice(0, 100) })),

@@ -34,6 +34,12 @@ class TableConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, code):
         if hasattr(self, 'group_name'):
+            if hasattr(self, 'user'):
+                await self.channel_layer.group_send(self.group_name, {
+                    'type': 'player.left',
+                    'user_id': self.user.id,
+                    'username': self.user.username,
+                })
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
@@ -108,6 +114,13 @@ class TableConsumer(AsyncWebsocketConsumer):
     async def player_joined(self, event):
         await self.send(text_data=json.dumps({
             'type': 'player.joined',
+            'user_id': event['user_id'],
+            'username': event['username'],
+        }))
+
+    async def player_left(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'player.left',
             'user_id': event['user_id'],
             'username': event['username'],
         }))
