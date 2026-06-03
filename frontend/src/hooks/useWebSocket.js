@@ -5,7 +5,7 @@ import useTableStore from '../store/tableStore'
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 
-export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onDrawingStroke) {
+export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onDrawingStroke, onNewCard) {
   const wsRef = useRef(null)
   const retryDelay = useRef(RECONNECT_BASE_MS)
   const retryTimer = useRef(null)
@@ -23,6 +23,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
 
   const onDrawingStrokeRef = useRef(onDrawingStroke)
   useEffect(() => { onDrawingStrokeRef.current = onDrawingStroke }, [onDrawingStroke])
+
+  const onNewCardRef = useRef(onNewCard)
+  useEffect(() => { onNewCardRef.current = onNewCard }, [onNewCard])
 
   const connect = useCallback(() => {
     if (!mountedRef.current || !sessionId || !accessToken) return
@@ -43,6 +46,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
       switch (msg.type) {
         case 'card.created':
           addCard(msg.card)
+          if (msg.card.owner?.id === currentUserId && !msg.card.is_public) {
+            onNewCardRef.current?.(msg.card)
+          }
           break
         case 'card.moving':
           if (msg.moved_by !== currentUserId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)

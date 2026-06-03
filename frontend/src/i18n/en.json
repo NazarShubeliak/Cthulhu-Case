@@ -214,7 +214,9 @@
     "saving": "Saving...",
     "addCard": "Add Card",
     "createError": "Error creating card.",
-    "text": "Text..."
+    "text": "Text...",
+    "newEvidence": "You have new evidence",
+    "newEvidenceSub": "Novum Indicium · received"
   },
   "cardType": {
     "document": "Document",

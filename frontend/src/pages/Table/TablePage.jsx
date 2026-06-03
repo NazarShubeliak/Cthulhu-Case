@@ -244,6 +244,7 @@ export default function TablePage() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [diceToasts, setDiceToasts] = useState([])
+  const [cardToasts, setCardToasts] = useState([])
   const [createConfig, setCreateConfig] = useState({ open: false, type: 'document', pos: null })
   const [diceLogOpen, setDiceLogOpen] = useState(false)
   const [boundChar, setBoundChar] = useState(null)
@@ -257,8 +258,14 @@ export default function TablePage() {
     setTimeout(() => setDiceToasts((prev) => prev.filter((t) => t.id !== id)), 5000)
   }, [])
 
+  const addCardToast = useCallback((card) => {
+    const id = ++toastId.current
+    setCardToasts((prev) => [...prev, { id, card }])
+    setTimeout(() => setCardToasts((prev) => prev.filter((t) => t.id !== id)), 6000)
+  }, [])
+
   const onDrawingStroke = useCallback((msg) => { drawingStrokeHandlerRef.current?.(msg) }, [])
-  const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke)
+  const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke, addCardToast)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -483,6 +490,42 @@ export default function TablePage() {
                   [{toast.results.join(' + ')}]
                 </span>
               )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* New card (evidence) toasts */}
+      <div style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+        {cardToasts.map(({ id, card }) => (
+          <div key={id} style={{
+            background: 'var(--ink-0)',
+            border: '1px solid var(--blood)',
+            borderLeft: '3px solid var(--blood)',
+            padding: '14px 18px',
+            boxShadow: '0 4px 24px rgba(122,42,37,0.35)',
+            maxWidth: 280,
+            animation: 'fadeInUp 0.3s ease',
+          }}>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 8,
+              letterSpacing: '0.3em', textTransform: 'uppercase',
+              color: 'rgba(196,100,90,0.8)', marginBottom: 6,
+            }}>
+              {t('table.newEvidenceSub')}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-display)', fontStyle: 'italic',
+              fontSize: 17, color: 'var(--cream)', lineHeight: 1.25, marginBottom: 4,
+            }}>
+              {t('table.newEvidence')}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 10,
+              color: 'var(--ochre)', letterSpacing: '0.08em',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {card.title}
             </div>
           </div>
         ))}
