@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
@@ -20,9 +21,9 @@ def get_campaign_for_master(campaign_pk, user):
     try:
         campaign = Campaign.objects.get(pk=campaign_pk)
     except Campaign.DoesNotExist:
-        raise NotFound('Кампанію не знайдено.')
+        raise NotFound(_('Кампанію не знайдено.'))
     if campaign.master != user:
-        raise PermissionDenied('Тільки майстер може керувати кампанією.')
+        raise PermissionDenied(_('Тільки майстер може керувати кампанією.'))
     return campaign
 
 
@@ -31,7 +32,7 @@ def get_act_for_master(campaign_pk, act_pk, user):
     try:
         return campaign.acts.get(pk=act_pk), campaign
     except Act.DoesNotExist:
-        raise NotFound('Акт не знайдено.')
+        raise NotFound(_('Акт не знайдено.'))
 
 
 def get_scene_for_master(campaign_pk, act_pk, scene_pk, user):
@@ -39,7 +40,7 @@ def get_scene_for_master(campaign_pk, act_pk, scene_pk, user):
     try:
         return act.scenes.get(pk=scene_pk), act, campaign
     except Scene.DoesNotExist:
-        raise NotFound('Сцену не знайдено.')
+        raise NotFound(_('Сцену не знайдено.'))
 
 
 class CampaignViewSet(viewsets.ModelViewSet):
@@ -59,7 +60,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
     def get_object(self):
         obj = super().get_object()
         if obj.master != self.request.user:
-            raise PermissionDenied('Тільки майстер може керувати кампанією.')
+            raise PermissionDenied(_('Тільки майстер може керувати кампанією.'))
         return obj
 
 
@@ -149,17 +150,17 @@ class SceneCardViewSet(viewsets.ModelViewSet):
         sent_to_id = request.data.get('sent_to_id')
 
         if scene_card.is_sent:
-            return Response({'error': 'Картку вже відправлено.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Картку вже відправлено.')}, status=status.HTTP_400_BAD_REQUEST)
 
         card = scene_card.card
         if sent_to_id:
             try:
                 player = User.objects.get(pk=sent_to_id)
             except User.DoesNotExist:
-                return Response({'error': 'Гравця не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+                return Response({'error': _('Гравця не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
             session = card.session
             if not session.players.filter(pk=player.pk).exists():
-                return Response({'error': 'Гравець не є учасником цієї сесії.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': _('Гравець не є учасником цієї сесії.')}, status=status.HTTP_400_BAD_REQUEST)
             card.owner = player
             card.is_public = False
         else:

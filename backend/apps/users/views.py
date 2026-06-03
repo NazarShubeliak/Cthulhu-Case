@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -60,7 +61,7 @@ class LogoutView(APIView):
                 token.blacklist()
             except TokenError:
                 pass
-        return Response({'detail': 'Вихід виконано.'}, status=status.HTTP_200_OK)
+        return Response({'detail': _('Вихід виконано.')}, status=status.HTTP_200_OK)
 
 
 class MeView(generics.RetrieveUpdateAPIView):
@@ -79,4 +80,4 @@ class ChangePasswordView(APIView):
         serializer.is_valid(raise_exception=True)
         request.user.set_password(serializer.validated_data['new_password'])
         request.user.save()
-        return Response({'detail': 'Пароль змінено.'}, status=status.HTTP_200_OK)
+        return Response({'detail': _('Пароль змінено.')}, status=status.HTTP_200_OK)

@@ -1,5 +1,3 @@
-version: '3.9'
-
 services:
   db:
     image: postgres:16-alpine
@@ -33,8 +31,6 @@ services:
     volumes:
       - ./backend:/app
       - media_data:/app/media
-    ports:
-      - "8000:8000"
     environment:
       - DEBUG=${DEBUG:-True}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-prod-cthulhu-2024}

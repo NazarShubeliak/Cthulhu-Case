@@ -1,0 +1,111 @@
+# English translations for Cthulhu Case
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: en\n"
+
+msgid "Паролі не збігаються."
+msgstr "Passwords do not match."
+
+msgid "Невірний поточний пароль."
+msgstr "Current password is incorrect."
+
+msgid "Невірний логін або пароль."
+msgstr "Invalid username or password."
+
+msgid "Акаунт заблоковано."
+msgstr "Account is blocked."
+
+msgid "Вихід виконано."
+msgstr "Logged out."
+
+msgid "Пароль змінено."
+msgstr "Password changed."
+
+msgid "Сесію не знайдено."
+msgstr "Session not found."
+
+msgid "Сесія закрита."
+msgstr "Session is closed."
+
+msgid "Ви майстер цієї сесії."
+msgstr "You are the master of this session."
+
+msgid "Введіть код сесії."
+msgstr "Enter session code."
+
+msgid "Сесію з таким кодом не знайдено."
+msgstr "Session with this code not found."
+
+msgid "Майстер не може покинути сесію."
+msgstr "The master cannot leave the session."
+
+msgid "Тільки майстер може розпочати сесію."
+msgstr "Only the master can start the session."
+
+msgid "Тільки майстер може закрити сесію."
+msgstr "Only the master can close the session."
+
+msgid "Майстер не вибирає персонажа."
+msgstr "The master does not select a character."
+
+msgid "Персонажа не знайдено."
+msgstr "Character not found."
+
+msgid "Тільки майстер може завантажити кампанію."
+msgstr "Only the master can load a campaign."
+
+msgid "Вкажіть campaign_id."
+msgstr "Specify campaign_id."
+
+msgid "Кампанію не знайдено."
+msgstr "Campaign not found."
+
+msgid "У кампанії немає ассетів."
+msgstr "Campaign has no assets."
+
+msgid "Тільки майстер може кидати кубики на столі."
+msgstr "Only the master can roll dice at the table."
+
+msgid "Невідомий тип кубика."
+msgstr "Unknown dice type."
+
+msgid "Ви не учасник цієї сесії."
+msgstr "You are not a participant of this session."
+
+msgid "Недостатньо прав для редагування цієї картки."
+msgstr "Insufficient permissions to edit this card."
+
+msgid "Не можна видалити картку майстра."
+msgstr "Cannot delete the master's card."
+
+msgid "Недостатньо прав."
+msgstr "Insufficient permissions."
+
+msgid "Нитка між цими картками вже існує."
+msgstr "A thread between these cards already exists."
+
+msgid "Можна видалити тільки власну нитку."
+msgstr "You can only delete your own thread."
+
+msgid "Ви не автор цієї нотатки."
+msgstr "You are not the author of this note."
+
+msgid "Тільки майстер може керувати кампанією."
+msgstr "Only the master can manage the campaign."
+
+msgid "Акт не знайдено."
+msgstr "Act not found."
+
+msgid "Сцену не знайдено."
+msgstr "Scene not found."
+
+msgid "Картку вже відправлено."
+msgstr "Card has already been sent."
+
+msgid "Гравця не знайдено."
+msgstr "Player not found."
+
+msgid "Гравець не є учасником цієї сесії."
+msgstr "Player is not a participant of this session."

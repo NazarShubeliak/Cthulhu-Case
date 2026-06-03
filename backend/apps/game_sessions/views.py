@@ -1,6 +1,7 @@
 import random
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.utils.translation import gettext_lazy as _
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -53,11 +54,11 @@ class SessionViewSet(viewsets.ModelViewSet):
         try:
             session = Session.objects.get(pk=pk)
         except Session.DoesNotExist:
-            return Response({'error': 'Сесію не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': _('Сесію не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
         if session.status == 'closed':
-            return Response({'error': 'Сесія закрита.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Сесія закрита.')}, status=status.HTTP_400_BAD_REQUEST)
         if session.master == request.user:
-            return Response({'error': 'Ви майстер цієї сесії.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Ви майстер цієї сесії.')}, status=status.HTTP_400_BAD_REQUEST)
         session.players.add(request.user)
         broadcast(session.id, {
             'type': 'player.joined',
@@ -70,13 +71,13 @@ class SessionViewSet(viewsets.ModelViewSet):
     def join_by_code(self, request):
         code = request.data.get('code', '').strip().upper()
         if not code:
-            return Response({'error': 'Введіть код сесії.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Введіть код сесії.')}, status=status.HTTP_400_BAD_REQUEST)
         try:
             session = Session.objects.get(join_code=code)
         except Session.DoesNotExist:
-            return Response({'error': 'Сесію з таким кодом не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': _('Сесію з таким кодом не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
         if session.status == 'closed':
-            return Response({'error': 'Сесія закрита.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Сесія закрита.')}, status=status.HTTP_400_BAD_REQUEST)
         if session.master == request.user:
             return Response(SessionDetailSerializer(session, context={'request': request}).data)
         session.players.add(request.user)
@@ -91,7 +92,7 @@ class SessionViewSet(viewsets.ModelViewSet):
     def leave(self, request, pk=None):
         session = self.get_object()
         if session.master == request.user:
-            return Response({'error': 'Майстер не може покинути сесію.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Майстер не може покинути сесію.')}, status=status.HTTP_400_BAD_REQUEST)
         session.players.remove(request.user)
         return Response({'status': 'left'})
 
@@ -99,7 +100,7 @@ class SessionViewSet(viewsets.ModelViewSet):
     def start(self, request, pk=None):
         session = self.get_object()
         if session.master != request.user:
-            return Response({'error': 'Тільки майстер може розпочати сесію.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': _('Тільки майстер може розпочати сесію.')}, status=status.HTTP_403_FORBIDDEN)
         session.status = 'active'
         session.save()
         return Response(SessionDetailSerializer(session, context={'request': request}).data)
@@ -108,7 +109,7 @@ class SessionViewSet(viewsets.ModelViewSet):
     def close(self, request, pk=None):
         session = self.get_object()
         if session.master != request.user:
-            return Response({'error': 'Тільки майстер може закрити сесію.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': _('Тільки майстер може закрити сесію.')}, status=status.HTTP_403_FORBIDDEN)
         session.status = 'closed'
         session.save()
         return Response(SessionDetailSerializer(session, context={'request': request}).data)
@@ -117,7 +118,7 @@ class SessionViewSet(viewsets.ModelViewSet):
     def set_character(self, request, pk=None):
         session = self.get_object()
         if session.master == request.user:
-            return Response({'error': 'Майстер не вибирає персонажа.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Майстер не вибирає персонажа.')}, status=status.HTTP_400_BAD_REQUEST)
         character_id = request.data.get('character_id')
         if not character_id:
             SessionCharacter.objects.filter(session=session, player=request.user).delete()
@@ -126,7 +127,7 @@ class SessionViewSet(viewsets.ModelViewSet):
         try:
             character = Character.objects.get(id=character_id, user=request.user)
         except Character.DoesNotExist:
-            return Response({'error': 'Персонажа не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': _('Персонажа не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
         obj, _ = SessionCharacter.objects.update_or_create(
             session=session, player=request.user,
             defaults={'character': character},
@@ -146,18 +147,18 @@ class SessionViewSet(viewsets.ModelViewSet):
     def load_campaign(self, request, pk=None):
         session = self.get_object()
         if session.master != request.user:
-            return Response({'error': 'Тільки майстер може завантажити кампанію.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': _('Тільки майстер може завантажити кампанію.')}, status=status.HTTP_403_FORBIDDEN)
         campaign_id = request.data.get('campaign_id')
         if not campaign_id:
-            return Response({'error': 'Вкажіть campaign_id.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Вкажіть campaign_id.')}, status=status.HTTP_400_BAD_REQUEST)
         from apps.campaigns.models import Campaign, CampaignAsset
         try:
             campaign = Campaign.objects.get(pk=campaign_id, master=request.user)
         except Campaign.DoesNotExist:
-            return Response({'error': 'Кампанію не знайдено.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'error': _('Кампанію не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
         assets = CampaignAsset.objects.filter(campaign=campaign)
         if not assets.exists():
-            return Response({'error': 'У кампанії немає ассетів.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('У кампанії немає ассетів.')}, status=status.HTTP_400_BAD_REQUEST)
         COLS = 4
         CARD_W, CARD_H, GAP = 220, 160, 24
         cards = []
@@ -189,11 +190,11 @@ class SessionViewSet(viewsets.ModelViewSet):
     def roll(self, request, pk=None):
         session = self.get_object()
         if session.master != request.user:
-            return Response({'error': 'Тільки майстер може кидати кубики на столі.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': _('Тільки майстер може кидати кубики на столі.')}, status=status.HTTP_403_FORBIDDEN)
         DICE = {'d4': 4, 'd6': 6, 'd8': 8, 'd10': 10, 'd100': 100}
         dice_type = request.data.get('dice_type', 'd100')
         if dice_type not in DICE:
-            return Response({'error': 'Невідомий тип кубика.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': _('Невідомий тип кубика.')}, status=status.HTTP_400_BAD_REQUEST)
         count = max(1, min(10, int(request.data.get('count', 1))))
         sides = DICE[dice_type]
         results = [random.randint(1, sides) for _ in range(count)]
@@ -221,9 +222,9 @@ class SessionMixin:
         try:
             session = Session.objects.get(pk=session_pk)
         except Session.DoesNotExist:
-            raise NotFound('Сесію не знайдено.')
+            raise NotFound(_('Сесію не знайдено.'))
         if not session.is_participant(user):
-            raise PermissionDenied('Ви не учасник цієї сесії.')
+            raise PermissionDenied(_('Ви не учасник цієї сесії.'))
         return session
 
 
@@ -257,7 +258,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
             serializer.instance.created_by != self.request.user
             and session.master != self.request.user
         ):
-            raise PermissionDenied('Недостатньо прав для редагування цієї картки.')
+            raise PermissionDenied(_('Недостатньо прав для редагування цієї картки.'))
         card = serializer.save()
         if position_only:
             broadcast(session.id, {
@@ -276,7 +277,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         session = self.get_session()
         if session.master != self.request.user and instance.created_by == session.master:
-            raise PermissionDenied('Не можна видалити картку майстра.')
+            raise PermissionDenied(_('Не можна видалити картку майстра.'))
         session_id = instance.session_id
         card_id = instance.id
         instance.delete()
@@ -287,7 +288,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
         card = self.get_object()
         session = self.get_session()
         if request.user != session.master and request.user != card.owner:
-            return Response({'error': 'Недостатньо прав.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': _('Недостатньо прав.')}, status=status.HTTP_403_FORBIDDEN)
         card.is_public = True
         card.save()
         data = CardSerializer(card, context={'request': request}).data
@@ -302,7 +303,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
         if request.data.get('clear'):
             session = self.get_session()
             if request.user != session.master and request.user != card.created_by:
-                return Response({'error': 'Недостатньо прав.'}, status=status.HTTP_403_FORBIDDEN)
+                return Response({'error': _('Недостатньо прав.')}, status=status.HTTP_403_FORBIDDEN)
             card.drawing_data = []
         else:
             new_strokes = request.data.get('strokes', [])
@@ -376,7 +377,7 @@ class NoteViewSet(SessionMixin, viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         note = self.get_object()
         if note.author != request.user:
-            return Response({'error': 'Ви не автор цієї нотатки.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': _('Ви не автор цієї нотатки.')}, status=status.HTTP_403_FORBIDDEN)
         return super().update(request, *args, **kwargs)
 
     def perform_update(self, serializer):
@@ -390,7 +391,7 @@ class NoteViewSet(SessionMixin, viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         note = self.get_object()
         if note.author != request.user:
-            return Response({'error': 'Ви не автор цієї нотатки.'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': _('Ви не автор цієї нотатки.')}, status=status.HTTP_403_FORBIDDEN)
         return super().destroy(request, *args, **kwargs)
 
     def perform_destroy(self, instance):

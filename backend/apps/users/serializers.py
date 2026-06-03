@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from .models import User
 
@@ -13,7 +14,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({'password': 'Паролі не збігаються.'})
+            raise serializers.ValidationError({'password': _('Паролі не збігаються.')})
         return attrs
 
     def create(self, validated_data):
@@ -40,13 +41,13 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password2']:
-            raise serializers.ValidationError({'new_password': 'Паролі не збігаються.'})
+            raise serializers.ValidationError({'new_password': _('Паролі не збігаються.')})
         return attrs
 
     def validate_current_password(self, value):
         user = self.context['request'].user
         if not user.check_password(value):
-            raise serializers.ValidationError('Невірний поточний пароль.')
+            raise serializers.ValidationError(_('Невірний поточний пароль.'))
         return value
 
 
@@ -59,8 +60,8 @@ class LoginSerializer(serializers.Serializer):
         password = attrs.get('password')
         user = authenticate(username=username, password=password)
         if not user:
-            raise serializers.ValidationError('Невірний логін або пароль.')
+            raise serializers.ValidationError(_('Невірний логін або пароль.'))
         if not user.is_active:
-            raise serializers.ValidationError('Акаунт заблоковано.')
+            raise serializers.ValidationError(_('Акаунт заблоковано.'))
         attrs['user'] = user
         return attrs

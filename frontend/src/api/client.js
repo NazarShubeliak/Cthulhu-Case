@@ -15,6 +15,8 @@ client.interceptors.request.use((config) => {
       }
     } catch {}
   }
+  const lang = localStorage.getItem('i18nextLng') || 'uk'
+  config.headers['Accept-Language'] = lang
   return config
 })
 
