@@ -108,6 +108,13 @@ export default function LobbyPage() {
     load()
   }, [load])
 
+  // Poll every 5s while session is open so the master sees new players
+  useEffect(() => {
+    if (!session || session.status === 'closed') return
+    const timer = setInterval(load, 5000)
+    return () => clearInterval(timer)
+  }, [session?.status, load])
+
   useEffect(() => {
     if (!session || session.is_master) return
     Promise.all([

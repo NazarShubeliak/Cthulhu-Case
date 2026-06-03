@@ -5,7 +5,7 @@ import useTableStore from '../store/tableStore'
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 
-export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onDrawingStroke, onNewCard) {
+export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onDrawingStroke, onNewCard, onConnected) {
   const wsRef = useRef(null)
   const retryDelay = useRef(RECONNECT_BASE_MS)
   const retryTimer = useRef(null)
@@ -37,6 +37,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
 
     ws.onopen = () => {
       retryDelay.current = RECONNECT_BASE_MS
+      onConnected?.()
     }
 
     ws.onmessage = (e) => {

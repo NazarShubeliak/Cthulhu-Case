@@ -267,7 +267,18 @@ export default function TablePage() {
   }, [])
 
   const onDrawingStroke = useCallback((msg) => { drawingStrokeHandlerRef.current?.(msg) }, [])
-  const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke, addCardToast)
+
+  const onWsConnected = useCallback(() => {
+    getSession(id)
+      .then((res) => {
+        setSession(res.data)
+        const players = res.data.players ?? []
+        players.forEach((p) => addConnectedUser({ user_id: p.id, username: p.username }))
+      })
+      .catch(() => {})
+  }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke, addCardToast, onWsConnected)
 
   const load = useCallback(async () => {
     setLoading(true)
