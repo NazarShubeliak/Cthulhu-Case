@@ -278,6 +278,7 @@ function StatBox({ stat, value, onChange }) {
 }
 
 function SkillRow({ skill, onUpdate }) {
+  const {t} = useTranslation();
   const half = Math.floor(skill.current_value / 2)
   const fifth = Math.floor(skill.current_value / 5)
 
