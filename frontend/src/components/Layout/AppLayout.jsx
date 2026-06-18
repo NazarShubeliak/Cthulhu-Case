@@ -45,7 +45,7 @@ export default function AppLayout() {
   const { t, i18n } = useTranslation()
   const user = useAuthStore((s) => s.user)
   const crumbs = getBreadcrumb(location.pathname, t)
-  const { grain, showLatin, lang } = useUIStore()
+  const { grain, showLatin, lang, brightness, fontSize } = useUIStore()
 
   useEffect(() => {
     document.documentElement.style.setProperty('--grain-opacity', grain ? '0.07' : '0')
@@ -54,6 +54,16 @@ export default function AppLayout() {
   useEffect(() => {
     if (i18n.language !== lang) i18n.changeLanguage(lang)
   }, [lang, i18n])
+
+  useEffect(() => {
+    document.body.classList.remove('brightness-0', 'brightness-1', 'brightness-2')
+    document.body.classList.add(`brightness-${brightness}`)
+  }, [brightness])
+
+  useEffect(() => {
+    document.documentElement.classList.remove('font-sm', 'font-md', 'font-lg')
+    document.documentElement.classList.add(`font-${fontSize}`)
+  }, [fontSize])
 
   const NAV_ITEMS = getNavItems(t)
 

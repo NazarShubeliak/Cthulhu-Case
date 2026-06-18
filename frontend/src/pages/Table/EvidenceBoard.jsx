@@ -1626,13 +1626,29 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           flex: 1, position: 'relative', overflow: 'hidden',
           userSelect: 'none',
           cursor: panning ? 'grabbing' : connectMode ? 'crosshair' : 'grab',
-          background: `
-            radial-gradient(circle at 30% 20%, rgba(184,153,104,0.04), transparent 50%),
-            radial-gradient(circle at 70% 80%, rgba(61,90,68,0.05), transparent 50%),
-            #1a1410
-          `,
+          background: tab === 'personal'
+            ? `
+              radial-gradient(circle at 25% 25%, rgba(61,90,68,0.08), transparent 50%),
+              radial-gradient(circle at 75% 75%, rgba(40,70,50,0.06), transparent 50%),
+              #111a13
+            `
+            : `
+              radial-gradient(circle at 30% 20%, rgba(184,153,104,0.04), transparent 50%),
+              radial-gradient(circle at 70% 80%, rgba(61,90,68,0.05), transparent 50%),
+              #1a1410
+            `,
         }}
       >
+        {/* Corner label showing which board is active */}
+        <div style={{
+          position: 'absolute', bottom: 16, right: 20, zIndex: 10,
+          fontFamily: 'var(--font-mono)', fontSize: 9,
+          letterSpacing: '0.28em', textTransform: 'uppercase', pointerEvents: 'none',
+          color: tab === 'personal' ? 'rgba(61,130,80,0.35)' : 'rgba(184,153,104,0.2)',
+        }}>
+          {tab === 'personal' ? 'Arcanum Privatum' : 'Mensa Communis'}
+        </div>
+
         <div
           className="board-inner"
           style={{

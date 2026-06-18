@@ -67,6 +67,24 @@ body::after {
     radial-gradient(80% 60% at 50% 110%, transparent 40%, rgba(0,0,0,0.3) 100%);
 }
 
+/* ── Brightness presets ── */
+body.brightness-1 {
+  --ink-0: #1e1914;
+  --ink-1: #26201a;
+  --ink-2: #2e271f;
+  --ink-3: #362e24;
+}
+body.brightness-2 {
+  --ink-0: #2e2820;
+  --ink-1: #38312a;
+  --ink-2: #423a32;
+  --ink-3: #4c443a;
+}
+
+/* ── Font size presets (zoom on shell scales inline px too) ── */
+html.font-sm .shell { zoom: 0.9; }
+html.font-lg .shell { zoom: 1.12; }
+
 /* Cursor lamp */
 .lamp-layer {
   position: fixed; inset: 0;

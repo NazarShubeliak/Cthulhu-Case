@@ -32,7 +32,7 @@ export default function ProfilePage() {
   const [charCount, setCharCount] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const fileRef = useRef(null)
-  const { lamp, grain, glitchText, showLatin, lang, setLamp, setGrain, setGlitchText, setShowLatin, setLang } = useUIStore()
+  const { lamp, grain, glitchText, showLatin, lang, brightness, fontSize, setLamp, setGrain, setGlitchText, setShowLatin, setLang, setBrightness, setFontSize } = useUIStore()
 
   useEffect(() => {
     getMe()
@@ -342,6 +342,78 @@ export default function ProfilePage() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Readability */}
+        <div className="card" style={{ padding: 28, gridColumn: 'span 2' }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>{t('profile.readabilityEyebrow')}</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontStyle: 'italic', marginBottom: 20 }}>
+            {t('profile.readabilityTitle')}
+          </div>
+
+          {/* Brightness */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--ochre-deep)' }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--cream)' }}>{t('profile.brightnessLabel')}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.16em', color: 'var(--moss-pale)', marginTop: 2 }}>{t('profile.brightnessSub')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[
+                { value: 0, label: t('profile.brightnessDark') },
+                { value: 1, label: t('profile.brightnessMid') },
+                { value: 2, label: t('profile.brightnessLight') },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setBrightness(value)}
+                  style={{
+                    padding: '4px 12px',
+                    border: '1px solid',
+                    borderColor: brightness === value ? 'var(--ochre)' : 'var(--ochre-deep)',
+                    background: brightness === value ? 'var(--ochre)' : 'transparent',
+                    color: brightness === value ? 'var(--ink-0)' : 'var(--moss-pale)',
+                    fontFamily: 'var(--font-mono)', fontSize: 10,
+                    letterSpacing: '0.14em', textTransform: 'uppercase',
+                    cursor: 'pointer', transition: 'all .15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Font size */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0' }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--cream)' }}>{t('profile.fontSizeLabel')}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.16em', color: 'var(--moss-pale)', marginTop: 2 }}>{t('profile.fontSizeSub')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {[
+                { value: 'sm', label: 'A', size: 11 },
+                { value: 'md', label: 'A', size: 14 },
+                { value: 'lg', label: 'A', size: 18 },
+              ].map(({ value, label, size }) => (
+                <button
+                  key={value}
+                  onClick={() => setFontSize(value)}
+                  style={{
+                    width: 36, height: 36,
+                    border: '1px solid',
+                    borderColor: fontSize === value ? 'var(--ochre)' : 'var(--ochre-deep)',
+                    background: fontSize === value ? 'var(--ochre)' : 'transparent',
+                    color: fontSize === value ? 'var(--ink-0)' : 'var(--moss-pale)',
+                    fontFamily: 'var(--font-display)', fontStyle: 'italic',
+                    fontSize: size, cursor: 'pointer', transition: 'all .15s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
