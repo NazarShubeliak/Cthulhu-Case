@@ -325,6 +325,34 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
         broadcast(session.id, {'type': 'card.updated', 'card': data})
         return Response(data)
 
+    @action(detail=True, methods=['post'])
+    def transfer(self, request, session_pk=None, pk=None):
+        card = self.get_object()
+        session = self.get_session()
+        if request.user != card.owner and session.master != request.user:
+            return Response({'error': _('Недостатньо прав.')}, status=status.HTTP_403_FORBIDDEN)
+        if card.is_public:
+            return Response({'error': _('Публічну картку не можна передати.')}, status=status.HTTP_400_BAD_REQUEST)
+        target_user_id = request.data.get('target_user_id')
+        if not target_user_id:
+            return Response({'error': _('Вкажіть отримувача.')}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            target_user = User.objects.get(pk=target_user_id)
+        except User.DoesNotExist:
+            return Response({'error': _('Користувача не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
+        if not session.is_participant(target_user):
+            return Response({'error': _('Отримувач не є учасником сесії.')}, status=status.HTTP_400_BAD_REQUEST)
+        from_user_id = card.owner_id
+        card.owner = target_user
+        card.save(update_fields=['owner'])
+        data = CardSerializer(card, context={'request': request}).data
+        broadcast(session.id, {
+            'type': 'card.transferred',
+            'card': data,
+            'from_user_id': from_user_id,
+        })
+        return Response(data)
+
 
 class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]

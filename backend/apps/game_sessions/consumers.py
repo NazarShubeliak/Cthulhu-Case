@@ -96,6 +96,13 @@ class TableConsumer(AsyncWebsocketConsumer):
     async def card_deleted(self, event):
         await self.send(text_data=json.dumps({'type': 'card.deleted', 'card_id': event['card_id']}))
 
+    async def card_transferred(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'card.transferred',
+            'card': event['card'],
+            'from_user_id': event['from_user_id'],
+        }))
+
     async def thread_created(self, event):
         await self.send(text_data=json.dumps({'type': 'thread.created', 'thread': event['thread']}))
 

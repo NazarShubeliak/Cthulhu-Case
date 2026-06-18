@@ -48,6 +48,19 @@ chmod +x scripts/*.sh
 
 ---
 
+## test.sh — Запуск тестів
+
+```bash
+./scripts/test.sh               # backend + frontend
+./scripts/test.sh --be          # тільки backend (pytest)
+./scripts/test.sh --fe          # тільки frontend (vitest)
+
+./scripts/test.sh --be -k transfer         # backend: фільтр по назві тесту
+./scripts/test.sh --be apps/game_sessions/ # backend: конкретна папка
+```
+
+---
+
 ## migrate.sh — Міграції Django
 
 ```bash

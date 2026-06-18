@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from rest_framework import status
 
 from apps.users.tests.factories import UserFactory
@@ -156,6 +157,68 @@ class TestDiceRoll:
         })
         assert res.status_code == status.HTTP_201_CREATED
         assert res.data['tier'] in ('critical', 'extreme', 'hard', 'regular', 'failure', 'fumble')
+
+
+@pytest.mark.django_db
+class TestDiceBroadcast:
+    """Перевіряє що кидок кубиків транслюється правильно (BUG-2 fix)."""
+
+    def test_roll_succeeds_without_session_character(self, api_client, db):
+        """Гравець кидає без прив'язаного персонажа — endpoint повертає 201."""
+        from apps.game_sessions.tests.factories import SessionFactory
+        player = UserFactory()
+        session = SessionFactory(status='active')
+        session.players.add(player)
+        char = CharacterFactory(user=player)
+        # Навмисно НЕ створюємо SessionCharacter
+
+        api_client.force_authenticate(user=player)
+        res = api_client.post(f'/api/characters/{char.id}/roll/', {
+            'dice_type': 'd100', 'dice_count': 1,
+        })
+        assert res.status_code == status.HTTP_201_CREATED
+        assert 'total' in res.data
+
+    def test_roll_broadcasts_to_active_session(self, api_client, db):
+        """Broadcast іде на активну сесію гравця, навіть без SessionCharacter."""
+        from apps.game_sessions.tests.factories import SessionFactory
+        player = UserFactory()
+        session = SessionFactory(status='active')
+        session.players.add(player)
+        char = CharacterFactory(user=player)
+
+        # get_channel_layer імпортується локально всередині функції → патчимо по модулю channels
+        mock_layer = MagicMock()
+        with patch('channels.layers.get_channel_layer', return_value=mock_layer):
+            with patch('asgiref.sync.async_to_sync') as mock_sync:
+                api_client.force_authenticate(user=player)
+                api_client.post(f'/api/characters/{char.id}/roll/', {
+                    'dice_type': 'd100', 'dice_count': 1,
+                })
+        mock_sync.assert_called()
+
+    def test_roll_not_broadcast_to_closed_session(self, api_client, db):
+        """Кидок не транслюється до закритих сесій."""
+        from apps.game_sessions.tests.factories import SessionFactory
+        from apps.game_sessions.models import Session
+        player = UserFactory()
+        # Тільки закрита сесія — жодної активної
+        closed = SessionFactory(status='closed')
+        closed.players.add(player)
+        char = CharacterFactory(user=player)
+
+        # Перевіряємо через DB: активних сесій для цього гравця немає
+        active_count = Session.objects.filter(
+            players=player, status='active',
+        ).count()
+        assert active_count == 0
+
+        # Endpoint повертає 201 навіть без активних сесій для broadcast
+        api_client.force_authenticate(user=player)
+        res = api_client.post(f'/api/characters/{char.id}/roll/', {
+            'dice_type': 'd100', 'dice_count': 1,
+        })
+        assert res.status_code == status.HTTP_201_CREATED
 
 
 @pytest.mark.django_db

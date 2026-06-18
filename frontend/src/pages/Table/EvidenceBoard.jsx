@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import useTableStore from '../../store/tableStore'
-import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing } from '../../api/sessions'
+import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing, transferCard } from '../../api/sessions'
 
 // ── Constants ──
 
@@ -1204,8 +1204,13 @@ function CtxItem({ label, onClick, danger }) {
   )
 }
 
-function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, onFullView, onPin, onPublish, onConnect, onDelete, onClose }) {
+function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, currentUserId, players, onFullView, onPin, onPublish, onConnect, onDelete, onTransfer, onClose }) {
   const { t } = useTranslation()
+  const [transferOpen, setTransferOpen] = useState(false)
+
+  const canTransfer = !card.is_public && (isOwn || isMaster)
+  const transferTargets = (players ?? []).filter((p) => p.id !== currentUserId && p.id !== card.owner?.id)
+
   return (
     <>
       <div
@@ -1219,12 +1224,38 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, onFullV
         border: '1px solid var(--ochre-deep)',
         boxShadow: '0 8px 28px rgba(0,0,0,0.75)',
         minWidth: 170,
-        overflow: 'hidden',
+        overflow: 'visible',
       }}>
         <CtxItem label={t('board.view')} onClick={() => { onFullView(); onClose() }} />
         <CtxItem label={card.is_pinned ? t('board.unpin') : t('board.pin')} onClick={() => { onPin(); onClose() }} />
         {(isMaster || isOwn) && !card.is_public && (
           <CtxItem label={isMaster ? t('board.toTable') : t('board.reveal')} onClick={() => { onPublish(); onClose() }} />
+        )}
+        {canTransfer && transferTargets.length > 0 && (
+          <div style={{ position: 'relative' }}>
+            <CtxItem
+              label={`${t('board.transferTo')} ▶`}
+              onClick={() => setTransferOpen((v) => !v)}
+            />
+            {transferOpen && (
+              <div style={{
+                position: 'absolute', left: '100%', top: 0,
+                background: '#1a1410',
+                border: '1px solid var(--ochre-deep)',
+                boxShadow: '0 8px 28px rgba(0,0,0,0.75)',
+                minWidth: 150,
+                zIndex: 802,
+              }}>
+                {transferTargets.map((p) => (
+                  <CtxItem
+                    key={p.id}
+                    label={p.username}
+                    onClick={() => { onTransfer(p.id); onClose() }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )}
         <CtxItem label={t('board.thread')} onClick={() => { onConnect(); onClose() }} />
         {(isMaster || card.created_by?.id !== masterId) && (
@@ -1291,7 +1322,7 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
-export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, onBoardCreate, tab, onTabChange }) {
+export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, players, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, onBoardCreate, tab, onTabChange }) {
   const { t } = useTranslation()
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
@@ -1493,6 +1524,14 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     try {
       const res = await publishCard(sessionId, card.id)
       useTableStore.getState().updateCard(res.data)
+    } catch {}
+  }
+
+  async function handleCtxTransfer(targetUserId) {
+    const card = contextMenu?.card
+    if (!card) return
+    try {
+      await transferCard(sessionId, card.id, targetUserId)
     } catch {}
   }
 
@@ -1718,11 +1757,14 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           isOwn={contextMenu.card.owner?.id === currentUserId}
           isCreator={contextMenu.card.created_by?.id === currentUserId}
           masterId={masterId}
+          currentUserId={currentUserId}
+          players={players}
           onFullView={() => { setFullViewCard(contextMenu.card) }}
           onPin={handleCtxPin}
           onPublish={handleCtxPublish}
           onConnect={() => { setSelectedId(contextMenu.card.id); setConnectMode(true) }}
           onDelete={handleCtxDelete}
+          onTransfer={handleCtxTransfer}
           onClose={closeContextMenu}
         />
       )}

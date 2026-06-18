@@ -216,7 +216,9 @@
     "createError": "Помилка створення картки.",
     "text": "Текст...",
     "newEvidence": "У вас новий доказ",
-    "newEvidenceSub": "Novum Indicium · отримано"
+    "newEvidenceSub": "Novum Indicium · отримано",
+    "noCharWarning": "Персонажа не обрано",
+    "noCharWarningHint": "Ви не обрали персонажа в лобі. Кидки кубиків не будуть відображатись з вашим ім'ям. Клікніть щоб перейти в лобі."
   },
   "cardType": {
     "document": "Документ",
@@ -385,6 +387,7 @@
     "unpin": "Відкріпити",
     "toTable": "На стіл",
     "reveal": "Винести",
+    "transferTo": "Передати",
     "thread": "+ Нитка",
     "selectCard": "оберіть картку · клацніть і перетягуйте для переміщення",
     "selectThread": "оберіть іншу картку для нитки",

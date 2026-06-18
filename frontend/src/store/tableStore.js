@@ -51,7 +51,15 @@ const useTableStore = create((set) => ({
     set((s) => ({ connectedUsers: s.connectedUsers.filter((u) => u.user_id !== userId) })),
 
   addDiceLog: (entry) =>
-    set((s) => ({ diceLog: [{ ...entry, ts: Date.now() }, ...s.diceLog].slice(0, 100) })),
+    set((s) => {
+      const ts = Date.now()
+      const last = s.diceLog[0]
+      // Deduplicate: skip if same roller + same total arrived within 500ms
+      if (last && last.rolled_by_id === entry.rolled_by_id && last.total === entry.total && ts - last.ts < 500) {
+        return s
+      }
+      return { diceLog: [{ ...entry, ts }, ...s.diceLog].slice(0, 100) }
+    }),
 
   reset: () => set({ cards: [], threads: [], notes: [], connectedUsers: [], diceLog: [] }),
 }))

@@ -360,6 +360,28 @@ export default function TablePage() {
             {boundChar.character_name}
           </div>
         )}
+        {!isMaster && !boundChar && !loading && (
+          <div
+            title={t('table.noCharWarningHint')}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              borderLeft: '1px solid rgba(196,122,114,0.4)', paddingLeft: 12,
+              cursor: 'pointer',
+            }}
+            onClick={() => navigate(`/sessions/${id}`)}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(196,122,114,0.85)" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span style={{
+              fontFamily: 'var(--font-mono)', fontSize: 9,
+              color: 'rgba(196,122,114,0.85)', letterSpacing: '0.18em', textTransform: 'uppercase',
+            }}>
+              {t('table.noCharWarning')}
+            </span>
+          </div>
+        )}
         <button
           className="btn btn--ghost"
           style={{ padding: '4px 10px', fontSize: 10, position: 'relative' }}
@@ -381,6 +403,7 @@ export default function TablePage() {
           isMaster={isMaster}
           currentUserId={user?.id}
           masterId={session?.master?.id}
+          players={players}
           connectedUsers={connectedUsers}
           sessionName={session?.name ?? ''}
           wsRef={wsRef}

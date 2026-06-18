@@ -206,12 +206,16 @@ class CharacterViewSet(viewsets.ModelViewSet):
         data = DiceRollSerializer(dice_roll).data
         data['tier'] = tier
 
-        # Broadcast to all sessions this character is bound to
+        # Broadcast to all active sessions where the user is a participant
         try:
-            from apps.game_sessions.models import SessionCharacter
+            from apps.game_sessions.models import Session
+            from django.db.models import Q
             from asgiref.sync import async_to_sync
             from channels.layers import get_channel_layer
-            bindings = SessionCharacter.objects.filter(character=character)
+            active_sessions = Session.objects.filter(
+                Q(master=request.user) | Q(players=request.user),
+                status='active',
+            )
             channel_layer = get_channel_layer()
             payload = {
                 'type': 'dice.rolled',
@@ -226,10 +230,11 @@ class CharacterViewSet(viewsets.ModelViewSet):
                 'tier': tier,
                 'visible_to_all': bool(visible_to_all),
             }
-            for binding in bindings:
-                async_to_sync(channel_layer.group_send)(f'session_{binding.session_id}', payload)
-        except Exception:
-            pass
+            for session in active_sessions:
+                async_to_sync(channel_layer.group_send)(f'session_{session.id}', payload)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning('dice broadcast failed: %s', e)
 
         return Response(data, status=status.HTTP_201_CREATED)
 

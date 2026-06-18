@@ -216,7 +216,9 @@
     "createError": "Error creating card.",
     "text": "Text...",
     "newEvidence": "You have new evidence",
-    "newEvidenceSub": "Novum Indicium · received"
+    "newEvidenceSub": "Novum Indicium · received",
+    "noCharWarning": "No character selected",
+    "noCharWarningHint": "You have not selected a character in the lobby. Dice rolls will not display your name. Click to go to the lobby."
   },
   "cardType": {
     "document": "Document",
@@ -385,6 +387,7 @@
     "unpin": "Unpin",
     "toTable": "To Table",
     "reveal": "Reveal",
+    "transferTo": "Pass",
     "thread": "+ Thread",
     "selectCard": "select a card · click and drag to move",
     "selectThread": "select another card for the thread",

@@ -12,8 +12,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
   const mountedRef = useRef(false)
   const connectRef = useRef(null)
   const accessToken = useAuthStore((s) => s.accessToken)
+
   const {
-    addCard, updateCard, moveCard, removeCard,
+    addCard, moveCard, removeCard,
     addThread, removeThread,
     addNote, updateNote, removeNote,
     addConnectedUser, removeConnectedUser,
@@ -21,14 +22,28 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
     addDiceLog,
   } = useTableStore()
 
+  // Volatile props → refs so connect() doesn't need them as deps
+  const onDiceRolledRef = useRef(onDiceRolled)
+  useEffect(() => { onDiceRolledRef.current = onDiceRolled }, [onDiceRolled])
+
   const onDrawingStrokeRef = useRef(onDrawingStroke)
   useEffect(() => { onDrawingStrokeRef.current = onDrawingStroke }, [onDrawingStroke])
 
   const onNewCardRef = useRef(onNewCard)
   useEffect(() => { onNewCardRef.current = onNewCard }, [onNewCard])
 
+  const onConnectedRef = useRef(onConnected)
+  useEffect(() => { onConnectedRef.current = onConnected }, [onConnected])
+
+  const currentUserIdRef = useRef(currentUserId)
+  useEffect(() => { currentUserIdRef.current = currentUserId }, [currentUserId])
+
   const connect = useCallback(() => {
     if (!mountedRef.current || !sessionId || !accessToken) return
+
+    // Guard: don't open a second connection if one is already alive
+    const existing = wsRef.current
+    if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) return
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${window.location.host}/ws/session/${sessionId}/?token=${accessToken}`
@@ -37,7 +52,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
 
     ws.onopen = () => {
       retryDelay.current = RECONNECT_BASE_MS
-      onConnected?.()
+      onConnectedRef.current?.()
     }
 
     ws.onmessage = (e) => {
@@ -45,21 +60,36 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
       let msg
       try { msg = JSON.parse(e.data) } catch { return }
 
+      const userId = currentUserIdRef.current
+
       switch (msg.type) {
         case 'card.created':
           addCard(msg.card)
-          if (msg.card.owner?.id === currentUserId && !msg.card.is_public) {
+          if (msg.card.owner?.id === userId && !msg.card.is_public) {
             onNewCardRef.current?.(msg.card)
           }
           break
         case 'card.moving':
-          if (msg.moved_by !== currentUserId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
+          if (msg.moved_by !== userId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
           break
         case 'card.moved':
-          if (msg.moved_by !== currentUserId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
+          if (msg.moved_by !== userId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
           break
         case 'card.published':
-          updateCard(msg.card)
+          addCard(msg.card)
+          break
+        case 'card.transferred':
+          if (msg.card.owner?.id === userId) {
+            // Я отримувач — картка з'являється в особистому
+            addCard(msg.card)
+            onNewCardRef.current?.(msg.card)
+          } else if (msg.from_user_id === userId) {
+            // Я відправник — картка зникає
+            removeCard(msg.card.id)
+          } else {
+            // Майстер або інші — просто оновлюємо дані
+            replaceCard(msg.card)
+          }
           break
         case 'card.updated':
           replaceCard(msg.card)
@@ -90,10 +120,10 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
           break
         case 'dice.rolled':
           addDiceLog(msg)
-          if (onDiceRolled) onDiceRolled(msg)
+          onDiceRolledRef.current?.(msg)
           break
         case 'drawing.stroke':
-          if (msg.sender_id !== currentUserId) onDrawingStrokeRef.current?.(msg)
+          if (msg.sender_id !== userId) onDrawingStrokeRef.current?.(msg)
           break
         default:
           break
@@ -103,9 +133,10 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
     ws.onerror = () => {}
 
     ws.onclose = (e) => {
-      wsRef.current = null
+      // Only clear the ref if it still points to THIS connection —
+      // a reconnect may have already put a new socket there
+      if (wsRef.current === ws) wsRef.current = null
       if (!mountedRef.current) return
-      // Не перепідключатись при навмисному закритті або помилці авторизації
       if (e.code === 1000 || e.code === 4001 || e.code === 4003) return
 
       retryTimer.current = setTimeout(() => {
@@ -114,16 +145,13 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
       }, retryDelay.current)
     }
   }, [
-    sessionId, accessToken, currentUserId,
-    addCard, updateCard, moveCard, removeCard,
+    sessionId, accessToken,
+    addCard, moveCard, removeCard,
     addThread, removeThread,
     addNote, updateNote, removeNote,
     addConnectedUser, removeConnectedUser, replaceCard, addDiceLog,
-    onDiceRolled,
   ])
 
-  // Завжди тримаємо актуальну версію connect у ref,
-  // щоб onclose викликав її без stale closure
   connectRef.current = connect
 
   useEffect(() => {

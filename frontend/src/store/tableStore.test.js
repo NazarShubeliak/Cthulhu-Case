@@ -95,3 +95,49 @@ describe('tableStore — reset', () => {
     expect(state.notes).toHaveLength(0)
   })
 })
+
+const diceEntry = (extra = {}) => ({
+  rolled_by: 'alice',
+  rolled_by_id: 1,
+  dice_type: 'd100',
+  count: 1,
+  results: [42],
+  total: 42,
+  tier: 'regular',
+  ...extra,
+})
+
+describe('tableStore — diceLog', () => {
+  it('addDiceLog — додає запис', () => {
+    useTableStore.getState().addDiceLog(diceEntry())
+    expect(useTableStore.getState().diceLog).toHaveLength(1)
+    expect(useTableStore.getState().diceLog[0].total).toBe(42)
+  })
+
+  it('addDiceLog — різні гравці не дедуплікуються', () => {
+    useTableStore.getState().addDiceLog(diceEntry({ rolled_by_id: 1, total: 42 }))
+    useTableStore.getState().addDiceLog(diceEntry({ rolled_by_id: 2, total: 42 }))
+    expect(useTableStore.getState().diceLog).toHaveLength(2)
+  })
+
+  it('addDiceLog — однаковий кидок від того самого гравця за < 500мс ігнорується (BUG-1)', () => {
+    const entry = diceEntry({ rolled_by_id: 1, total: 55 })
+    useTableStore.getState().addDiceLog(entry)
+    // другий виклик одразу — вважається дублікатом
+    useTableStore.getState().addDiceLog(entry)
+    expect(useTableStore.getState().diceLog).toHaveLength(1)
+  })
+
+  it('addDiceLog — різні значення від того самого гравця не дедуплікуються', () => {
+    useTableStore.getState().addDiceLog(diceEntry({ rolled_by_id: 1, total: 30 }))
+    useTableStore.getState().addDiceLog(diceEntry({ rolled_by_id: 1, total: 70 }))
+    expect(useTableStore.getState().diceLog).toHaveLength(2)
+  })
+
+  it('addDiceLog — зберігає максимум 100 записів', () => {
+    for (let i = 0; i < 110; i++) {
+      useTableStore.getState().addDiceLog(diceEntry({ rolled_by_id: i, total: i + 1 }))
+    }
+    expect(useTableStore.getState().diceLog).toHaveLength(100)
+  })
+})
