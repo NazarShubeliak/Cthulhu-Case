@@ -44,6 +44,52 @@ const KIND_LAT = {
 
 const KIND_ROT = { document: -1, photo: 2, note: -2, npc: 1, sketch: 0 }
 
+// ── Cursor ping animation (injected once) ──
+
+let _pingStyleInjected = false
+function injectPingStyles() {
+  if (_pingStyleInjected) return
+  _pingStyleInjected = true
+  const s = document.createElement('style')
+  s.textContent = '@keyframes pingFade{0%,65%{opacity:1}100%{opacity:0}}@keyframes pingRipple{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.8);opacity:0}}'
+  document.head.appendChild(s)
+}
+
+function CursorPing({ x, y, username }) {
+  return (
+    <div style={{
+      position: 'absolute', left: x, top: y,
+      transform: 'translate(-50%, -50%)',
+      pointerEvents: 'none', zIndex: 200,
+    }}>
+      <div style={{
+        width: 30, height: 30, borderRadius: '50%',
+        border: '2px solid var(--ochre)',
+        background: 'rgba(184,153,104,0.18)',
+        position: 'absolute', left: -15, top: -15,
+        animation: 'pingFade 2.5s ease forwards',
+      }} />
+      <div style={{
+        width: 30, height: 30, borderRadius: '50%',
+        border: '2px solid var(--ochre)',
+        position: 'absolute', left: -15, top: -15,
+        animation: 'pingRipple 0.75s ease-out forwards',
+      }} />
+      <div style={{
+        position: 'absolute', top: 20,
+        left: '50%', transform: 'translateX(-50%)',
+        fontFamily: 'var(--font-mono)', fontSize: 9,
+        letterSpacing: '0.14em', color: 'var(--ochre)',
+        whiteSpace: 'nowrap',
+        textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+        animation: 'pingFade 2.5s ease forwards',
+      }}>
+        {username}
+      </div>
+    </div>
+  )
+}
+
 // ── Thread SVG layer ──
 
 function cardDims(type) {
@@ -763,7 +809,7 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
   )
 }
 
-function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContextMenu, isMaster }) {
+function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContextMenu, onMouseEnter, onMouseLeave, isMaster }) {
   const rot = KIND_ROT[card.type] ?? 0
   const dims = cardDims(card.type)
   const sharedProps = { card, selected, connectMode, isMaster }
@@ -773,6 +819,8 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContext
       onMouseDown={onMouseDown}
       onClick={onClick}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e) }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       style={{
         position: 'absolute',
         left: card.pos_x,
@@ -1322,7 +1370,7 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
-export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, players, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, onBoardCreate, tab, onTabChange }) {
+export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, players, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, cursorPingHandlerRef, onBoardCreate, tab, onTabChange }) {
   const { t } = useTranslation()
   const { cards, threads } = useTableStore()
   const [selectedId, setSelectedId] = useState(null)
@@ -1345,6 +1393,16 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
   const panRef = useRef(pan)
   useEffect(() => { zoomRef.current = zoom }, [zoom])
   useEffect(() => { panRef.current = pan }, [pan])
+
+  // ── Cursor pings (Tab) ──
+  const [pings, setPings] = useState([])
+  const pingCounterRef = useRef(0)
+  const boardMouseRef = useRef({ x: 0, y: 0 })
+
+  // ── Alt quick-view ──
+  const hoveredCardRef = useRef(null)
+  const fullViewCardRef = useRef(null)
+  const altPreviewRef = useRef(false)
 
   // ── Auto-position new cards at view center ──
   const seenCardIds = useRef(null)
@@ -1469,6 +1527,79 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
+  }, [])
+
+  // ── Inject ping CSS once ──
+  useEffect(() => { injectPingStyles() }, [])
+
+  // ── Track fullViewCard in ref for stable closures ──
+  useEffect(() => { fullViewCardRef.current = fullViewCard }, [fullViewCard])
+
+  // ── Track board-space mouse position ──
+  useEffect(() => {
+    const onMove = (e) => {
+      const rect = stageRef.current?.getBoundingClientRect()
+      if (!rect) return
+      boardMouseRef.current = {
+        x: (e.clientX - rect.left - panRef.current.x) / zoomRef.current,
+        y: (e.clientY - rect.top - panRef.current.y) / zoomRef.current,
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    return () => window.removeEventListener('mousemove', onMove)
+  }, [])
+
+  // ── Tab → send cursor ping ──
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== 'Tab') return
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      e.preventDefault()
+      if (wsRef?.current?.readyState !== 1) return
+      wsRef.current.send(JSON.stringify({
+        type: 'cursor.ping',
+        x: boardMouseRef.current.x,
+        y: boardMouseRef.current.y,
+      }))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [wsRef])
+
+  // ── Register incoming cursor ping handler ──
+  useEffect(() => {
+    if (!cursorPingHandlerRef) return
+    cursorPingHandlerRef.current = (msg) => {
+      const pingId = ++pingCounterRef.current
+      setPings((prev) => [...prev, { id: pingId, x: msg.x, y: msg.y, username: msg.username }])
+      setTimeout(() => setPings((prev) => prev.filter((p) => p.id !== pingId)), 2500)
+    }
+    return () => { if (cursorPingHandlerRef) cursorPingHandlerRef.current = null }
+  }, [cursorPingHandlerRef])
+
+  // ── Alt → quick card preview ──
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Alt') return
+      e.preventDefault()
+      if (altPreviewRef.current || fullViewCardRef.current) return
+      if (!hoveredCardRef.current) return
+      altPreviewRef.current = true
+      setFullViewCard(hoveredCardRef.current)
+    }
+    const onKeyUp = (e) => {
+      if (e.key !== 'Alt') return
+      if (!altPreviewRef.current) return
+      altPreviewRef.current = false
+      setFullViewCard(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keyup', onKeyUp)
+    }
   }, [])
 
   // ── Connect mode: click card to create thread ──
@@ -1684,8 +1815,13 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
               onMouseDown={(e) => onCardMouseDown(e, card.id)}
               onClick={(e) => handleCardClick(e, card.id)}
               onContextMenu={(e) => openContextMenu(e, card)}
+              onMouseEnter={() => { hoveredCardRef.current = card }}
+              onMouseLeave={() => { hoveredCardRef.current = null }}
               isMaster={isMaster}
             />
+          ))}
+          {pings.map((ping) => (
+            <CursorPing key={ping.id} x={ping.x} y={ping.y} username={ping.username} />
           ))}
         </div>
 
@@ -1729,7 +1865,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           isMaster={isMaster}
           sessionId={sessionId}
           currentUserId={currentUserId}
-          onClose={() => setFullViewCard(null)}
+          onClose={() => { altPreviewRef.current = false; setFullViewCard(null) }}
           onSaved={(updated) => setFullViewCard(updated)}
           wsRef={wsRef}
           drawingStrokeHandlerRef={drawingStrokeHandlerRef}
@@ -1741,7 +1877,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           isMaster={isMaster}
           sessionId={sessionId}
           currentUserId={currentUserId}
-          onClose={() => setFullViewCard(null)}
+          onClose={() => { altPreviewRef.current = false; setFullViewCard(null) }}
           wsRef={wsRef}
           drawingStrokeHandlerRef={drawingStrokeHandlerRef}
         />

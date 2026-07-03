@@ -252,6 +252,7 @@ export default function TablePage() {
   const toastId = useRef(0)
 
   const drawingStrokeHandlerRef = useRef(null)
+  const cursorPingHandlerRef = useRef(null)
 
   const addDiceToast = useCallback((msg) => {
     const id = ++toastId.current
@@ -267,6 +268,7 @@ export default function TablePage() {
   }, [])
 
   const onDrawingStroke = useCallback((msg) => { drawingStrokeHandlerRef.current?.(msg) }, [])
+  const onCursorPing = useCallback((msg) => { cursorPingHandlerRef.current?.(msg) }, [])
 
   const onWsConnected = useCallback(() => {
     getSession(id)
@@ -278,7 +280,7 @@ export default function TablePage() {
       .catch(() => {})
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke, addCardToast, onWsConnected)
+  const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke, addCardToast, onWsConnected, onCursorPing)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -408,6 +410,7 @@ export default function TablePage() {
           sessionName={session?.name ?? ''}
           wsRef={wsRef}
           drawingStrokeHandlerRef={drawingStrokeHandlerRef}
+          cursorPingHandlerRef={cursorPingHandlerRef}
           tab={boardTab}
           onTabChange={setBoardTab}
           onBoardCreate={(type, boardX, boardY, tab) =>

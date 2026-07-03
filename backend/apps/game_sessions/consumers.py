@@ -63,6 +63,14 @@ class TableConsumer(AsyncWebsocketConsumer):
                 'pos_y': msg.get('pos_y'),
                 'moved_by': self.user.id,
             })
+        elif msg_type == 'cursor.ping':
+            await self.channel_layer.group_send(self.group_name, {
+                'type': 'cursor.ping',
+                'x': msg.get('x', 0),
+                'y': msg.get('y', 0),
+                'user_id': self.user.id,
+                'username': self.user.username,
+            })
 
     # ── Event handlers (type dots → method underscores) ──
 
@@ -128,6 +136,15 @@ class TableConsumer(AsyncWebsocketConsumer):
     async def player_left(self, event):
         await self.send(text_data=json.dumps({
             'type': 'player.left',
+            'user_id': event['user_id'],
+            'username': event['username'],
+        }))
+
+    async def cursor_ping(self, event):
+        await self.send(text_data=json.dumps({
+            'type': 'cursor.ping',
+            'x': event['x'],
+            'y': event['y'],
             'user_id': event['user_id'],
             'username': event['username'],
         }))

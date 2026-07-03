@@ -5,7 +5,7 @@ import useTableStore from '../store/tableStore'
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 
-export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onDrawingStroke, onNewCard, onConnected) {
+export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onDrawingStroke, onNewCard, onConnected, onCursorPing) {
   const wsRef = useRef(null)
   const retryDelay = useRef(RECONNECT_BASE_MS)
   const retryTimer = useRef(null)
@@ -34,6 +34,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
 
   const onConnectedRef = useRef(onConnected)
   useEffect(() => { onConnectedRef.current = onConnected }, [onConnected])
+
+  const onCursorPingRef = useRef(onCursorPing)
+  useEffect(() => { onCursorPingRef.current = onCursorPing }, [onCursorPing])
 
   const currentUserIdRef = useRef(currentUserId)
   useEffect(() => { currentUserIdRef.current = currentUserId }, [currentUserId])
@@ -124,6 +127,9 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
           break
         case 'drawing.stroke':
           if (msg.sender_id !== userId) onDrawingStrokeRef.current?.(msg)
+          break
+        case 'cursor.ping':
+          if (msg.user_id !== userId) onCursorPingRef.current?.(msg)
           break
         default:
           break
