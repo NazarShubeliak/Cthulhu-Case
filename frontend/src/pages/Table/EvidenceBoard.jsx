@@ -55,6 +55,56 @@ function injectPingStyles() {
   document.head.appendChild(s)
 }
 
+function PingArrow({ ping, pan, zoom, stageW, stageH }) {
+  const MARGIN = 48
+  const sx = ping.x * zoom + pan.x
+  const sy = ping.y * zoom + pan.y
+  if (sx >= 0 && sx <= stageW && sy >= 0 && sy <= stageH) return null
+
+  const cx = stageW / 2
+  const cy = stageH / 2
+  const dx = sx - cx
+  const dy = sy - cy
+
+  let t = Infinity
+  if (dx > 0) t = Math.min(t, (stageW - MARGIN - cx) / dx)
+  if (dx < 0) t = Math.min(t, (MARGIN - cx) / dx)
+  if (dy > 0) t = Math.min(t, (stageH - MARGIN - cy) / dy)
+  if (dy < 0) t = Math.min(t, (MARGIN - cy) / dy)
+  if (!isFinite(t) || t <= 0) return null
+
+  const ax = cx + t * dx
+  const ay = cy + t * dy
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+
+  return (
+    <div style={{
+      position: 'absolute', left: ax, top: ay,
+      pointerEvents: 'none', zIndex: 150,
+      animation: 'pingFade 2.5s ease forwards',
+    }}>
+      <div style={{
+        position: 'absolute',
+        transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+        width: 0, height: 0,
+        borderTop: '8px solid transparent',
+        borderBottom: '8px solid transparent',
+        borderLeft: '18px solid var(--ochre)',
+        filter: 'drop-shadow(0 0 6px rgba(184,153,104,0.65))',
+      }} />
+      <div style={{
+        position: 'absolute', top: 10,
+        left: '50%', transform: 'translateX(-50%)',
+        fontFamily: 'var(--font-mono)', fontSize: 8,
+        letterSpacing: '0.1em', color: 'var(--ochre)',
+        whiteSpace: 'nowrap', textShadow: '0 1px 4px rgba(0,0,0,0.9)',
+      }}>
+        {ping.username}
+      </div>
+    </div>
+  )
+}
+
 function CursorPing({ x, y, username }) {
   return (
     <div style={{
@@ -1549,23 +1599,30 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     return () => window.removeEventListener('mousemove', onMove)
   }, [])
 
-  // ── Tab → send cursor ping ──
+  // ── Tab → send cursor ping (also show locally) ──
+  const connectedUsersRef = useRef(connectedUsers)
+  useEffect(() => { connectedUsersRef.current = connectedUsers }, [connectedUsers])
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== 'Tab') return
       const tag = e.target.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
       e.preventDefault()
-      if (wsRef?.current?.readyState !== 1) return
-      wsRef.current.send(JSON.stringify({
-        type: 'cursor.ping',
-        x: boardMouseRef.current.x,
-        y: boardMouseRef.current.y,
-      }))
+      const { x, y } = boardMouseRef.current
+      // Show ping locally immediately
+      const myUsername = connectedUsersRef.current.find((u) => u.user_id === currentUserId)?.username ?? ''
+      const pingId = ++pingCounterRef.current
+      setPings((prev) => [...prev, { id: pingId, x, y, username: myUsername }])
+      setTimeout(() => setPings((prev) => prev.filter((p) => p.id !== pingId)), 2500)
+      // Broadcast to others
+      if (wsRef?.current?.readyState === 1) {
+        wsRef.current.send(JSON.stringify({ type: 'cursor.ping', x, y }))
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [wsRef])
+  }, [wsRef, currentUserId])
 
   // ── Register incoming cursor ping handler ──
   useEffect(() => {
@@ -1824,6 +1881,18 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
             <CursorPing key={ping.id} x={ping.x} y={ping.y} username={ping.username} />
           ))}
         </div>
+
+        {/* Ping arrows for off-screen pings */}
+        {pings.map((ping) => (
+          <PingArrow
+            key={ping.id}
+            ping={ping}
+            pan={pan}
+            zoom={zoom}
+            stageW={stageRef.current?.clientWidth ?? 0}
+            stageH={stageRef.current?.clientHeight ?? 0}
+          />
+        ))}
 
         {/* Zoom controls */}
         <div style={{
