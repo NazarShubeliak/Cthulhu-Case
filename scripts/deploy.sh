@@ -32,17 +32,21 @@ if ! docker compose version &> /dev/null; then
     $SUDO apt-get install -y docker-compose-plugin
 fi
 
-# ── Фаєрвол (тільки IP:port, без домену/SSL поки що) ─────────────────────
-if command -v ufw &> /dev/null; then
-    $SUDO ufw allow OpenSSH  > /dev/null 2>&1 || true
-    $SUDO ufw allow 80/tcp   > /dev/null 2>&1 || true
-    $SUDO ufw --force enable > /dev/null 2>&1 || true
-fi
-
 # ── .env: генерується один раз при першому деплої, далі не чіпається ─────
 "$SCRIPTS_DIR/init_env.sh"
 
 SERVER_IP=$(curl -s -4 ifconfig.me || hostname -I | awk '{print $1}')
+HTTP_PORT=$(grep -m1 '^HTTP_PORT=' .env | cut -d= -f2)
+HTTP_PORT="${HTTP_PORT:-8080}"
+
+# ── Фаєрвол (тільки IP:port, без домену/SSL поки що) ─────────────────────
+# Не чіпає жодних правил, крім SSH і HTTP_PORT — якщо на сервері вже є
+# інший стек з власними правилами UFW, вони лишаються як були.
+if command -v ufw &> /dev/null; then
+    $SUDO ufw allow OpenSSH        > /dev/null 2>&1 || true
+    $SUDO ufw allow "${HTTP_PORT}/tcp" > /dev/null 2>&1 || true
+    $SUDO ufw --force enable       > /dev/null 2>&1 || true
+fi
 
 # ── Код ────────────────────────────────────────────────────────────────
 if [ -d .git ]; then
@@ -77,10 +81,10 @@ docker image prune -f > /dev/null
 
 echo ""
 if $ready; then
-    echo -e "${GREEN}Готово! Сайт доступний на: http://${SERVER_IP}${NC}"
+    echo -e "${GREEN}Готово! Сайт доступний на: http://${SERVER_IP}:${HTTP_PORT}${NC}"
 else
     echo -e "${YELLOW}Контейнери піднято, але backend не підтвердив готовність вчасно — перевір логи:${NC}"
     echo -e "${GRAY}  ./scripts/logs.sh web${NC}"
-    echo -e "${GRAY}Сайт мав би бути на: http://${SERVER_IP}${NC}"
+    echo -e "${GRAY}Сайт мав би бути на: http://${SERVER_IP}:${HTTP_PORT}${NC}"
 fi
 docker compose ps
