@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import useTableStore from '../../store/tableStore'
 import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing, transferCard } from '../../api/sessions'
@@ -859,18 +859,23 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
   )
 }
 
-function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContextMenu, onMouseEnter, onMouseLeave, isMaster }) {
+// Memoized so dragging one card doesn't re-render every other card on the
+// board. This only pays off because the handlers below are stable
+// references (useCallback in EvidenceBoard) and `card` keeps its identity
+// for every card the store didn't just touch (see tableStore.moveCard) —
+// don't wrap these props in fresh inline closures at the call site.
+const CorkCard = memo(function CorkCard({ card, selected, connectMode, isMaster, onCardMouseDown, onCardClick, onOpenContextMenu, onHoverEnter, onHoverLeave }) {
   const rot = KIND_ROT[card.type] ?? 0
   const dims = cardDims(card.type)
   const sharedProps = { card, selected, connectMode, isMaster }
 
   return (
     <div
-      onMouseDown={onMouseDown}
-      onClick={onClick}
-      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e) }}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseDown={(e) => onCardMouseDown(e, card.id)}
+      onClick={(e) => onCardClick(e, card.id)}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onOpenContextMenu(e, card) }}
+      onMouseEnter={() => onHoverEnter(card)}
+      onMouseLeave={onHoverLeave}
       style={{
         position: 'absolute',
         left: card.pos_x,
@@ -902,7 +907,7 @@ function CorkCard({ card, selected, connectMode, onMouseDown, onClick, onContext
       {card.type !== 'document' && card.type !== 'npc' && card.type !== 'note' && card.type !== 'photo' && card.type !== 'sketch' && <DefaultCard {...sharedProps} />}
     </div>
   )
-}
+})
 
 
 // ── Full view / edit modal ──
@@ -1422,7 +1427,10 @@ const railStyle = {
 
 export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, players, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, cursorPingHandlerRef, onBoardCreate, tab, onTabChange }) {
   const { t } = useTranslation()
-  const { cards, threads } = useTableStore()
+  // Granular selectors so an unrelated store change (a dice roll, a note,
+  // a player joining) doesn't force this whole board to re-render.
+  const cards = useTableStore((s) => s.cards)
+  const threads = useTableStore((s) => s.threads)
   const [selectedId, setSelectedId] = useState(null)
   const [dragging, setDragging] = useState(null)
   const lastMoveSendRef = useRef(0)
@@ -1451,6 +1459,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
 
   // ── Alt quick-view ──
   const hoveredCardRef = useRef(null)
+  const handleHoverEnter = useCallback((card) => { hoveredCardRef.current = card }, [])
+  const handleHoverLeave = useCallback(() => { hoveredCardRef.current = null }, [])
   const fullViewCardRef = useRef(null)
   const altPreviewRef = useRef(false)
 
@@ -1869,12 +1879,12 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
               card={card}
               selected={selectedId === card.id}
               connectMode={connectMode && selectedId !== null && selectedId !== card.id}
-              onMouseDown={(e) => onCardMouseDown(e, card.id)}
-              onClick={(e) => handleCardClick(e, card.id)}
-              onContextMenu={(e) => openContextMenu(e, card)}
-              onMouseEnter={() => { hoveredCardRef.current = card }}
-              onMouseLeave={() => { hoveredCardRef.current = null }}
               isMaster={isMaster}
+              onCardMouseDown={onCardMouseDown}
+              onCardClick={handleCardClick}
+              onOpenContextMenu={openContextMenu}
+              onHoverEnter={handleHoverEnter}
+              onHoverLeave={handleHoverLeave}
             />
           ))}
           {pings.map((ping) => (

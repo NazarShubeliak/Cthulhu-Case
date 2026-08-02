@@ -240,7 +240,15 @@ export default function TablePage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const user = useAuthStore((s) => s.user)
-  const { setCards, setThreads, addCard, addConnectedUser, connectedUsers, diceLog, reset } = useTableStore()
+  // Granular selectors — TablePage doesn't read cards/threads itself, so it
+  // must not re-render on every card drag tick the way a bare useTableStore() would.
+  const setCards = useTableStore((s) => s.setCards)
+  const setThreads = useTableStore((s) => s.setThreads)
+  const addCard = useTableStore((s) => s.addCard)
+  const addConnectedUser = useTableStore((s) => s.addConnectedUser)
+  const connectedUsers = useTableStore((s) => s.connectedUsers)
+  const diceLog = useTableStore((s) => s.diceLog)
+  const reset = useTableStore((s) => s.reset)
 
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
