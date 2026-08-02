@@ -95,11 +95,39 @@ chmod +x scripts/*.sh
 
 ---
 
+## init_env.sh — Генерація .env
+
+Створює `.env` з `.env.example`: генерує випадкові `SECRET_KEY`/`DB_PASSWORD` і підставляє публічний IP сервера в `ALLOWED_HOSTS`/`CORS_ALLOWED_ORIGINS`. Якщо `.env` вже існує — нічого не робить (видали файл вручну, щоб перегенерувати з нуля).
+
+```bash
+./scripts/init_env.sh
+```
+
+> **Обережно на живому сервері:** якщо Postgres-контейнер вже піднятий з даними, видаляти й перегенеровувати `.env` небезпечно — новий `DB_PASSWORD` не збіжиться з тим, що вже "запечений" у volume бази, і `web` перестане авторизовуватись. Спочатку `./scripts/backup.sh`, або зноси volume разом (`reset.sh`).
+
+---
+
+## deploy.sh — Повністю автоматичний деплой
+
+Ідемпотентний: перший запуск ставить Docker/Compose plugin, налаштовує UFW (SSH + порт 80), генерує `.env` (через `init_env.sh`) і піднімає стек. Кожен наступний запуск — `git pull --ff-only` + rebuild + restart, **не чіпаючи** дані в БД.
+
+```bash
+./scripts/deploy.sh                # деплой / оновлення
+./scripts/deploy.sh --no-cache     # чистий білд без кешу Docker
+```
+
+Розрахований на запуск від root або через sudo на самому VPS (`bash scripts/deploy.sh`). На dev-машині, де Docker вже стоїть, кроки встановлення й UFW просто пропускаються.
+
+> На відміну від `reset.sh`, цей скрипт нічого не видаляє — підходить для щоденного деплою/оновлення.
+
+---
+
 ## Типовий workflow
 
 ```bash
 # Перший запуск
-./scripts/reset.sh
+./scripts/init_env.sh
+./scripts/deploy.sh
 docker compose exec web python manage.py createsuperuser
 
 # Щоденна робота
