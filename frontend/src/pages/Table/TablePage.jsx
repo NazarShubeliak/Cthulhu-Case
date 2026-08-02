@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import useAuthStore from '../../store/authStore.js'
@@ -91,7 +92,10 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
 
   if (!open) return null
 
-  return (
+  // Portalled to document.body — position:fixed inside a font-size-zoomed
+  // .shell ancestor (see index.css .font-sm/.font-lg) would otherwise be
+  // positioned relative to that zoomed box instead of the real viewport.
+  return createPortal(
     <div style={{
       position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
       zIndex: 200, background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
@@ -229,7 +233,8 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
           {loading ? t('table.saving') : t('table.addCard')}
         </button>
       </form>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -453,7 +458,7 @@ export default function TablePage() {
       />
 
       {/* Dice log panel */}
-      {diceLogOpen && (
+      {diceLogOpen && createPortal(
         <div style={{
           position: 'fixed', top: 50, right: 0, bottom: 0, width: 300, zIndex: 400,
           background: 'var(--ink-0)', borderLeft: '1px solid var(--ochre-deep)',
@@ -527,69 +532,76 @@ export default function TablePage() {
               )
             })}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <MusicPlayer sessionId={id} open={musicOpen} onClose={() => setMusicOpen(false)} />
 
       {/* Dice roll toasts */}
-      <div style={{ position: 'fixed', bottom: 80, left: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {diceToasts.map((toast) => (
-          <div key={toast.id} style={{
-            background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
-            padding: '10px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-            fontFamily: 'var(--font-mono)', animation: 'fadeInUp 0.2s ease',
-          }}>
-            <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 4 }}>
-              {toast.rolled_by} · {toast.count}{toast.dice_type}
+      {createPortal(
+        <div style={{ position: 'fixed', bottom: 80, left: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {diceToasts.map((toast) => (
+            <div key={toast.id} style={{
+              background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
+              padding: '10px 16px', boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+              fontFamily: 'var(--font-mono)', animation: 'fadeInUp 0.2s ease',
+            }}>
+              <div style={{ fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--moss)', marginBottom: 4 }}>
+                {toast.rolled_by} · {toast.count}{toast.dice_type}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 28, color: 'var(--ochre-bright)', lineHeight: 1 }}>{toast.total}</span>
+                {toast.count > 1 && (
+                  <span style={{ fontSize: 10, color: 'var(--moss-pale)' }}>
+                    [{toast.results.join(' + ')}]
+                  </span>
+                )}
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{ fontSize: 28, color: 'var(--ochre-bright)', lineHeight: 1 }}>{toast.total}</span>
-              {toast.count > 1 && (
-                <span style={{ fontSize: 10, color: 'var(--moss-pale)' }}>
-                  [{toast.results.join(' + ')}]
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>,
+        document.body
+      )}
 
       {/* New card (evidence) toasts */}
-      <div style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
-        {cardToasts.map(({ id, card }) => (
-          <div key={id} style={{
-            background: 'var(--ink-0)',
-            border: '1px solid var(--blood)',
-            borderLeft: '3px solid var(--blood)',
-            padding: '14px 18px',
-            boxShadow: '0 4px 24px rgba(122,42,37,0.35)',
-            maxWidth: 280,
-            animation: 'fadeInUp 0.3s ease',
-          }}>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 8,
-              letterSpacing: '0.3em', textTransform: 'uppercase',
-              color: 'rgba(196,100,90,0.8)', marginBottom: 6,
+      {createPortal(
+        <div style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'flex-end' }}>
+          {cardToasts.map(({ id, card }) => (
+            <div key={id} style={{
+              background: 'var(--ink-0)',
+              border: '1px solid var(--blood)',
+              borderLeft: '3px solid var(--blood)',
+              padding: '14px 18px',
+              boxShadow: '0 4px 24px rgba(122,42,37,0.35)',
+              maxWidth: 280,
+              animation: 'fadeInUp 0.3s ease',
             }}>
-              {t('table.newEvidenceSub')}
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: 8,
+                letterSpacing: '0.3em', textTransform: 'uppercase',
+                color: 'rgba(196,100,90,0.8)', marginBottom: 6,
+              }}>
+                {t('table.newEvidenceSub')}
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-display)', fontStyle: 'italic',
+                fontSize: 17, color: 'var(--cream)', lineHeight: 1.25, marginBottom: 4,
+              }}>
+                {t('table.newEvidence')}
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-mono)', fontSize: 10,
+                color: 'var(--ochre)', letterSpacing: '0.08em',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {card.title}
+              </div>
             </div>
-            <div style={{
-              fontFamily: 'var(--font-display)', fontStyle: 'italic',
-              fontSize: 17, color: 'var(--cream)', lineHeight: 1.25, marginBottom: 4,
-            }}>
-              {t('table.newEvidence')}
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-mono)', fontSize: 10,
-              color: 'var(--ochre)', letterSpacing: '0.08em',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {card.title}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 
 // ── YouTube helpers ──
@@ -193,7 +194,7 @@ export default function MusicPlayer({ sessionId, open, onClose }) {
       {/* Hidden, always-mounted player — keeps playing while the panel is closed */}
       <div ref={containerRef} style={{ position: 'fixed', top: -9999, left: -9999, width: 0, height: 0, overflow: 'hidden' }} />
 
-      {open && (
+      {open && createPortal(
         <div style={{
           position: 'fixed', top: 50, right: 0, bottom: 0, width: 300, zIndex: 400,
           background: 'var(--ink-0)', borderLeft: '1px solid var(--ochre-deep)',
@@ -299,7 +300,8 @@ export default function MusicPlayer({ sessionId, open, onClose }) {
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

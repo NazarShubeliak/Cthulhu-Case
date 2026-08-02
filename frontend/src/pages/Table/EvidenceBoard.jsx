@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import useTableStore from '../../store/tableStore'
 import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing, transferCard } from '../../api/sessions'
@@ -1937,8 +1938,14 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
         onCancelConnect={() => setConnectMode(false)}
       />
 
-      {/* ── Full view modal ── */}
-      {fullViewCard && fullViewCard.type !== 'sketch' && (
+      {/* ── Full view modal ──
+          Portalled to document.body: these are position:fixed, and if a
+          font-size setting has the .shell ancestor under CSS zoom (see
+          index.css .font-sm/.font-lg), Chromium positions fixed descendants
+          relative to that zoomed ancestor instead of the real viewport —
+          the menu/modal ends up nowhere near the cursor. Escaping to
+          document.body sidesteps that entirely. */}
+      {fullViewCard && fullViewCard.type !== 'sketch' && createPortal(
         <CardFullView
           card={fullViewCard}
           isMaster={isMaster}
@@ -1948,9 +1955,10 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           onSaved={(updated) => setFullViewCard(updated)}
           wsRef={wsRef}
           drawingStrokeHandlerRef={drawingStrokeHandlerRef}
-        />
+        />,
+        document.body
       )}
-      {fullViewCard && fullViewCard.type === 'sketch' && (
+      {fullViewCard && fullViewCard.type === 'sketch' && createPortal(
         <SketchFullView
           card={fullViewCard}
           isMaster={isMaster}
@@ -1959,27 +1967,30 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           onClose={() => { altPreviewRef.current = false; setFullViewCard(null) }}
           wsRef={wsRef}
           drawingStrokeHandlerRef={drawingStrokeHandlerRef}
-        />
+        />,
+        document.body
       )}
 
       {/* ── Dice popup ── */}
-      {diceOpen && isMaster && (
-        <DicePopup sessionId={sessionId} onClose={() => setDiceOpen(false)} />
+      {diceOpen && isMaster && createPortal(
+        <DicePopup sessionId={sessionId} onClose={() => setDiceOpen(false)} />,
+        document.body
       )}
 
       {/* ── Board context menu ── */}
-      {boardMenu && (
+      {boardMenu && createPortal(
         <BoardContextMenu
           x={boardMenu.x}
           y={boardMenu.y}
           onSelect={(type) => onBoardCreate?.(type, boardMenu.boardX, boardMenu.boardY, tab)}
           onClose={() => setBoardMenu(null)}
           onDiceRoll={isMaster ? () => setDiceOpen(true) : undefined}
-        />
+        />,
+        document.body
       )}
 
       {/* ── Context menu ── */}
-      {contextMenu && (
+      {contextMenu && createPortal(
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
@@ -1997,26 +2008,29 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           onDelete={handleCtxDelete}
           onTransfer={handleCtxTransfer}
           onClose={closeContextMenu}
-        />
+        />,
+        document.body
       )}
 
       {/* ── Confirm modal ── */}
-      {confirmModal && (
+      {confirmModal && createPortal(
         <ConfirmModal
           message={confirmModal.message}
           onConfirm={confirmModal.onConfirm}
           onClose={() => setConfirmModal(null)}
-        />
+        />,
+        document.body
       )}
 
       {/* ── Prompt modal ── */}
-      {promptModal && (
+      {promptModal && createPortal(
         <PromptModal
           label={promptModal.label}
           placeholder={promptModal.placeholder}
           onConfirm={promptModal.onConfirm}
           onClose={promptModal.onClose}
-        />
+        />,
+        document.body
       )}
     </div>
   )
