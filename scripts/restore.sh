@@ -33,8 +33,13 @@ if [ -z "$BACKUP_FILE" ]; then
     read -rp "Enter filename (or full path): " BACKUP_FILE
 fi
 
-# Resolve relative path
-[[ "$BACKUP_FILE" != /* ]] && BACKUP_FILE="$BACKUPS_DIR/$BACKUP_FILE"
+# Resolve relative path — only a bare filename (no "/" in it) is assumed to
+# live in $BACKUPS_DIR. Anything with a path separator (./backups/x.sql,
+# ../x.sql, an absolute path, ...) is resolved relative to the caller's cwd,
+# same as normal shell semantics.
+if [[ "$BACKUP_FILE" != /* && "$BACKUP_FILE" != */* ]]; then
+    BACKUP_FILE="$BACKUPS_DIR/$BACKUP_FILE"
+fi
 
 if [ ! -f "$BACKUP_FILE" ]; then
     echo -e "${RED}File not found: $BACKUP_FILE${NC}"
