@@ -282,6 +282,23 @@ html.font-lg .shell { zoom: 1.12; }
   gap: 12px;
 }
 
+.topbar__sidebar-toggle {
+  background: none;
+  border: 1px solid var(--ochre-deep);
+  color: var(--ochre-dim);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.topbar__sidebar-toggle:hover {
+  background: rgba(184, 153, 104, 0.08);
+  color: var(--ochre);
+}
+
 /* Page */
 .page {
   padding: 40px 48px;
@@ -712,7 +729,7 @@ textarea.form-input {
 
 .skill-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 1fr auto auto auto;
   gap: 12px;
   align-items: center;
   padding: 9px 0;

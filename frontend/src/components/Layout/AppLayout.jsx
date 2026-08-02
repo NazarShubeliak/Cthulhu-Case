@@ -45,7 +45,7 @@ export default function AppLayout() {
   const { t, i18n } = useTranslation()
   const user = useAuthStore((s) => s.user)
   const crumbs = getBreadcrumb(location.pathname, t)
-  const { grain, showLatin, lang, brightness, fontSize } = useUIStore()
+  const { grain, showLatin, lang, brightness, fontSize, sidebarHidden, toggleSidebar } = useUIStore()
 
   useEffect(() => {
     document.documentElement.style.setProperty('--grain-opacity', grain ? '0.07' : '0')
@@ -71,6 +71,7 @@ export default function AppLayout() {
     <>
       <CursorLamp />
       <div className="shell">
+        {!sidebarHidden && (
         <nav className="nav">
           <div className="nav__brand" onClick={() => navigate('/sessions')} style={{ cursor: 'pointer' }}>
             <div className="nav__brand-mark">
@@ -116,6 +117,7 @@ export default function AppLayout() {
             </div>
           </div>
         </nav>
+        )}
 
         <div className="main">
           <header className="topbar">
@@ -131,6 +133,15 @@ export default function AppLayout() {
               ))}
             </div>
             <div className="topbar__actions">
+              <button
+                type="button"
+                className="topbar__sidebar-toggle"
+                onClick={toggleSidebar}
+                title={sidebarHidden ? t('nav.showSidebar') : t('nav.hideSidebar')}
+                aria-label={sidebarHidden ? t('nav.showSidebar') : t('nav.hideSidebar')}
+              >
+                {sidebarHidden ? '☰' : '⟨⟩'}
+              </button>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: '0.14em', color: 'var(--ochre)' }}>
                 {user?.username ?? '—'}
               </span>

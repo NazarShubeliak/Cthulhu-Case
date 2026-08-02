@@ -276,7 +276,12 @@ class CharacterViewSet(viewsets.ModelViewSet):
         return Response({'results': results})
 
 
-class SkillViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
+class SkillViewSet(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
     permission_classes = [IsAuthenticated]
     serializer_class = SkillSerializer
 
@@ -285,6 +290,12 @@ class SkillViewSet(mixins.UpdateModelMixin, viewsets.GenericViewSet):
             Character, pk=self.kwargs['character_pk'], user=self.request.user
         )
         return Skill.objects.filter(character=character)
+
+    def perform_create(self, serializer):
+        character = get_object_or_404(
+            Character, pk=self.kwargs['character_pk'], user=self.request.user
+        )
+        serializer.save(character=character)
 
 
 class EquipmentViewSet(

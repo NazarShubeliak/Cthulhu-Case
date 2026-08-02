@@ -35,7 +35,9 @@
     "investigators": "Слідчі",
     "profile": "Особиста справа",
     "story": "Архів хранителя",
-    "phaseII": "Фаза II"
+    "phaseII": "Фаза II",
+    "hideSidebar": "Сховати навігацію",
+    "showSidebar": "Показати навігацію"
   },
   "breadcrumb": {
     "arkham": "Аркгем",
@@ -186,6 +188,7 @@
     "updatedAt": "оновлено:",
     "skillsSub": "Те, що дослідник вміє",
     "skillCount": "{{count}} навичок",
+    "skillPlaceholder": "Назва навички...",
     "equipSub": "У саквояжі та в кишенях",
     "itemCount": "{{count}} предм.",
     "bio": "біографія / зачіпки / страхи",
@@ -218,7 +221,21 @@
     "newEvidence": "У вас новий доказ",
     "newEvidenceSub": "Novum Indicium · отримано",
     "noCharWarning": "Персонажа не обрано",
-    "noCharWarningHint": "Ви не обрали персонажа в лобі. Кидки кубиків не будуть відображатись з вашим ім'ям. Клікніть щоб перейти в лобі."
+    "noCharWarningHint": "Ви не обрали персонажа в лобі. Кидки кубиків не будуть відображатись з вашим ім'ям. Клікніть щоб перейти в лобі.",
+    "music": "Музика",
+    "musicTitle": "Грамофон",
+    "musicUrlPlaceholder": "Вставте посилання на YouTube...",
+    "musicAdd": "Додати",
+    "musicAdding": "Додавання...",
+    "musicInvalidUrl": "Не вдалось розпізнати посилання YouTube.",
+    "musicEmpty": "Плейлист порожній. Вставте посилання на YouTube вище.",
+    "musicPrev": "Попередній трек",
+    "musicNext": "Наступний трек",
+    "musicPlay": "Відтворити",
+    "musicPause": "Пауза",
+    "musicVolume": "Гучність",
+    "musicRemove": "Прибрати з плейлиста",
+    "musicPersonalHint": "Плейлист і відтворення тільки у вас — інші гравці не чують."
   },
   "cardType": {
     "document": "Документ",

@@ -38,6 +38,9 @@ export const rollDice = (id, data) => client.post(`/characters/${id}/roll/`, dat
 export const updateSkill = (characterId, skillId, data) =>
   client.patch(`/characters/${characterId}/skills/${skillId}/`, data)
 
+export const createSkill = (characterId, data) => client.post(`/characters/${characterId}/skills/`, data)
+export const deleteSkill = (characterId, skillId) => client.delete(`/characters/${characterId}/skills/${skillId}/`)
+
 export const improveSkills = (id) => client.post(`/characters/${id}/improve-skills/`)
 
 export const createMentalScar = (characterId, data) => client.post(`/characters/${characterId}/mental-scars/`, data)

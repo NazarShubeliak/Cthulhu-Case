@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getCharacter, updateCharacter, updateSkill, rollDice, improveSkills, createEquipmentItem, updateEquipmentItem, deleteEquipmentItem, createMentalScar, deleteMentalScar } from '../../api/characters.js'
+import { getCharacter, updateCharacter, updateSkill, createSkill, deleteSkill, rollDice, improveSkills, createEquipmentItem, updateEquipmentItem, deleteEquipmentItem, createMentalScar, deleteMentalScar } from '../../api/characters.js'
 import useDebounce from '../../hooks/useDebounce.js'
 
 // ── Stat definitions ─────────────────────────────────────────────────────────
@@ -277,7 +277,7 @@ function StatBox({ stat, value, onChange }) {
   )
 }
 
-function SkillRow({ skill, onUpdate }) {
+function SkillRow({ skill, onUpdate, onDelete }) {
   const {t} = useTranslation();
   const half = Math.floor(skill.current_value / 2)
   const fifth = Math.floor(skill.current_value / 5)
@@ -334,6 +334,13 @@ function SkillRow({ skill, onUpdate }) {
           outline: 'none',
         }}
       />
+      <button
+        onClick={() => onDelete(skill.id)}
+        title={t('board.delete')}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--moss)', fontSize: 12, padding: '0 2px', lineHeight: 1, marginLeft: 6 }}
+      >
+        ✕
+      </button>
     </div>
   )
 }
@@ -544,6 +551,8 @@ export default function CharacterSheetPage() {
   const [newItemName, setNewItemName] = useState('')
   const [newItemNotes, setNewItemNotes] = useState('')
   const [addingItem, setAddingItem] = useState(false)
+  const [newSkillName, setNewSkillName] = useState('')
+  const [addingSkill, setAddingSkill] = useState(false)
   const [mentalScars, setMentalScars] = useState([])
   const [newScarName, setNewScarName] = useState('')
   const [newScarType, setNewScarType] = useState('phobia')
@@ -603,6 +612,26 @@ export default function CharacterSheetPage() {
       current_value: updatedSkill.current_value,
       checked: updatedSkill.checked,
     }).catch(() => {})
+  }
+
+  const handleAddSkill = async (e) => {
+    e.preventDefault()
+    if (!newSkillName.trim()) return
+    setAddingSkill(true)
+    try {
+      const res = await createSkill(id, { name: newSkillName.trim() })
+      setChar((prev) => ({ ...prev, skills: [...(prev.skills ?? []), res.data] }))
+      setNewSkillName('')
+    } catch {
+      // ignore
+    } finally {
+      setAddingSkill(false)
+    }
+  }
+
+  const handleDeleteSkill = (skillId) => {
+    setChar((prev) => ({ ...prev, skills: prev.skills.filter((s) => s.id !== skillId) }))
+    deleteSkill(id, skillId).catch(() => {})
   }
 
   const handleImproveSkills = async () => {
@@ -1082,9 +1111,32 @@ export default function CharacterSheetPage() {
                   key={skill.id}
                   skill={skill}
                   onUpdate={handleSkillChange}
+                  onDelete={handleDeleteSkill}
                 />
               ))}
             </div>
+
+            <form onSubmit={handleAddSkill} style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <input
+                value={newSkillName}
+                onChange={(e) => setNewSkillName(e.target.value)}
+                placeholder={t('sheet.skillPlaceholder')}
+                style={{
+                  flex: 1,
+                  background: 'var(--ink-2)',
+                  border: '1px solid var(--ochre-deep)',
+                  color: 'var(--cream)',
+                  padding: '6px 10px',
+                  fontFamily: 'var(--font-body)',
+                  fontStyle: 'italic',
+                  fontSize: 14,
+                  outline: 'none',
+                }}
+              />
+              <button className="btn btn--primary" style={{ padding: '6px 14px', fontSize: 12 }} disabled={addingSkill || !newSkillName.trim()}>
+                +
+              </button>
+            </form>
 
             {improvementResults && (
               <div

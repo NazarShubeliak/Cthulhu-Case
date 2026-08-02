@@ -11,6 +11,7 @@ const useUIStore = create(
       lang: 'en',
       brightness: 0,   // 0 = dark (default), 1 = medium, 2 = lighter
       fontSize: 'md',  // 'sm' | 'md' | 'lg'
+      sidebarHidden: false,
 
       setLamp: (v) => set({ lamp: v }),
       setGrain: (v) => set({ grain: v }),
@@ -19,6 +20,7 @@ const useUIStore = create(
       setLang: (v) => set({ lang: v }),
       setBrightness: (v) => set({ brightness: v }),
       setFontSize: (v) => set({ fontSize: v }),
+      toggleSidebar: () => set((s) => ({ sidebarHidden: !s.sidebarHidden })),
     }),
     { name: 'cthulhu-ui-prefs' }
   )

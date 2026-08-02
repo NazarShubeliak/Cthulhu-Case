@@ -6,6 +6,7 @@ import useTableStore from '../../store/tableStore.js'
 import useWebSocket from '../../hooks/useWebSocket.js'
 import { getSession, getCards, getThreads, createCard, getMySessionCharacter } from '../../api/sessions.js'
 import EvidenceBoard from './EvidenceBoard.jsx'
+import MusicPlayer from '../../components/MusicPlayer/MusicPlayer.jsx'
 
 // ── Constants ──
 
@@ -248,6 +249,7 @@ export default function TablePage() {
   const [boardTab, setBoardTab] = useState('public')
   const [createConfig, setCreateConfig] = useState({ open: false, type: 'document', pos: null })
   const [diceLogOpen, setDiceLogOpen] = useState(false)
+  const [musicOpen, setMusicOpen] = useState(false)
   const [boundChar, setBoundChar] = useState(null)
   const toastId = useRef(0)
 
@@ -387,7 +389,7 @@ export default function TablePage() {
         <button
           className="btn btn--ghost"
           style={{ padding: '4px 10px', fontSize: 10, position: 'relative' }}
-          onClick={() => setDiceLogOpen((v) => !v)}
+          onClick={() => { setDiceLogOpen((v) => !v); setMusicOpen(false) }}
         >
           {t('table.diceLog')} {diceLog.length > 0 && (
             <span style={{
@@ -395,6 +397,13 @@ export default function TablePage() {
               borderRadius: 8, fontSize: 8, padding: '1px 5px',
             }}>{diceLog.length}</span>
           )}
+        </button>
+        <button
+          className="btn btn--ghost"
+          style={{ padding: '4px 10px', fontSize: 10 }}
+          onClick={() => { setMusicOpen((v) => !v); setDiceLogOpen(false) }}
+        >
+          {t('table.music')}
         </button>
       </div>
 
@@ -512,6 +521,8 @@ export default function TablePage() {
           </div>
         </div>
       )}
+
+      <MusicPlayer sessionId={id} open={musicOpen} onClose={() => setMusicOpen(false)} />
 
       {/* Dice roll toasts */}
       <div style={{ position: 'fixed', bottom: 80, left: 24, zIndex: 300, display: 'flex', flexDirection: 'column', gap: 8 }}>

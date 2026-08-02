@@ -7,8 +7,11 @@ router.register(r'', CharacterViewSet, basename='character')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('<int:character_pk>/skills/',
+         SkillViewSet.as_view({'post': 'create'}),
+         name='character-skill-list'),
     path('<int:character_pk>/skills/<int:pk>/',
-         SkillViewSet.as_view({'patch': 'partial_update'}),
+         SkillViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}),
          name='character-skill-detail'),
     path('<int:character_pk>/equipment/',
          EquipmentViewSet.as_view({'get': 'list', 'post': 'create'}),

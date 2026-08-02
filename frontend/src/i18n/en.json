@@ -35,7 +35,9 @@
     "investigators": "Investigators",
     "profile": "Personal File",
     "story": "Keeper's Archive",
-    "phaseII": "Phase II"
+    "phaseII": "Phase II",
+    "hideSidebar": "Hide navigation",
+    "showSidebar": "Show navigation"
   },
   "breadcrumb": {
     "arkham": "Arkham",
@@ -186,6 +188,7 @@
     "updatedAt": "updated:",
     "skillsSub": "What the investigator knows",
     "skillCount": "{{count}} skills",
+    "skillPlaceholder": "Skill name...",
     "equipSub": "In the bag and pockets",
     "itemCount": "{{count}} items",
     "bio": "biography / clues / fears",
@@ -218,7 +221,21 @@
     "newEvidence": "You have new evidence",
     "newEvidenceSub": "Novum Indicium · received",
     "noCharWarning": "No character selected",
-    "noCharWarningHint": "You have not selected a character in the lobby. Dice rolls will not display your name. Click to go to the lobby."
+    "noCharWarningHint": "You have not selected a character in the lobby. Dice rolls will not display your name. Click to go to the lobby.",
+    "music": "Music",
+    "musicTitle": "Gramophone",
+    "musicUrlPlaceholder": "Paste a YouTube link...",
+    "musicAdd": "Add",
+    "musicAdding": "Adding...",
+    "musicInvalidUrl": "Could not recognize that YouTube link.",
+    "musicEmpty": "Playlist is empty. Paste a YouTube link above.",
+    "musicPrev": "Previous track",
+    "musicNext": "Next track",
+    "musicPlay": "Play",
+    "musicPause": "Pause",
+    "musicVolume": "Volume",
+    "musicRemove": "Remove from playlist",
+    "musicPersonalHint": "Playlist and playback are local to you — other players can't hear it."
   },
   "cardType": {
     "document": "Document",
