@@ -46,6 +46,10 @@ if [ ! -f "$BACKUP_FILE" ]; then
     exit 1
 fi
 
+# Resolve to an absolute path now — the "cd $ROOT" below changes the
+# working directory, which would silently break a still-relative path.
+BACKUP_FILE="$(cd "$(dirname "$BACKUP_FILE")" && pwd)/$(basename "$BACKUP_FILE")"
+
 echo -e "${YELLOW}This will DROP and recreate '$DB_NAME'. Continue? [y/N] ${NC}"
 read -rp "" confirm
 [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 0; }
