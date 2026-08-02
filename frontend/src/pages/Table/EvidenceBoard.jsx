@@ -1708,22 +1708,25 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
 
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
 
-  async function handleCtxPin() {
+  // Pin/publish/delete apply to the store immediately (optimistic) instead of
+  // waiting on the round-trip, then reconcile with the server response — and
+  // roll back to the original card if the request actually fails.
+  function handleCtxPin() {
     const card = contextMenu?.card
     if (!card) return
-    try {
-      const res = await pinCard(sessionId, card.id)
-      useTableStore.getState().replaceCard(res.data)
-    } catch {}
+    useTableStore.getState().replaceCard({ ...card, is_pinned: !card.is_pinned })
+    pinCard(sessionId, card.id)
+      .then((res) => useTableStore.getState().replaceCard(res.data))
+      .catch(() => useTableStore.getState().replaceCard(card))
   }
 
-  async function handleCtxPublish() {
+  function handleCtxPublish() {
     const card = contextMenu?.card
     if (!card) return
-    try {
-      const res = await publishCard(sessionId, card.id)
-      useTableStore.getState().updateCard(res.data)
-    } catch {}
+    useTableStore.getState().updateCard({ ...card, is_public: true })
+    publishCard(sessionId, card.id)
+      .then((res) => useTableStore.getState().updateCard(res.data))
+      .catch(() => useTableStore.getState().updateCard(card))
   }
 
   async function handleCtxTransfer(targetUserId) {
@@ -1740,11 +1743,9 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     closeContextMenu()
     setConfirmModal({
       message: t('board.deleteCard', { name: card.title }),
-      onConfirm: async () => {
-        try {
-          await deleteCard(sessionId, card.id)
-          useTableStore.getState().removeCard(card.id)
-        } catch {}
+      onConfirm: () => {
+        useTableStore.getState().removeCard(card.id)
+        deleteCard(sessionId, card.id).catch(() => useTableStore.getState().addCard(card))
       },
     })
   }
@@ -1862,11 +1863,12 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
             threads={visibleThreads}
             onDeleteThread={(tid) => setConfirmModal({
               message: t('board.deleteThread'),
-              onConfirm: async () => {
-                try {
-                  await deleteThread(sessionId, tid)
-                  useTableStore.getState().removeThread(tid)
-                } catch {}
+              onConfirm: () => {
+                const thread = useTableStore.getState().threads.find((t) => t.id === tid)
+                useTableStore.getState().removeThread(tid)
+                deleteThread(sessionId, tid).catch(() => {
+                  if (thread) useTableStore.getState().addThread(thread)
+                })
               },
             })}
             isMaster={isMaster}
