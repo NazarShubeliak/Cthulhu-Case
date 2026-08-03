@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import useTableStore from '../../store/tableStore'
-import { moveCard as apiMoveCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing, transferCard } from '../../api/sessions'
+import { moveCard as apiMoveCard, createCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing, transferCard } from '../../api/sessions'
 
 // ── Constants ──
 
@@ -27,6 +27,14 @@ const SKETCH_CANVAS_W = 840
 const SKETCH_CANVAS_H = 560
 const SKETCH_COLOR = '#2a1f0e'
 
+const MAP_W = 700
+const MAP_H = 500
+const MAP_MIN_W = 260
+const MAP_MIN_H = 180
+
+const PIN_W = 16
+const PIN_H = 16
+
 const KIND_COLOR = {
   document: '#f5f0e0',
   photo: '#d8d4cc',
@@ -41,6 +49,8 @@ const KIND_LAT = {
   note: 'Nota',
   npc: 'Persona',
   sketch: 'Adumbratio',
+  map: 'Charta',
+  pin: 'Signum',
 }
 
 const KIND_ROT = { document: -1, photo: 2, note: -2, npc: 1, sketch: 0 }
@@ -143,19 +153,22 @@ function CursorPing({ x, y, username }) {
 
 // ── Thread SVG layer ──
 
-function cardDims(type) {
+function cardDims(card) {
+  const type = card.type
   if (type === 'document') return { w: DOC_W, h: DOC_H }
   if (type === 'npc') return { w: NPC_W, h: NPC_H }
   if (type === 'note') return { w: NOTE_W, h: NOTE_H }
   if (type === 'photo') return { w: PHOTO_W, h: PHOTO_H }
   if (type === 'sketch') return { w: SKETCH_W, h: SKETCH_H }
+  if (type === 'map') return { w: card.width || MAP_W, h: card.height || MAP_H }
+  if (type === 'pin') return { w: PIN_W, h: PIN_H }
   return { w: CARD_W, h: CARD_H }
 }
 
 function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, currentUserId, masterId, sessionId }) {
   return (
     <svg
-      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', overflow: 'visible' }}
+      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 5 }}
       width="100%"
       height="100%"
     >
@@ -168,7 +181,7 @@ function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, currentUserId,
         const from = cards.find((c) => c.id === (t.card_from?.id ?? t.card_from))
         const to = cards.find((c) => c.id === (t.card_to?.id ?? t.card_to))
         if (!from || !to) return null
-        const fd = cardDims(from.type); const td = cardDims(to.type)
+        const fd = cardDims(from); const td = cardDims(to)
         const x1 = from.pos_x + fd.w / 2
         const y1 = from.pos_y + fd.h / 2
         const x2 = to.pos_x + td.w / 2
@@ -553,6 +566,67 @@ function PhotoCard({ card, selected, connectMode }) {
   )
 }
 
+function MapCard({ card, selected, connectMode, onResizeMouseDown }) {
+  const { t } = useTranslation()
+  const w = card.width || MAP_W
+  const h = card.height || MAP_H
+  const shadow = selected
+    ? '0 0 0 2px var(--ochre), 0 14px 36px rgba(0,0,0,0.8)'
+    : connectMode
+    ? '0 0 0 2px var(--blood), 0 10px 24px rgba(0,0,0,0.55)'
+    : '4px 6px 16px rgba(0,0,0,0.55), 8px 14px 36px rgba(0,0,0,0.4)'
+
+  return (
+    <div style={{
+      width: w, height: h, position: 'relative', overflow: 'hidden',
+      background: '#c8c0b0', border: '6px solid #ddd0b8', boxShadow: shadow,
+    }}>
+      {card.image
+        ? <img src={card.image} alt={card.title} draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        : <div style={{
+            width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'var(--font-mono)', fontSize: 10, color: '#8a8070', letterSpacing: '0.14em',
+          }}>{t('board.noImage')}</div>
+      }
+      <div style={{
+        position: 'absolute', top: 0, left: 0,
+        background: 'rgba(30,22,8,0.82)', color: '#c8a84a',
+        fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 14,
+        padding: '4px 14px',
+      }}>
+        {card.title}
+      </div>
+      {/* Resize handle — drag to change map footprint on the board; locked while pinned */}
+      {!card.is_pinned && (
+        <div
+          className="no-drag"
+          onMouseDown={onResizeMouseDown}
+          title={t('board.resize')}
+          style={{
+            position: 'absolute', right: 0, bottom: 0,
+            width: 24, height: 24, cursor: 'nwse-resize',
+            background: 'linear-gradient(135deg, transparent 50%, rgba(200,168,74,0.65) 50%)',
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function MapPinCard({ card, selected }) {
+  return (
+    <div style={{
+      width: PIN_W, height: PIN_H, borderRadius: '50%',
+      background: 'radial-gradient(circle at 35% 30%, #e05050, #7a1a1a)',
+      border: selected ? '1px solid var(--ochre)' : '1px solid #3a1008',
+      boxShadow: selected
+        ? '0 0 0 3px rgba(184,153,104,0.4), 0 2px 5px rgba(0,0,0,0.6)'
+        : '0 2px 5px rgba(0,0,0,0.6)',
+    }} />
+  )
+}
+
 // ── Drawing helpers ──
 
 function renderStrokes(ctx, strokes, scaleX = 1, scaleY = 1) {
@@ -865,10 +939,11 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
 // references (useCallback in EvidenceBoard) and `card` keeps its identity
 // for every card the store didn't just touch (see tableStore.moveCard) —
 // don't wrap these props in fresh inline closures at the call site.
-const CorkCard = memo(function CorkCard({ card, selected, connectMode, isMaster, onCardMouseDown, onCardClick, onOpenContextMenu, onHoverEnter, onHoverLeave }) {
+const CorkCard = memo(function CorkCard({ card, selected, connectMode, isMaster, onCardMouseDown, onCardClick, onOpenContextMenu, onHoverEnter, onHoverLeave, onResizeMouseDown }) {
   const rot = KIND_ROT[card.type] ?? 0
-  const dims = cardDims(card.type)
+  const dims = cardDims(card)
   const sharedProps = { card, selected, connectMode, isMaster }
+  const isMap = card.type === 'map'
 
   return (
     <div
@@ -882,8 +957,9 @@ const CorkCard = memo(function CorkCard({ card, selected, connectMode, isMaster,
         left: card.pos_x,
         top: card.pos_y,
         width: dims.w,
-        cursor: card.is_pinned ? 'default' : connectMode ? 'crosshair' : 'grab',
-        zIndex: selected ? 50 : 10,
+        height: isMap ? dims.h : undefined,
+        cursor: (card.is_pinned || card.type === 'pin') ? 'default' : connectMode ? 'crosshair' : 'grab',
+        zIndex: isMap ? 1 : (selected ? 50 : 10),
         transform: `rotate(${rot}deg)`,
         transition: selected ? 'none' : 'box-shadow .2s',
       }}
@@ -905,7 +981,9 @@ const CorkCard = memo(function CorkCard({ card, selected, connectMode, isMaster,
       {card.type === 'note' && <NoteCard {...sharedProps} />}
       {card.type === 'photo' && <PhotoCard {...sharedProps} />}
       {card.type === 'sketch' && <SketchCard {...sharedProps} />}
-      {card.type !== 'document' && card.type !== 'npc' && card.type !== 'note' && card.type !== 'photo' && card.type !== 'sketch' && <DefaultCard {...sharedProps} />}
+      {card.type === 'map' && <MapCard {...sharedProps} onResizeMouseDown={(e) => onResizeMouseDown(e, card.id)} />}
+      {card.type === 'pin' && <MapPinCard {...sharedProps} />}
+      {!['document', 'npc', 'note', 'photo', 'sketch', 'map', 'pin'].includes(card.type) && <DefaultCard {...sharedProps} />}
     </div>
   )
 })
@@ -933,7 +1011,7 @@ function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSav
   const [content, setContent] = useState(card.content ?? '')
   const [npc, setNpc] = useState(initNpc)
   const [saving, setSaving] = useState(false)
-  const canEdit = card.type !== 'photo'
+  const canEdit = card.type !== 'photo' && card.type !== 'map'
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
@@ -1009,6 +1087,28 @@ function CardFullView({ card, isMaster, sessionId, currentUserId, onClose, onSav
             }
             <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 16, color: '#2a2010', marginTop: 12, textAlign: 'center' }}>{card.title}</div>
             <button onClick={onClose} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: '1px solid #9a8860', color: '#7a6440', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: 'pointer' }}>{t('board.close')}</button>
+          </div>
+        )}
+
+        {/* ── Map (read-only) ── */}
+        {card.type === 'map' && (
+          <div style={{ background: '#f8f4ec', padding: '16px 16px 12px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)', maxWidth: '86vw' }}>
+            {card.image
+              ? <img src={card.image} alt={card.title} draggable={false} style={{ display: 'block', maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
+              : <div style={{ width: 500, height: 340, background: '#c8c0b0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8a8070', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{t('board.noImage')}</div>
+            }
+            <div style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 16, color: '#2a2010', marginTop: 12, textAlign: 'center' }}>{card.title}</div>
+            <button onClick={onClose} style={{ display: 'block', margin: '12px auto 0', background: 'none', border: '1px solid #9a8860', color: '#7a6440', fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', padding: '4px 14px', cursor: 'pointer' }}>{t('board.close')}</button>
+          </div>
+        )}
+
+        {/* ── Pin (small label) ── */}
+        {card.type === 'pin' && (
+          <div style={{ background: '#ecdfc0', width: 320, padding: '28px 30px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 8, letterSpacing: '0.28em', textTransform: 'uppercase', color: '#7a6440', marginBottom: 14 }}>Signum</div>
+            <input value={title} onChange={(e) => setTitle(e.target.value)}
+              style={{ ...fvInput(), fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 20, color: '#1f1a10', marginBottom: 14 }} />
+            <SaveBar onSave={handleSave} onClose={onClose} saving={saving} dirty={dirty} dark />
           </div>
         )}
 
@@ -1249,7 +1349,7 @@ function DicePopup({ sessionId, onClose }) {
 
 // ── Board context menu (right-click on empty space) ──
 
-const BOARD_CARD_TYPE_VALUES = ['document', 'npc', 'note', 'photo', 'sketch']
+const BOARD_CARD_TYPE_VALUES = ['document', 'npc', 'note', 'photo', 'map', 'sketch']
 
 function BoardContextMenu({ x, y, onSelect, onClose, onDiceRoll }) {
   const { t } = useTranslation()
@@ -1331,7 +1431,9 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, current
         overflow: 'visible',
       }}>
         <CtxItem label={t('board.view')} onClick={() => { onFullView(); onClose() }} />
-        <CtxItem label={card.is_pinned ? t('board.unpin') : t('board.pin')} onClick={() => { onPin(); onClose() }} />
+        {card.type !== 'pin' && (
+          <CtxItem label={card.is_pinned ? t('board.unpin') : t('board.pin')} onClick={() => { onPin(); onClose() }} />
+        )}
         {(isMaster || isOwn) && !card.is_public && (
           <CtxItem label={isMaster ? t('board.toTable') : t('board.reveal')} onClick={() => { onPublish(); onClose() }} />
         )}
@@ -1484,7 +1586,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
 
     newCards.forEach((card, i) => {
       if (card.pos_x !== 0 || card.pos_y !== 0) return
-      const dims = cardDims(card.type)
+      const dims = cardDims(card)
       const nx = (rect.width / 2 - p.x) / z - dims.w / 2 + i * 24
       const ny = (rect.height / 2 - p.y) / z - dims.h / 2 + i * 24
       useTableStore.getState().moveCard(card.id, nx, ny)
@@ -1503,11 +1605,21 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     e.stopPropagation()
     setSelectedId(cardId)
     const card = useTableStore.getState().cards.find((c) => c.id === cardId)
-    if (!card || card.is_pinned) return  // pinned cards can be selected but not dragged
+    if (!card || card.is_pinned || card.type === 'pin') return  // pinned cards, and map pins, can be selected but not dragged
+    // Dragging a map carries its pins along with it — snapshot them so we can
+    // apply the same delta as the map moves, instead of leaving them behind.
+    const childPins = card.type === 'map'
+      ? useTableStore.getState().cards
+          .filter((c) => c.type === 'pin' && c.parent_map === cardId)
+          .map((c) => ({ id: c.id, startX: c.pos_x, startY: c.pos_y }))
+      : null
     setDragging({
       id: cardId,
       offsetX: e.clientX / zoom - card.pos_x,
       offsetY: e.clientY / zoom - card.pos_y,
+      startX: card.pos_x,
+      startY: card.pos_y,
+      childPins,
     })
   }, [zoom, connectMode])
 
@@ -1519,9 +1631,23 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       useTableStore.getState().moveCard(dragging.id, pos_x, pos_y)
 
       const now = Date.now()
-      if (now - lastMoveSendRef.current > 33 && wsRef?.current?.readyState === 1) {
+      const sendLive = now - lastMoveSendRef.current > 33 && wsRef?.current?.readyState === 1
+      if (sendLive) {
         lastMoveSendRef.current = now
         wsRef.current.send(JSON.stringify({ type: 'card.moving', card_id: dragging.id, pos_x, pos_y }))
+      }
+
+      if (dragging.childPins) {
+        const dx = pos_x - dragging.startX
+        const dy = pos_y - dragging.startY
+        dragging.childPins.forEach((p) => {
+          const px = p.startX + dx
+          const py = p.startY + dy
+          useTableStore.getState().moveCard(p.id, px, py)
+          if (sendLive) {
+            wsRef.current.send(JSON.stringify({ type: 'card.moving', card_id: p.id, pos_x: px, pos_y: py }))
+          }
+        })
       }
     }
     const onUp = (e) => {
@@ -1530,6 +1656,12 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
         clearTimeout(moveTimer.current)
         moveTimer.current = setTimeout(() => {
           apiMoveCard(sessionId, dragging.id, card.pos_x, card.pos_y).catch(() => {})
+          if (dragging.childPins) {
+            dragging.childPins.forEach((p) => {
+              const pin = useTableStore.getState().cards.find((c) => c.id === p.id)
+              if (pin) apiMoveCard(sessionId, p.id, pin.pos_x, pin.pos_y).catch(() => {})
+            })
+          }
         }, 0)
       }
       setDragging(null)
@@ -1541,6 +1673,38 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       window.removeEventListener('mouseup', onUp)
     }
   }, [dragging, zoom, sessionId])
+
+  // ── Resize a map card (corner handle drag) ──
+  const [resizing, setResizing] = useState(null)
+
+  const onResizeMouseDown = useCallback((e, cardId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const card = useTableStore.getState().cards.find((c) => c.id === cardId)
+    if (!card || card.is_pinned) return
+    const dims = cardDims(card)
+    setResizing({ id: cardId, startClientX: e.clientX, startClientY: e.clientY, startW: dims.w, startH: dims.h })
+  }, [])
+
+  useEffect(() => {
+    if (!resizing) return
+    const onMove = (e) => {
+      const width = Math.max(MAP_MIN_W, resizing.startW + (e.clientX - resizing.startClientX) / zoom)
+      const height = Math.max(MAP_MIN_H, resizing.startH + (e.clientY - resizing.startClientY) / zoom)
+      useTableStore.getState().resizeCard(resizing.id, width, height)
+    }
+    const onUp = () => {
+      const card = useTableStore.getState().cards.find((c) => c.id === resizing.id)
+      if (card) apiUpdateCard(sessionId, resizing.id, { width: card.width, height: card.height }).catch(() => {})
+      setResizing(null)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [resizing, zoom, sessionId])
 
   // ── Pan stage (left click on bg OR middle click anywhere) ──
   const onStageMouseDown = useCallback((e) => {
@@ -1671,10 +1835,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
   }, [])
 
   // ── Connect mode: click card to create thread ──
-  const handleCardClick = useCallback((e, cardId) => {
-    if (!connectMode || !selectedId || cardId === selectedId) return
-    e.stopPropagation()
-    const fromId = selectedId
+  const promptThread = useCallback((fromId, toId) => {
     setPromptModal({
       label: t('board.threadLabel'),
       placeholder: t('board.optional'),
@@ -1682,7 +1843,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
         try {
           const res = await createThread(sessionId, {
             card_from_id: fromId,
-            card_to_id: cardId,
+            card_to_id: toId,
             label: value.trim(),
           })
           useTableStore.getState().addThread(res.data)
@@ -1691,7 +1852,40 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       },
       onClose: () => { setPromptModal(null); setConnectMode(false) },
     })
-  }, [connectMode, selectedId, sessionId])
+  }, [sessionId, t])
+
+  const handleCardClick = useCallback((e, cardId) => {
+    if (!connectMode || !selectedId || cardId === selectedId) return
+    e.stopPropagation()
+    const fromId = selectedId
+    const targetCard = useTableStore.getState().cards.find((c) => c.id === cardId)
+
+    // Clicking a spot on a map instead connects to a fresh pin dropped right there —
+    // no need to place the pin first and thread it separately.
+    if (targetCard?.type === 'map') {
+      const rect = stageRef.current?.getBoundingClientRect()
+      const boardX = rect ? (e.clientX - rect.left - panRef.current.x) / zoomRef.current : 0
+      const boardY = rect ? (e.clientY - rect.top - panRef.current.y) / zoomRef.current : 0
+      createCard(sessionId, {
+        type: 'pin',
+        title: '',
+        content: '',
+        pos_x: boardX - PIN_W / 2,
+        pos_y: boardY - PIN_H / 2,
+        is_public: targetCard.is_public,
+        owner_id: targetCard.owner?.id,
+        parent_map_id: targetCard.id,
+      })
+        .then((res) => {
+          useTableStore.getState().addCard(res.data)
+          promptThread(fromId, res.data.id)
+        })
+        .catch(() => setConnectMode(false))
+      return
+    }
+
+    promptThread(fromId, cardId)
+  }, [connectMode, selectedId, sessionId, promptThread])
 
   // Escape to cancel connect mode
   useEffect(() => {
@@ -1830,12 +2024,12 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
             ? `
               radial-gradient(circle at 25% 25%, rgba(61,90,68,0.08), transparent 50%),
               radial-gradient(circle at 75% 75%, rgba(40,70,50,0.06), transparent 50%),
-              #111a13
+              var(--board-personal)
             `
             : `
               radial-gradient(circle at 30% 20%, rgba(184,153,104,0.04), transparent 50%),
               radial-gradient(circle at 70% 80%, rgba(61,90,68,0.05), transparent 50%),
-              #1a1410
+              var(--board-public)
             `,
         }}
       >
@@ -1888,6 +2082,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
               onOpenContextMenu={openContextMenu}
               onHoverEnter={handleHoverEnter}
               onHoverLeave={handleHoverLeave}
+              onResizeMouseDown={onResizeMouseDown}
             />
           ))}
           {pings.map((ping) => (

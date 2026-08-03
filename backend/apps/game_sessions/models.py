@@ -58,10 +58,12 @@ class Card(models.Model):
         ('note', 'Нотатка'),
         ('npc', 'НПС'),
         ('sketch', 'Ескіз'),
+        ('map', 'Мапа'),
+        ('pin', 'Позначка'),
     ]
     session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name='cards')
     type = models.CharField(max_length=20, choices=CARD_TYPES, default='document')
-    title = models.CharField(max_length=200)
+    title = models.CharField(max_length=200, blank=True)
     content = models.TextField(blank=True)
     image = models.ImageField(upload_to='cards/', null=True, blank=True)
     created_by = models.ForeignKey(
@@ -71,11 +73,17 @@ class Card(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='owned_cards'
     )
+    parent_map = models.ForeignKey(
+        'self', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='pins'
+    )
     drawing_data = models.JSONField(default=list, blank=True)
     is_public = models.BooleanField(default=False)
     is_pinned = models.BooleanField(default=False)
     pos_x = models.FloatField(default=0)
     pos_y = models.FloatField(default=0)
+    width = models.FloatField(null=True, blank=True)
+    height = models.FloatField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

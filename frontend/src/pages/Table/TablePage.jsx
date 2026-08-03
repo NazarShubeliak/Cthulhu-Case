@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next'
 import useAuthStore from '../../store/authStore.js'
 import useTableStore from '../../store/tableStore.js'
 import useWebSocket from '../../hooks/useWebSocket.js'
-import { getSession, getCards, getThreads, createCard, getMySessionCharacter } from '../../api/sessions.js'
+import useDebounce from '../../hooks/useDebounce.js'
+import { getSession, getCards, getThreads, createCard, getMySessionCharacter, getNotes, createNote, updateNote } from '../../api/sessions.js'
 import EvidenceBoard from './EvidenceBoard.jsx'
 import MusicPlayer from '../../components/MusicPlayer/MusicPlayer.jsx'
 
@@ -17,6 +18,7 @@ function getCardTypes(t) {
     { value: 'photo',    label: t('cardType.photo') },
     { value: 'note',     label: t('cardType.note') },
     { value: 'npc',      label: t('cardType.npc') },
+    { value: 'map',      label: t('cardType.map') },
     { value: 'sketch',   label: t('cardType.sketch') },
   ]
 }
@@ -195,9 +197,9 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
               <textarea className="form-input" value={npc.secret} onChange={(e) => setNpcField('secret', e.target.value)} placeholder={t('npc.secretPlaceholder')} rows={2} style={{ borderColor: 'rgba(122,42,37,0.5)' }} />
             </div>
           </>
-        ) : type === 'photo' ? (
+        ) : type === 'photo' || type === 'map' ? (
           <div className="form-group" style={{ marginBottom: 12 }}>
-            <label className="form-label">{t('photo.label')}</label>
+            <label className="form-label">{type === 'map' ? t('board.mapImageLabel') : t('photo.label')}</label>
             <label style={{
               display: 'block', border: '1px dashed var(--ochre-deep)',
               padding: imagePreview ? 0 : '20px 0', textAlign: 'center',
@@ -229,7 +231,7 @@ function CreateCardForm({ sessionId, isMaster, currentUserId, players, onCreated
           </div>
         )}
 
-        <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim() || (type === 'photo' && !imageFile) || (type === 'sketch' && !title.trim())}>
+        <button type="submit" className="btn btn--primary" style={{ width: '100%' }} disabled={loading || !title.trim() || ((type === 'photo' || type === 'map') && !imageFile) || (type === 'sketch' && !title.trim())}>
           {loading ? t('table.saving') : t('table.addCard')}
         </button>
       </form>
@@ -263,8 +265,14 @@ export default function TablePage() {
   const [createConfig, setCreateConfig] = useState({ open: false, type: 'document', pos: null })
   const [diceLogOpen, setDiceLogOpen] = useState(false)
   const [musicOpen, setMusicOpen] = useState(false)
+  const [notepadOpen, setNotepadOpen] = useState(false)
+  const [notepadContent, setNotepadContent] = useState('')
+  const [notepadStatus, setNotepadStatus] = useState('') // 'saving' | 'saved' | ''
   const [boundChar, setBoundChar] = useState(null)
   const toastId = useRef(0)
+  const notepadNoteIdRef = useRef(null)
+  const notepadLoadedRef = useRef(false)
+  const notepadTextareaRef = useRef(null)
 
   const drawingStrokeHandlerRef = useRef(null)
   const cursorPingHandlerRef = useRef(null)
@@ -284,6 +292,90 @@ export default function TablePage() {
 
   const onDrawingStroke = useCallback((msg) => { drawingStrokeHandlerRef.current?.(msg) }, [])
   const onCursorPing = useCallback((msg) => { cursorPingHandlerRef.current?.(msg) }, [])
+
+  // ── Personal notepad: private scratchpad note, lazy-loaded on first open ──
+  const focusNotepadEnd = () => {
+    requestAnimationFrame(() => {
+      const el = notepadTextareaRef.current
+      if (!el) return
+      el.focus()
+      const len = el.value.length
+      el.setSelectionRange(len, len)
+    })
+  }
+
+  const openNotepad = useCallback(() => {
+    setNotepadOpen(true)
+    setDiceLogOpen(false)
+    setMusicOpen(false)
+    if (notepadLoadedRef.current) return
+    notepadLoadedRef.current = true
+    getNotes(id)
+      .then((res) => {
+        const notes = res.data.results ?? res.data
+        const mine = notes.find((n) => n.is_private && n.author?.id === user?.id)
+        if (mine) {
+          notepadNoteIdRef.current = mine.id
+          setNotepadContent(mine.content)
+          focusNotepadEnd()
+        }
+      })
+      .catch(() => {})
+  }, [id, user?.id])
+
+  const saveNotepad = useCallback(
+    async (content) => {
+      setNotepadStatus('saving')
+      try {
+        if (notepadNoteIdRef.current) {
+          await updateNote(id, notepadNoteIdRef.current, { content })
+        } else {
+          const res = await createNote(id, { content, is_private: true })
+          notepadNoteIdRef.current = res.data.id
+        }
+        setNotepadStatus('saved')
+        setTimeout(() => setNotepadStatus(''), 2000)
+      } catch {
+        setNotepadStatus('')
+      }
+    },
+    [id],
+  )
+
+  const debouncedSaveNotepad = useDebounce(saveNotepad, 800)
+
+  const handleNotepadChange = (value) => {
+    setNotepadContent(value)
+    debouncedSaveNotepad(value)
+  }
+
+  useEffect(() => {
+    if (notepadOpen) focusNotepadEnd()
+  }, [notepadOpen])
+
+  // ── "N" shortcut toggles the notepad, ignored while typing anywhere.
+  // Uses e.code (physical key position) so it works under any keyboard layout/language. ──
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code !== 'KeyN') return
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      e.preventDefault()
+      if (notepadOpen) setNotepadOpen(false)
+      else openNotepad()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [notepadOpen, openNotepad])
+
+  // Escape closes the notepad even while the textarea itself is focused —
+  // "N" can't do that there since typing "n" into the note must not be swallowed.
+  useEffect(() => {
+    if (!notepadOpen) return
+    const onKey = (e) => { if (e.key === 'Escape') setNotepadOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [notepadOpen])
 
   const onWsConnected = useCallback(() => {
     getSession(id)
@@ -402,7 +494,7 @@ export default function TablePage() {
         <button
           className="btn btn--ghost"
           style={{ padding: '4px 10px', fontSize: 10, position: 'relative' }}
-          onClick={() => { setDiceLogOpen((v) => !v); setMusicOpen(false) }}
+          onClick={() => { setDiceLogOpen((v) => !v); setMusicOpen(false); setNotepadOpen(false) }}
         >
           {t('table.diceLog')} {diceLog.length > 0 && (
             <span style={{
@@ -414,9 +506,17 @@ export default function TablePage() {
         <button
           className="btn btn--ghost"
           style={{ padding: '4px 10px', fontSize: 10 }}
-          onClick={() => { setMusicOpen((v) => !v); setDiceLogOpen(false) }}
+          onClick={() => { setMusicOpen((v) => !v); setDiceLogOpen(false); setNotepadOpen(false) }}
         >
           {t('table.music')}
+        </button>
+        <button
+          className="btn btn--ghost"
+          style={{ padding: '4px 10px', fontSize: 10 }}
+          title={t('table.notepadHint')}
+          onClick={() => { if (notepadOpen) setNotepadOpen(false); else openNotepad() }}
+        >
+          {t('table.notepad')}
         </button>
       </div>
 
@@ -532,6 +632,63 @@ export default function TablePage() {
               )
             })}
           </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Personal notepad — a pinned paper pad, not a full-height panel */}
+      {notepadOpen && createPortal(
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 400,
+          width: 300, height: 380,
+          background: '#ecdfc0',
+          transform: 'rotate(-1deg)',
+          boxShadow: '0 14px 34px rgba(0,0,0,0.55), 0 2px 0 rgba(0,0,0,0.15)',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          {/* Pin */}
+          <div style={{
+            position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)',
+            width: 14, height: 14, borderRadius: '50%',
+            background: 'radial-gradient(circle at 35% 30%, #e05050, #7a1a1a)',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.6)',
+          }} />
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px 8px', flexShrink: 0,
+            borderBottom: '1px dotted #b8a878',
+          }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: 15, color: '#3a2e1c' }}>
+              {t('table.notepadTitle')}
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {notepadStatus === 'saving' && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#7a6440', letterSpacing: '0.12em' }}>
+                  {t('table.saving')}
+                </span>
+              )}
+              {notepadStatus === 'saved' && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: '#7a6440', letterSpacing: '0.12em' }}>
+                  {t('table.notepadSaved')}
+                </span>
+              )}
+              <button onClick={() => setNotepadOpen(false)} style={{ background: 'none', border: 'none', color: '#7a6440', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>×</button>
+            </span>
+          </div>
+          <textarea
+            ref={notepadTextareaRef}
+            value={notepadContent}
+            onChange={(e) => handleNotepadChange(e.target.value)}
+            placeholder={t('table.notepadPlaceholder')}
+            style={{
+              flex: 1, resize: 'none', border: 'none', outline: 'none',
+              background: 'repeating-linear-gradient(transparent, transparent 22px, rgba(122,100,64,0.25) 23px)',
+              backgroundPositionY: 4,
+              color: '#2a2418',
+              fontFamily: 'var(--font-body)', fontSize: 13, lineHeight: '23px',
+              padding: '4px 16px 16px',
+            }}
+          />
         </div>,
         document.body
       )}

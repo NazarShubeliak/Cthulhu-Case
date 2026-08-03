@@ -9,7 +9,7 @@ const useUIStore = create(
       glitchText: true,
       showLatin: true,
       lang: 'en',
-      brightness: 0,   // 0 = dark (default), 1 = medium, 2 = lighter
+      theme: 'dark',   // 'dark' (default) | 'light' (aged newspaper)
       fontSize: 'md',  // 'sm' | 'md' | 'lg'
       sidebarHidden: false,
 
@@ -18,7 +18,7 @@ const useUIStore = create(
       setGlitchText: (v) => set({ glitchText: v }),
       setShowLatin: (v) => set({ showLatin: v }),
       setLang: (v) => set({ lang: v }),
-      setBrightness: (v) => set({ brightness: v }),
+      setTheme: (v) => set({ theme: v }),
       setFontSize: (v) => set({ fontSize: v }),
       toggleSidebar: () => set((s) => ({ sidebarHidden: !s.sidebarHidden })),
     }),

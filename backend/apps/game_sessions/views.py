@@ -280,8 +280,13 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
             raise PermissionDenied(_('Не можна видалити картку майстра.'))
         session_id = instance.session_id
         card_id = instance.id
+        # Pins cascade-delete in the DB with their parent map, but that doesn't
+        # fire per-object signals — broadcast their removal explicitly too.
+        pin_ids = list(instance.pins.values_list('id', flat=True))
         instance.delete()
         broadcast(session_id, {'type': 'card.deleted', 'card_id': card_id})
+        for pin_id in pin_ids:
+            broadcast(session_id, {'type': 'card.deleted', 'card_id': pin_id})
 
     @action(detail=True, methods=['post'])
     def publish(self, request, session_pk=None, pk=None):
@@ -377,8 +382,21 @@ class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         session_id = instance.session_id
         thread_id = instance.id
+        card_from = instance.card_from
+        card_to = instance.card_to
         instance.delete()
         broadcast(session_id, {'type': 'thread.deleted', 'thread_id': thread_id})
+
+        # A pin exists only to anchor a thread on a map — once its last
+        # thread is gone, drop the pin too instead of leaving it stranded.
+        for card in (card_from, card_to):
+            if card.type != 'pin':
+                continue
+            if Thread.objects.filter(Q(card_from=card) | Q(card_to=card)).exists():
+                continue
+            card_id = card.id
+            card.delete()
+            broadcast(session_id, {'type': 'card.deleted', 'card_id': card_id})
 
 
 class NoteViewSet(SessionMixin, viewsets.ModelViewSet):

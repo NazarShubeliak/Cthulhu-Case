@@ -26,6 +26,8 @@ const useTableStore = create((set) => ({
   replaceCard: (card) => set((s) => ({ cards: s.cards.map((c) => (c.id === card.id ? { ...c, ...card } : c)) })),
   moveCard: (cardId, pos_x, pos_y) =>
     set((s) => ({ cards: s.cards.map((c) => (c.id === cardId ? { ...c, pos_x, pos_y } : c)) })),
+  resizeCard: (cardId, width, height) =>
+    set((s) => ({ cards: s.cards.map((c) => (c.id === cardId ? { ...c, width, height } : c)) })),
   removeCard: (cardId) => set((s) => ({ cards: s.cards.filter((c) => c.id !== cardId) })),
 
   addThread: (thread) => set((s) => ({

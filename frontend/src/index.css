@@ -12,6 +12,8 @@
   --cream: #e8d8b8;
   --blood: #7a2a25;
   --blood-bright: #c8634d;
+  --board-public: #1a1410;
+  --board-personal: #111a13;
   --font-display: 'IM Fell English', Georgia, serif;
   --font-mono: 'JetBrains Mono', 'Courier New', monospace;
   --font-body: 'Lora', Georgia, serif;
@@ -67,18 +69,34 @@ body::after {
     radial-gradient(80% 60% at 50% 110%, transparent 40%, rgba(0,0,0,0.3) 100%);
 }
 
-/* ── Brightness presets ── */
-body.brightness-1 {
-  --ink-0: #1e1914;
-  --ink-1: #26201a;
-  --ink-2: #2e271f;
-  --ink-3: #362e24;
+/* ── Light theme: aged, sun-yellowed newsprint ── */
+body.theme-light {
+  --ink-0: #cdb888;
+  --ink-1: #e0cfa0;
+  --ink-2: #e8dbb4;
+  --ink-3: #eee3c4;
+  --ochre: #6b4a24;
+  --ochre-bright: #83591f;
+  --ochre-deep: #c2a878;
+  --ochre-dim: #7a5c34;
+  --moss: #4a3a26;
+  --moss-pale: #63512f;
+  --cream: #2b2013;
+  --blood: #7a2a25;
+  --blood-bright: #8a3020;
+  --board-public: #ad8a58;
+  --board-personal: #8f8c5f;
 }
-body.brightness-2 {
-  --ink-0: #2e2820;
-  --ink-1: #38312a;
-  --ink-2: #423a32;
-  --ink-3: #4c443a;
+
+body.theme-light::before {
+  mix-blend-mode: multiply;
+  opacity: var(--grain-opacity, 0.05);
+}
+
+body.theme-light::after {
+  background:
+    radial-gradient(110% 80% at 50% 0%, transparent 50%, rgba(112, 84, 40, 0.22) 100%),
+    radial-gradient(80% 60% at 50% 110%, transparent 40%, rgba(112, 84, 40, 0.18) 100%);
 }
 
 /* ── Font size presets (zoom on shell scales inline px too) ── */

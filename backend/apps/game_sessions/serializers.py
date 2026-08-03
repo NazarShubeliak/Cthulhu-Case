@@ -59,6 +59,14 @@ class CardSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=True,
     )
+    parent_map_id = serializers.PrimaryKeyRelatedField(
+        queryset=Card.objects.all(),
+        source='parent_map',
+        write_only=True,
+        required=False,
+        allow_null=True,
+    )
+    parent_map = serializers.PrimaryKeyRelatedField(read_only=True)
     image = serializers.SerializerMethodField()
     image_upload = serializers.ImageField(source='image', write_only=True, required=False, allow_null=True)
 
@@ -70,8 +78,8 @@ class CardSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
         fields = ['id', 'session', 'type', 'title', 'content', 'image', 'image_upload',
-                  'created_by', 'owner', 'owner_id', 'is_public', 'is_pinned',
-                  'pos_x', 'pos_y', 'drawing_data', 'created_at', 'updated_at']
+                  'created_by', 'owner', 'owner_id', 'parent_map_id', 'parent_map', 'is_public', 'is_pinned',
+                  'pos_x', 'pos_y', 'width', 'height', 'drawing_data', 'created_at', 'updated_at']
         read_only_fields = ['session', 'created_by', 'created_at', 'updated_at']
 
 

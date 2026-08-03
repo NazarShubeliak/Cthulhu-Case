@@ -45,7 +45,7 @@ export default function AppLayout() {
   const { t, i18n } = useTranslation()
   const user = useAuthStore((s) => s.user)
   const crumbs = getBreadcrumb(location.pathname, t)
-  const { grain, showLatin, lang, brightness, fontSize, sidebarHidden, toggleSidebar } = useUIStore()
+  const { grain, showLatin, lang, theme, fontSize, sidebarHidden, toggleSidebar } = useUIStore()
 
   useEffect(() => {
     document.documentElement.style.setProperty('--grain-opacity', grain ? '0.07' : '0')
@@ -56,9 +56,8 @@ export default function AppLayout() {
   }, [lang, i18n])
 
   useEffect(() => {
-    document.body.classList.remove('brightness-0', 'brightness-1', 'brightness-2')
-    document.body.classList.add(`brightness-${brightness}`)
-  }, [brightness])
+    document.body.classList.toggle('theme-light', theme === 'light')
+  }, [theme])
 
   useEffect(() => {
     document.documentElement.classList.remove('font-sm', 'font-md', 'font-lg')
