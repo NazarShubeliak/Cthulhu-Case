@@ -299,3 +299,43 @@ class TestCardTransfer:
         call_args = mock_sync.call_args_list
         # перевіряємо що викликали group_send
         assert any('group_send' in str(c) for c in call_args)
+
+
+@pytest.mark.django_db
+class TestLoadCampaign:
+    def _url(self, session_id):
+        return f'/api/sessions/{session_id}/load-campaign/'
+
+    def test_loads_assets_and_npc_dossiers_as_cards(self, api_client, db):
+        from apps.campaigns.tests.factories import CampaignFactory, CampaignAssetFactory, NPCFactory
+
+        session = SessionFactory(status='lobby')
+        campaign = CampaignFactory(master=session.master)
+        CampaignAssetFactory(campaign=campaign, type='document', title='Лист', content='Текст листа')
+        NPCFactory(
+            campaign=campaign, name='Джонас Різ',
+            occupation='Бібліотекар', appearance='Худий, сивий',
+            description='Тримається насторожено', secret_info='Насправді культист',
+        )
+
+        api_client.force_authenticate(user=session.master)
+        res = api_client.post(self._url(session.id), {'campaign_id': campaign.id})
+
+        assert res.status_code == status.HTTP_201_CREATED
+        assert res.data['created'] == 2
+
+        npc_card = next(c for c in res.data['cards'] if c['type'] == 'npc')
+        assert npc_card['title'] == 'Джонас Різ'
+        assert 'Насправді культист' not in npc_card['content']
+        assert 'Бібліотекар' in npc_card['content']
+        assert 'Худий, сивий' in npc_card['content']
+
+    def test_fails_when_campaign_has_no_content(self, api_client, db):
+        from apps.campaigns.tests.factories import CampaignFactory
+
+        session = SessionFactory(status='lobby')
+        campaign = CampaignFactory(master=session.master)
+
+        api_client.force_authenticate(user=session.master)
+        res = api_client.post(self._url(session.id), {'campaign_id': campaign.id})
+        assert res.status_code == status.HTTP_400_BAD_REQUEST

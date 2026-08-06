@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CampaignViewSet, ActViewSet, SceneViewSet, NPCViewSet, SceneCardViewSet, CampaignAssetViewSet
+from .views import CampaignViewSet, ActViewSet, SceneViewSet, NPCViewSet, CampaignAssetViewSet
 
 router = DefaultRouter()
 router.register(r'', CampaignViewSet, basename='campaign')
@@ -19,14 +19,6 @@ urlpatterns = [
          SceneViewSet.as_view({'get': 'list', 'post': 'create'}), name='act-scenes'),
     path('<int:campaign_pk>/acts/<int:act_pk>/scenes/<int:pk>/',
          SceneViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}), name='act-scene-detail'),
-
-    # Scene cards
-    path('<int:campaign_pk>/acts/<int:act_pk>/scenes/<int:scene_pk>/cards/',
-         SceneCardViewSet.as_view({'get': 'list', 'post': 'create'}), name='scene-cards'),
-    path('<int:campaign_pk>/acts/<int:act_pk>/scenes/<int:scene_pk>/cards/<int:pk>/',
-         SceneCardViewSet.as_view({'get': 'retrieve', 'delete': 'destroy'}), name='scene-card-detail'),
-    path('<int:campaign_pk>/acts/<int:act_pk>/scenes/<int:scene_pk>/cards/<int:pk>/send/',
-         SceneCardViewSet.as_view({'post': 'send'}), name='scene-card-send'),
 
     # NPCs
     path('<int:campaign_pk>/npcs/',

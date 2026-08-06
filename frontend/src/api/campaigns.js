@@ -49,13 +49,3 @@ export const createAsset = (campaignId, data) => {
 }
 export const updateAsset = (campaignId, assetId, data) => api.patch(`/campaigns/${campaignId}/assets/${assetId}/`, data)
 export const deleteAsset = (campaignId, assetId) => api.delete(`/campaigns/${campaignId}/assets/${assetId}/`)
-
-// Scene cards
-export const getSceneCards = (campaignId, actId, sceneId) =>
-  api.get(`/campaigns/${campaignId}/acts/${actId}/scenes/${sceneId}/cards/`)
-export const addSceneCard = (campaignId, actId, sceneId, data) =>
-  api.post(`/campaigns/${campaignId}/acts/${actId}/scenes/${sceneId}/cards/`, data)
-export const sendSceneCard = (campaignId, actId, sceneId, cardId, data) =>
-  api.post(`/campaigns/${campaignId}/acts/${actId}/scenes/${sceneId}/cards/${cardId}/send/`, data)
-export const deleteSceneCard = (campaignId, actId, sceneId, cardId) =>
-  api.delete(`/campaigns/${campaignId}/acts/${actId}/scenes/${sceneId}/cards/${cardId}/`)

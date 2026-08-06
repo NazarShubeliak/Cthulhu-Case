@@ -137,7 +137,7 @@ export default function LobbyPage() {
     getCampaigns()
       .then(res => {
         const all = res.data.results ?? res.data
-        setCampaigns(all.filter(c => (c.asset_count ?? 0) > 0))
+        setCampaigns(all.filter(c => (c.asset_count ?? 0) + (c.npc_count ?? 0) > 0))
       })
       .catch(() => {})
   }, [session?.is_master])
@@ -412,9 +412,9 @@ export default function LobbyPage() {
                       </div>
                     )}
                   </div>
-                  {c.asset_count > 0 && (
+                  {(c.asset_count ?? 0) + (c.npc_count ?? 0) > 0 && (
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--ochre)', letterSpacing: '0.2em' }}>
-                      {c.asset_count} {t('lobby.assets')}
+                      {(c.asset_count ?? 0) + (c.npc_count ?? 0)} {t('lobby.assets')}
                     </div>
                   )}
                 </button>

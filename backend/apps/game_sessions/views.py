@@ -156,8 +156,9 @@ class SessionViewSet(viewsets.ModelViewSet):
             campaign = Campaign.objects.get(pk=campaign_id, master=request.user)
         except Campaign.DoesNotExist:
             return Response({'error': _('Кампанію не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
-        assets = CampaignAsset.objects.filter(campaign=campaign)
-        if not assets.exists():
+        assets = list(CampaignAsset.objects.filter(campaign=campaign))
+        npcs = list(campaign.npcs.all())
+        if not assets and not npcs:
             return Response({'error': _('У кампанії немає ассетів.')}, status=status.HTTP_400_BAD_REQUEST)
         COLS = 4
         CARD_W, CARD_H, GAP = 220, 160, 24
@@ -165,7 +166,7 @@ class SessionViewSet(viewsets.ModelViewSet):
         for i, asset in enumerate(assets):
             col = i % COLS
             row = i // COLS
-            card = Card(
+            cards.append(Card(
                 session=session,
                 type=asset.type,
                 title=asset.title,
@@ -176,8 +177,24 @@ class SessionViewSet(viewsets.ModelViewSet):
                 is_public=False,
                 pos_x=col * (CARD_W + GAP),
                 pos_y=row * (CARD_H + GAP),
-            )
-            cards.append(card)
+            ))
+        for j, npc in enumerate(npcs):
+            i = len(assets) + j
+            col = i % COLS
+            row = i // COLS
+            content = '\n\n'.join(filter(None, [npc.occupation, npc.appearance, npc.description]))
+            cards.append(Card(
+                session=session,
+                type='npc',
+                title=npc.name,
+                content=content,
+                image=npc.portrait_image if npc.portrait_image else None,
+                created_by=request.user,
+                owner=None,
+                is_public=False,
+                pos_x=col * (CARD_W + GAP),
+                pos_y=row * (CARD_H + GAP),
+            ))
         created_objs = Card.objects.bulk_create(cards)
         created_ids = [c.id for c in created_objs]
         created_qs = Card.objects.filter(id__in=created_ids).select_related('created_by', 'owner')

@@ -1,20 +1,15 @@
 from django.utils.translation import gettext_lazy as _
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework import viewsets
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from django.contrib.auth import get_user_model
 
-from .models import Campaign, Act, Scene, NPC, SceneCard, CampaignAsset
+from .models import Campaign, Act
 from .serializers import (
     CampaignListSerializer, CampaignSerializer,
-    ActListSerializer, ActSerializer,
+    ActSerializer,
     SceneListSerializer, SceneSerializer,
-    NPCSerializer, SceneCardSerializer, CampaignAssetSerializer,
+    NPCSerializer, CampaignAssetSerializer,
 )
-
-User = get_user_model()
 
 
 def get_campaign_for_master(campaign_pk, user):
@@ -33,14 +28,6 @@ def get_act_for_master(campaign_pk, act_pk, user):
         return campaign.acts.get(pk=act_pk), campaign
     except Act.DoesNotExist:
         raise NotFound(_('Акт не знайдено.'))
-
-
-def get_scene_for_master(campaign_pk, act_pk, scene_pk, user):
-    act, campaign = get_act_for_master(campaign_pk, act_pk, user)
-    try:
-        return act.scenes.get(pk=scene_pk), act, campaign
-    except Scene.DoesNotExist:
-        raise NotFound(_('Сцену не знайдено.'))
 
 
 class CampaignViewSet(viewsets.ModelViewSet):
@@ -91,7 +78,7 @@ class SceneViewSet(viewsets.ModelViewSet):
         act, _ = get_act_for_master(
             self.kwargs['campaign_pk'], self.kwargs['act_pk'], self.request.user
         )
-        return act.scenes.prefetch_related('npcs', 'scene_cards__card', 'scene_cards__sent_to')
+        return act.scenes.all()
 
     def perform_create(self, serializer):
         act, _ = get_act_for_master(
@@ -106,7 +93,7 @@ class NPCViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         campaign = get_campaign_for_master(self.kwargs['campaign_pk'], self.request.user)
-        return campaign.npcs.prefetch_related('scenes')
+        return campaign.npcs.all()
 
     def perform_create(self, serializer):
         campaign = get_campaign_for_master(self.kwargs['campaign_pk'], self.request.user)
@@ -124,64 +111,3 @@ class CampaignAssetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         campaign = get_campaign_for_master(self.kwargs['campaign_pk'], self.request.user)
         serializer.save(campaign=campaign)
-
-
-class SceneCardViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    serializer_class = SceneCardSerializer
-
-    def get_queryset(self):
-        scene, _, _ = get_scene_for_master(
-            self.kwargs['campaign_pk'], self.kwargs['act_pk'],
-            self.kwargs['scene_pk'], self.request.user
-        )
-        return scene.scene_cards.select_related('card', 'sent_to')
-
-    def perform_create(self, serializer):
-        scene, _, _ = get_scene_for_master(
-            self.kwargs['campaign_pk'], self.kwargs['act_pk'],
-            self.kwargs['scene_pk'], self.request.user
-        )
-        serializer.save(scene=scene)
-
-    @action(detail=True, methods=['post'])
-    def send(self, request, campaign_pk=None, act_pk=None, scene_pk=None, pk=None):
-        scene_card = self.get_object()
-        sent_to_id = request.data.get('sent_to_id')
-
-        if scene_card.is_sent:
-            return Response({'error': _('Картку вже відправлено.')}, status=status.HTTP_400_BAD_REQUEST)
-
-        card = scene_card.card
-        if sent_to_id:
-            try:
-                player = User.objects.get(pk=sent_to_id)
-            except User.DoesNotExist:
-                return Response({'error': _('Гравця не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
-            session = card.session
-            if not session.players.filter(pk=player.pk).exists():
-                return Response({'error': _('Гравець не є учасником цієї сесії.')}, status=status.HTTP_400_BAD_REQUEST)
-            card.owner = player
-            card.is_public = False
-        else:
-            card.is_public = True
-
-        card.save()
-
-        try:
-            from apps.game_sessions.serializers import CardSerializer as GameCardSerializer
-            from asgiref.sync import async_to_sync
-            from channels.layers import get_channel_layer
-            card_data = GameCardSerializer(card, context={'request': request}).data
-            async_to_sync(get_channel_layer().group_send)(
-                f'session_{card.session_id}',
-                {'type': 'card.created', 'card': card_data},
-            )
-        except Exception:
-            pass
-
-        scene_card.sent_to_id = sent_to_id
-        scene_card.is_sent = True
-        scene_card.save()
-
-        return Response(SceneCardSerializer(scene_card, context={'request': request}).data)

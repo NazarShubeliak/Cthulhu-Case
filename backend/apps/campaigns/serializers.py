@@ -1,11 +1,6 @@
-from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from apps.users.serializers import UserSerializer
-from apps.game_sessions.models import Card
-from apps.game_sessions.serializers import CardSerializer
-from .models import Campaign, Act, Scene, NPC, SceneCard, CampaignAsset
-
-User = get_user_model()
+from .models import Campaign, Act, Scene, NPC, CampaignAsset
 
 
 class CampaignAssetSerializer(serializers.ModelSerializer):
@@ -15,60 +10,18 @@ class CampaignAssetSerializer(serializers.ModelSerializer):
         read_only_fields = ['campaign']
 
 
-class SceneCardSerializer(serializers.ModelSerializer):
-    card = CardSerializer(read_only=True)
-    card_id = serializers.PrimaryKeyRelatedField(
-        write_only=True, source='card', queryset=Card.objects.all()
-    )
-    sent_to = UserSerializer(read_only=True)
-    sent_to_id = serializers.PrimaryKeyRelatedField(
-        write_only=True, source='sent_to',
-        required=False, allow_null=True,
-        queryset=User.objects.all()
-    )
-
-    class Meta:
-        model = SceneCard
-        fields = ['id', 'scene', 'card', 'card_id', 'sent_to', 'sent_to_id', 'is_sent']
-        read_only_fields = ['scene', 'card', 'sent_to', 'is_sent']
-
-
 class NPCSerializer(serializers.ModelSerializer):
-    scene_ids = serializers.PrimaryKeyRelatedField(
-        many=True, write_only=True, source='scenes',
-        queryset=Scene.objects.all(), required=False
-    )
-    scenes = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
-
     class Meta:
         model = NPC
-        fields = ['id', 'campaign', 'name', 'description', 'secret_info',
-                  'portrait_image', 'scenes', 'scene_ids']
+        fields = ['id', 'campaign', 'name', 'age', 'occupation', 'appearance', 'status',
+                  'description', 'secret_info', 'portrait_image']
         read_only_fields = ['campaign']
-
-    def create(self, validated_data):
-        scenes = validated_data.pop('scenes', [])
-        npc = NPC.objects.create(**validated_data)
-        if scenes:
-            npc.scenes.set(scenes)
-        return npc
-
-    def update(self, instance, validated_data):
-        scenes = validated_data.pop('scenes', None)
-        instance = super().update(instance, validated_data)
-        if scenes is not None:
-            instance.scenes.set(scenes)
-        return instance
 
 
 class SceneSerializer(serializers.ModelSerializer):
-    npcs = NPCSerializer(many=True, read_only=True)
-    scene_cards = SceneCardSerializer(many=True, read_only=True)
-
     class Meta:
         model = Scene
-        fields = ['id', 'act', 'title', 'description', 'master_notes',
-                  'order', 'npcs', 'scene_cards']
+        fields = ['id', 'act', 'title', 'description', 'master_notes', 'order']
         read_only_fields = ['act']
 
 
@@ -110,13 +63,17 @@ class CampaignListSerializer(serializers.ModelSerializer):
     master = UserSerializer(read_only=True)
     act_count = serializers.SerializerMethodField()
     asset_count = serializers.SerializerMethodField()
+    npc_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Campaign
-        fields = ['id', 'master', 'title', 'setting', 'era', 'act_count', 'asset_count', 'created_at']
+        fields = ['id', 'master', 'title', 'setting', 'era', 'act_count', 'asset_count', 'npc_count', 'created_at']
 
     def get_act_count(self, obj):
         return obj.acts.count()
 
     def get_asset_count(self, obj):
         return obj.assets.count()
+
+    def get_npc_count(self, obj):
+        return obj.npcs.count()

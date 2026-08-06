@@ -50,12 +50,21 @@ class Scene(models.Model):
 
 
 class NPC(models.Model):
+    STATUS_CHOICES = [
+        ('alive', 'Alive'),
+        ('dead', 'Dead'),
+        ('missing', 'Missing'),
+        ('suspect', 'Suspect'),
+    ]
     campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='npcs')
     name = models.CharField(max_length=200)
+    age = models.CharField(max_length=50, blank=True)
+    occupation = models.CharField(max_length=200, blank=True)
+    appearance = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='alive')
     description = models.TextField(blank=True)
     secret_info = models.TextField(blank=True)
     portrait_image = models.ImageField(upload_to='npcs/', null=True, blank=True)
-    scenes = models.ManyToManyField(Scene, related_name='npcs', blank=True)
 
     class Meta:
         db_table = 'campaign_npcs'
@@ -67,10 +76,10 @@ class NPC(models.Model):
 
 class CampaignAsset(models.Model):
     ASSET_TYPES = [
-        ('npc', 'NPC'),
         ('document', 'Document'),
         ('photo', 'Photo'),
         ('note', 'Note'),
+        ('map', 'Map'),
     ]
     campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name='assets')
     type = models.CharField(max_length=20, choices=ASSET_TYPES)
@@ -85,22 +94,3 @@ class CampaignAsset(models.Model):
 
     def __str__(self):
         return f'{self.type}: {self.title}'
-
-
-class SceneCard(models.Model):
-    scene = models.ForeignKey(Scene, on_delete=models.CASCADE, related_name='scene_cards')
-    card = models.ForeignKey(
-        'game_sessions.Card', on_delete=models.CASCADE, related_name='scene_cards'
-    )
-    sent_to = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='received_scene_cards'
-    )
-    is_sent = models.BooleanField(default=False)
-
-    class Meta:
-        db_table = 'campaign_scene_cards'
-        unique_together = [['scene', 'card']]
-
-    def __str__(self):
-        return f'{self.card} → {self.scene}'
