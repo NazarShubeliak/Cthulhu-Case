@@ -35,6 +35,14 @@ fi
 # ── .env: генерується один раз при першому деплої, далі не чіпається ─────
 "$SCRIPTS_DIR/init_env.sh"
 
+# .env from before the prod stack existed — switch it over (data volumes are
+# shared between both compose files, nothing is lost)
+if ! grep -q '^COMPOSE_FILE=' .env; then
+    echo -e "${CYAN}Перемикаю сервер на docker-compose.prod.yml...${NC}"
+    { echo; echo "COMPOSE_FILE=docker-compose.prod.yml"; } >> .env
+    docker compose -f docker-compose.yml down --remove-orphans || true
+fi
+
 SERVER_IP=$(curl -s -4 ifconfig.me || hostname -I | awk '{print $1}')
 HTTP_PORT=$(grep -m1 '^HTTP_PORT=' .env | cut -d= -f2)
 HTTP_PORT="${HTTP_PORT:-8080}"

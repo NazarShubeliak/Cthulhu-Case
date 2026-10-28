@@ -1,0 +1,7 @@
+# Build context for nginx/Dockerfile (repo root) — it only needs frontend/ and nginx/
+.git
+backend
+scripts
+**/node_modules
+frontend/dist
+.env

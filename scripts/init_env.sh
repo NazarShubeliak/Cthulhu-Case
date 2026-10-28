@@ -29,6 +29,9 @@ sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${SECRET_KEY}|"                             
 sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=${DB_PASSWORD}|"                                           .env
 sed -i "s|^ALLOWED_HOSTS=.*|ALLOWED_HOSTS=localhost,127.0.0.1,${SERVER_IP}|"                     .env
 sed -i "s|^CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${SERVER_IP}:${HTTP_PORT}|"       .env
+sed -i "s|^DEBUG=.*|DEBUG=False|"                                                                .env
+# Every `docker compose` call (and every script) on this server uses the prod stack
+{ echo; echo "COMPOSE_FILE=docker-compose.prod.yml"; } >> .env
 
 echo ""
 echo "Готово! Згенеровано автоматично:"
@@ -38,5 +41,5 @@ echo ""
 echo "Сайт слухатиме зовнішній порт ${HTTP_PORT} (не 80) — постав HTTP_PORT=80 в .env,"
 echo "якщо порт 80 на цьому сервері вільний і хочеш саме його."
 echo ""
-echo "DEBUG=True лишається за замовчуванням (з .env.example)."
-echo "Постав DEBUG=False в .env, коли перейдеш на постійний прод з доменом."
+echo "DEBUG=False і COMPOSE_FILE=docker-compose.prod.yml — сервер працює в production-режимі"
+echo "(зібраний фронтенд через nginx, без Vite dev-сервера)."

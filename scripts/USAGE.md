@@ -115,6 +115,17 @@
 
 > На відміну від `reset.sh`, цей скрипт нічого не видаляє — підходить для щоденного деплою/оновлення.
 
+### Dev vs prod compose
+
+| Файл | Де | Що всередині |
+|------|----|--------------|
+| `docker-compose.yml` | локально (розробка) | Vite dev-сервер з HMR, код бекенду змонтований з хоста, `DEBUG=True` |
+| `docker-compose.prod.yml` | сервер | фронтенд зібраний у статику і роздається nginx (`nginx/Dockerfile`), код запечений в образ, `DEBUG=False`, `restart: unless-stopped`, ротація логів, Redis без снапшотів |
+
+На сервері вибір робить рядок `COMPOSE_FILE=docker-compose.prod.yml` у `.env` — його дописують `init_env.sh` (новий сервер) і `deploy.sh` (старий `.env`). Тому всі `docker compose ...` і всі скрипти на сервері автоматично працюють з prod-стеком. Volumes (`postgres_data`, `media_data`) спільні — перемикання дані не чіпає.
+
+> Prod-стек займає ~160 MB RAM. Зміни в коді на сервері підхоплюються лише після `./scripts/deploy.sh` (rebuild образів).
+
 ---
 
 ## Типовий workflow

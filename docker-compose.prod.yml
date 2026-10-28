@@ -1,0 +1,89 @@
+# Production stack. Picked up automatically on the server through
+# COMPOSE_FILE=docker-compose.prod.yml in .env (written by scripts/init_env.sh),
+# so every `docker compose ...` command and every script uses it.
+#
+# Differences from the dev docker-compose.yml:
+#   - the frontend is built once into static files served by nginx (no Vite dev server)
+#   - backend code is baked into the image, not mounted from the host
+#   - DEBUG=False by default
+#   - containers restart on crash / server reboot, logs are capped
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_DB: ${DB_NAME:-cthulhu_db}
+      POSTGRES_USER: ${DB_USER:-cthulhu}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-cthulhu_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cthulhu} -d ${DB_NAME:-cthulhu_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logging
+    # Redis only carries live WebSocket traffic — nothing worth persisting, and
+    # a failed snapshot (MISCONF) would otherwise block every write.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web:
+    build: ./backend
+    restart: unless-stopped
+    logging: *logging
+    command: sh -c "python manage.py migrate --noinput && python manage.py compilemessages && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:?ALLOWED_HOSTS must be set in .env}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - DB_NAME=${DB_NAME:-cthulhu_db}
+      - DB_USER=${DB_USER:-cthulhu}
+      - DB_PASSWORD=${DB_PASSWORD:-cthulhu_secret}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - media_data:/app/media:ro
+      - static_data:/app/staticfiles:ro
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  media_data:
+  static_data:
