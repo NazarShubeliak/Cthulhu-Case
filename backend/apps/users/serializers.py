@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from apps.images import ResizedImagesModelSerializer
 from .models import User
 
 
@@ -27,7 +28,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserSerializer(ResizedImagesModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'role', 'avatar', 'bio', 'date_joined')

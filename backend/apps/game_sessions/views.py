@@ -1,4 +1,7 @@
+import asyncio
+import logging
 import random
+import uuid
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils.translation import gettext_lazy as _
@@ -17,11 +20,27 @@ from .serializers import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
+
+BROADCAST_TIMEOUT_S = 3
+MAX_SKETCH_POINTS = 20_000
 
 
 def broadcast(session_id, message):
+    """Best-effort real-time fan-out. The DB write has already happened by now,
+    so a slow or unreachable Redis must never hang or fail the HTTP request."""
     channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(f'session_{session_id}', message)
+
+    async def _send():
+        await asyncio.wait_for(
+            channel_layer.group_send(f'session_{session_id}', message),
+            timeout=BROADCAST_TIMEOUT_S,
+        )
+
+    try:
+        async_to_sync(_send)()
+    except Exception as e:
+        logger.warning('broadcast %s to session %s failed: %r', message.get('type'), session_id, e)
 
 
 class SessionViewSet(viewsets.ModelViewSet):
@@ -39,6 +58,16 @@ class SessionViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return SessionListSerializer
         return SessionDetailSerializer
+
+    def perform_update(self, serializer):
+        if serializer.instance.master != self.request.user:
+            raise PermissionDenied(_('Тільки майстер може змінювати сесію.'))
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.master != self.request.user:
+            raise PermissionDenied(_('Тільки майстер може видалити сесію.'))
+        instance.delete()
 
     def create(self, request, *args, **kwargs):
         serializer = SessionCreateSerializer(data=request.data)
@@ -128,7 +157,7 @@ class SessionViewSet(viewsets.ModelViewSet):
             character = Character.objects.get(id=character_id, user=request.user)
         except Character.DoesNotExist:
             return Response({'error': _('Персонажа не знайдено.')}, status=status.HTTP_404_NOT_FOUND)
-        obj, _ = SessionCharacter.objects.update_or_create(
+        obj, _created = SessionCharacter.objects.update_or_create(
             session=session, player=request.user,
             defaults={'character': character},
         )
@@ -212,11 +241,15 @@ class SessionViewSet(viewsets.ModelViewSet):
         dice_type = request.data.get('dice_type', 'd100')
         if dice_type not in DICE:
             return Response({'error': _('Невідомий тип кубика.')}, status=status.HTTP_400_BAD_REQUEST)
-        count = max(1, min(10, int(request.data.get('count', 1))))
+        try:
+            count = max(1, min(10, int(request.data.get('count', 1))))
+        except (TypeError, ValueError):
+            return Response({'error': _('Невірна кількість кубиків.')}, status=status.HTTP_400_BAD_REQUEST)
         sides = DICE[dice_type]
         results = [random.randint(1, sides) for _ in range(count)]
         total = sum(results)
         payload = {
+            'roll_id': uuid.uuid4().hex,
             'dice_type': dice_type, 'count': count,
             'results': results, 'total': total,
             'rolled_by': request.user.username,
@@ -226,9 +259,7 @@ class SessionViewSet(viewsets.ModelViewSet):
             'tier': None,
             'visible_to_all': True,
         }
-        async_to_sync(get_channel_layer().group_send)(
-            f'session_{pk}', {'type': 'dice.rolled', **payload}
-        )
+        broadcast(pk, {'type': 'dice.rolled', **payload})
         return Response(payload)
 
 
@@ -245,9 +276,22 @@ class SessionMixin:
         return session
 
 
+# A table loads everything at once — a paginated board would silently drop
+# whatever sits past the first page on reload.
 class CardViewSet(SessionMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = CardSerializer
+    pagination_class = None
+
+    def validate_relations(self, serializer, session):
+        """The serializer accepts any user/card id — keep them inside this session."""
+        data = serializer.validated_data
+        owner = data.get('owner')
+        if owner is not None and not session.is_participant(owner):
+            raise ValidationError({'owner_id': _('Власник не є учасником сесії.')})
+        parent_map = data.get('parent_map')
+        if parent_map is not None and (parent_map.session_id != session.id or parent_map.type != 'map'):
+            raise ValidationError({'parent_map_id': _('Мапу не знайдено в цій сесії.')})
 
     def get_queryset(self):
         session = self.get_session()
@@ -261,6 +305,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         session = self.get_session()
+        self.validate_relations(serializer, session)
         card = serializer.save(session=session, created_by=self.request.user)
         if card.is_public or card.owner_id:
             broadcast(session.id, {
@@ -276,6 +321,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
             and session.master != self.request.user
         ):
             raise PermissionDenied(_('Недостатньо прав для редагування цієї картки.'))
+        self.validate_relations(serializer, session)
         card = serializer.save()
         if position_only:
             broadcast(session.id, {
@@ -329,8 +375,12 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
             card.drawing_data = []
         else:
             new_strokes = request.data.get('strokes', [])
-            if not isinstance(new_strokes, list):
+            if not isinstance(new_strokes, list) or not all(isinstance(s, list) for s in new_strokes):
                 return Response({'error': 'Invalid strokes format.'}, status=status.HTTP_400_BAD_REQUEST)
+            # Every append is re-sent to the whole table — keep a sketch bounded
+            total_points = sum(len(s) for s in card.drawing_data) + sum(len(s) for s in new_strokes)
+            if total_points > MAX_SKETCH_POINTS:
+                return Response({'error': _('Ескіз переповнений — очистіть його.')}, status=status.HTTP_400_BAD_REQUEST)
             card.drawing_data = card.drawing_data + new_strokes
         card.save(update_fields=['drawing_data'])
         data = CardSerializer(card, context={'request': request}).data
@@ -341,6 +391,8 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
     def pin(self, request, session_pk=None, pk=None):
         card = self.get_object()
         session = self.get_session()
+        if request.user != session.master and request.user != card.created_by:
+            return Response({'error': _('Недостатньо прав.')}, status=status.HTTP_403_FORBIDDEN)
         card.is_pinned = not card.is_pinned
         card.save(update_fields=['is_pinned'])
         data = CardSerializer(card, context={'request': request}).data
@@ -379,6 +431,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
 class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ThreadSerializer
+    pagination_class = None
 
     def get_queryset(self):
         session = self.get_session()
@@ -387,6 +440,9 @@ class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         from django.db import IntegrityError
         session = self.get_session()
+        for field in ('card_from', 'card_to'):
+            if serializer.validated_data[field].session_id != session.id:
+                raise ValidationError({f'{field}_id': _('Картку не знайдено в цій сесії.')})
         try:
             thread = serializer.save(session=session, created_by=self.request.user)
         except IntegrityError:
@@ -419,6 +475,7 @@ class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
 class NoteViewSet(SessionMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = NoteSerializer
+    pagination_class = None
 
     def get_queryset(self):
         session = self.get_session()

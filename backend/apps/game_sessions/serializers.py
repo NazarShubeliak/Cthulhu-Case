@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+from apps.images import ResizedImageField
 from apps.users.serializers import UserSerializer
 from .models import Session, Card, Note, Thread, SessionCharacter
 
@@ -33,6 +34,8 @@ class SessionDetailSerializer(serializers.ModelSerializer):
         model = Session
         fields = ['id', 'name', 'description', 'status', 'master', 'players',
                   'is_master', 'is_participant', 'join_code', 'created_at']
+        # Status moves only through the start/close actions
+        read_only_fields = ['status', 'join_code']
 
     def get_is_master(self, obj):
         request = self.context.get('request')
@@ -68,7 +71,7 @@ class CardSerializer(serializers.ModelSerializer):
     )
     parent_map = serializers.PrimaryKeyRelatedField(read_only=True)
     image = serializers.SerializerMethodField()
-    image_upload = serializers.ImageField(source='image', write_only=True, required=False, allow_null=True)
+    image_upload = ResizedImageField(source='image', write_only=True, required=False, allow_null=True)
 
     def get_image(self, obj):
         if obj.image:

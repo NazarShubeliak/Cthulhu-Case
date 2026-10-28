@@ -82,7 +82,7 @@ class TestActs:
         ActFactory(campaign=campaign)
         api_client.force_authenticate(user=campaign.master)
         res = api_client.get(self.url(campaign.id))
-        results = res.data.get('results', res.data)
+        results = res.data
         assert len(results) == 2
 
     def test_non_master_denied(self, api_client, db):
@@ -122,7 +122,7 @@ class TestScenes:
         SceneFactory(act=act)
         api_client.force_authenticate(user=act.campaign.master)
         res = api_client.get(self.url(act.campaign.id, act.id))
-        results = res.data.get('results', res.data)
+        results = res.data
         assert len(results) == 2
 
     def test_update_master_notes(self, api_client, db):
@@ -156,7 +156,7 @@ class TestNPCs:
         NPCFactory(campaign=campaign)
         api_client.force_authenticate(user=campaign.master)
         res = api_client.get(self.url(campaign.id))
-        results = res.data.get('results', res.data)
+        results = res.data
         assert len(results) == 2
 
     def test_delete_npc(self, api_client, db):
@@ -197,7 +197,7 @@ class TestCampaignAssets:
         CampaignAssetFactory(campaign=campaign, type='photo')
         api_client.force_authenticate(user=campaign.master)
         res = api_client.get(self.url(campaign.id))
-        results = res.data.get('results', res.data)
+        results = res.data
         assert len(results) == 2
 
     def test_update_asset(self, api_client, db):

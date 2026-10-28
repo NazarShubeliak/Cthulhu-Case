@@ -2,6 +2,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
@@ -20,6 +21,8 @@ def get_tokens_for_user(user):
 
 class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
     serializer_class = RegisterSerializer
 
     def create(self, request, *args, **kwargs):
@@ -36,6 +39,8 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(generics.GenericAPIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'auth'
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):

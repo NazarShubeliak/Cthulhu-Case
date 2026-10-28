@@ -15,7 +15,7 @@ if not DEBUG:
     _allowed = config('ALLOWED_HOSTS', default='')
     if not _allowed:
         raise RuntimeError('ALLOWED_HOSTS must be set when DEBUG=False.')
-    ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',')]
+    ALLOWED_HOSTS = [h.strip() for h in _allowed.split(',') if h.strip()]
 else:
     ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 
@@ -118,6 +118,13 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+    # Only views that opt in via throttle_scope are limited (login/register)
+    'DEFAULT_THROTTLE_RATES': {
+        'auth': '20/min',
+    },
+    # Behind nginx every request comes from the proxy's IP — read the client
+    # address from X-Forwarded-For so friends don't share one throttle bucket.
+    'NUM_PROXIES': 1,
 }
 
 SIMPLE_JWT = {
@@ -133,7 +140,10 @@ SIMPLE_JWT = {
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000').split(',')
+    # The SPA is served from the same origin as the API, so an empty list is fine
+    CORS_ALLOWED_ORIGINS = [
+        o.strip() for o in config('CORS_ALLOWED_ORIGINS', default='').split(',') if o.strip()
+    ]
 
 CORS_ALLOW_CREDENTIALS = True
 

@@ -12,17 +12,23 @@ class TableConsumer(AsyncWebsocketConsumer):
         self.session_id = self.scope['url_route']['kwargs']['session_id']
         self.group_name = f'session_{self.session_id}'
 
+        # Accept before rejecting: closing an unaccepted socket makes the browser
+        # see a bare 1006, while these codes tell the client what went wrong
+        # (4001 → refresh the token and retry, 4003 → stop retrying).
         user = await self.get_user_from_token()
         if user is None:
+            await self.accept()
             await self.close(code=4001)
             return
 
-        is_participant = await self.check_participant(user)
-        if not is_participant:
+        master_id = await self.get_master_id(user)
+        if master_id is None:
+            await self.accept()
             await self.close(code=4003)
             return
 
         self.user = user
+        self.is_master = master_id == user.id
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
@@ -43,6 +49,8 @@ class TableConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
+        if not hasattr(self, 'user'):
+            return
         try:
             msg = json.loads(text_data)
         except Exception:
@@ -74,9 +82,6 @@ class TableConsumer(AsyncWebsocketConsumer):
 
     # ── Event handlers (type dots → method underscores) ──
 
-    async def card_created(self, event):
-        await self.send(text_data=json.dumps({'type': 'card.created', 'card': event['card']}))
-
     async def card_moved(self, event):
         await self.send(text_data=json.dumps({
             'type': 'card.moved',
@@ -95,16 +100,34 @@ class TableConsumer(AsyncWebsocketConsumer):
             'moved_by': event['moved_by'],
         }))
 
+    def can_see_card(self, card):
+        """Mirror of CardViewSet.get_queryset: the group gets every card event,
+        but a private card must only reach the master and its owner."""
+        if card.get('is_public') or self.is_master:
+            return True
+        owner = card.get('owner') or {}
+        return owner.get('id') == self.user.id
+
+    async def card_created(self, event):
+        if not self.can_see_card(event['card']):
+            return
+        await self.send(text_data=json.dumps({'type': 'card.created', 'card': event['card']}))
+
     async def card_published(self, event):
         await self.send(text_data=json.dumps({'type': 'card.published', 'card': event['card']}))
 
     async def card_updated(self, event):
+        if not self.can_see_card(event['card']):
+            return
         await self.send(text_data=json.dumps({'type': 'card.updated', 'card': event['card']}))
 
     async def card_deleted(self, event):
         await self.send(text_data=json.dumps({'type': 'card.deleted', 'card_id': event['card_id']}))
 
     async def card_transferred(self, event):
+        # The previous owner still needs the event — it tells them to drop the card
+        if not self.can_see_card(event['card']) and event['from_user_id'] != self.user.id:
+            return
         await self.send(text_data=json.dumps({
             'type': 'card.transferred',
             'card': event['card'],
@@ -158,6 +181,9 @@ class TableConsumer(AsyncWebsocketConsumer):
         }))
 
     async def dice_rolled(self, event):
+        # A hidden roll is for the roller and the master only
+        if event.get('visible_to_all') is False and not self.is_master                 and event.get('rolled_by_id') != self.user.id:
+            return
         payload = {
             'type': 'dice.rolled',
             'dice_type': event['dice_type'],
@@ -166,7 +192,7 @@ class TableConsumer(AsyncWebsocketConsumer):
             'total': event['total'],
             'rolled_by': event['rolled_by'],
         }
-        for key in ('rolled_by_id', 'character_name', 'skill_name', 'tier', 'visible_to_all'):
+        for key in ('roll_id', 'rolled_by_id', 'character_name', 'skill_name', 'tier', 'visible_to_all'):
             if key in event:
                 payload[key] = event[key]
         await self.send(text_data=json.dumps(payload))
@@ -191,10 +217,11 @@ class TableConsumer(AsyncWebsocketConsumer):
             return None
 
     @database_sync_to_async
-    def check_participant(self, user):
+    def get_master_id(self, user):
+        """The session master's id if `user` takes part in the session, else None."""
         from .models import Session
         try:
             session = Session.objects.get(pk=self.session_id)
-            return session.is_participant(user)
         except Session.DoesNotExist:
-            return False
+            return None
+        return session.master_id if session.is_participant(user) else None

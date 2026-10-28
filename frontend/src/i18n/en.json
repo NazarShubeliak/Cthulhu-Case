@@ -413,6 +413,7 @@
     "diceTitle": "Dice · Alea",
     "diceCount": "Count:",
     "diceRoll": "Roll {{count}}{{type}}",
+    "diceError": "Could not roll the dice",
     "addCard": "Add Card",
     "rollDice": "🎲 Roll Dice",
     "view": "View",

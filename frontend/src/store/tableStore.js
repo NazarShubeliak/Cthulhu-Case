@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-const useTableStore = create((set) => ({
+const useTableStore = create((set, get) => ({
   cards: [],
   threads: [],
   notes: [],
@@ -52,12 +52,17 @@ const useTableStore = create((set) => ({
   removeConnectedUser: (userId) =>
     set((s) => ({ connectedUsers: s.connectedUsers.filter((u) => u.user_id !== userId) })),
 
+  // A roll reaches the roller twice — from the REST response and the WS echo —
+  // so rolls carrying a roll_id are deduplicated by it.
+  hasDiceRoll: (rollId) => !!rollId && get().diceLog.some((e) => e.roll_id === rollId),
+
   addDiceLog: (entry) =>
     set((s) => {
+      if (entry.roll_id && s.diceLog.some((e) => e.roll_id === entry.roll_id)) return s
       const ts = Date.now()
       const last = s.diceLog[0]
       // Deduplicate: skip if same roller + same total arrived within 500ms
-      if (last && last.rolled_by_id === entry.rolled_by_id && last.total === entry.total && ts - last.ts < 500) {
+      if (!entry.roll_id && last && last.rolled_by_id === entry.rolled_by_id && last.total === entry.total && ts - last.ts < 500) {
         return s
       }
       return { diceLog: [{ ...entry, ts }, ...s.diceLog].slice(0, 100) }

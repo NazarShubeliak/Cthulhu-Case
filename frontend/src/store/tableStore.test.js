@@ -134,6 +134,20 @@ describe('tableStore — diceLog', () => {
     expect(useTableStore.getState().diceLog).toHaveLength(2)
   })
 
+  it('addDiceLog — той самий roll_id (REST-відповідь + WS-ехо) додається один раз', () => {
+    useTableStore.getState().addDiceLog(diceEntry({ roll_id: 'r1', total: 12 }))
+    useTableStore.getState().addDiceLog(diceEntry({ roll_id: 'r1', total: 12 }))
+    expect(useTableStore.getState().diceLog).toHaveLength(1)
+    expect(useTableStore.getState().hasDiceRoll('r1')).toBe(true)
+    expect(useTableStore.getState().hasDiceRoll('r2')).toBe(false)
+  })
+
+  it('addDiceLog — однаковий результат з різними roll_id не губиться', () => {
+    useTableStore.getState().addDiceLog(diceEntry({ roll_id: 'r1', rolled_by_id: 1, total: 6 }))
+    useTableStore.getState().addDiceLog(diceEntry({ roll_id: 'r2', rolled_by_id: 1, total: 6 }))
+    expect(useTableStore.getState().diceLog).toHaveLength(2)
+  })
+
   it('addDiceLog — зберігає максимум 100 записів', () => {
     for (let i = 0; i < 110; i++) {
       useTableStore.getState().addDiceLog(diceEntry({ rolled_by_id: i, total: i + 1 }))

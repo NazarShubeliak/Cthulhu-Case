@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from apps.images import ResizedImagesModelSerializer
 from .models import Character, Skill, DiceRoll, Equipment, MentalScar
 
 
@@ -33,7 +34,7 @@ class MentalScarSerializer(serializers.ModelSerializer):
         read_only_fields = ('id',)
 
 
-class CharacterSerializer(serializers.ModelSerializer):
+class CharacterSerializer(ResizedImagesModelSerializer):
     skills = SkillSerializer(many=True, read_only=True)
     equipment = EquipmentSerializer(many=True, read_only=True)
     mental_scars = MentalScarSerializer(many=True, read_only=True)

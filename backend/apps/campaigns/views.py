@@ -53,6 +53,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
 class ActViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_serializer_class(self):
         return ActSerializer
@@ -68,6 +69,7 @@ class ActViewSet(viewsets.ModelViewSet):
 
 class SceneViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == 'list':
@@ -89,6 +91,7 @@ class SceneViewSet(viewsets.ModelViewSet):
 
 class NPCViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = None
     serializer_class = NPCSerializer
 
     def get_queryset(self):
@@ -102,6 +105,7 @@ class NPCViewSet(viewsets.ModelViewSet):
 
 class CampaignAssetViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    pagination_class = None
     serializer_class = CampaignAssetSerializer
 
     def get_queryset(self):

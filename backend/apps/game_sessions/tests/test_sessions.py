@@ -124,7 +124,7 @@ class TestCards:
         api_client.force_authenticate(user=player)
         res = api_client.get(f'/api/sessions/{session.id}/cards/')
         assert res.status_code == status.HTTP_200_OK
-        cards = res.data.get('results', res.data)
+        cards = res.data
         # Гравець бачить тільки публічні картки
         assert all(c['is_public'] for c in cards)
 
@@ -180,7 +180,7 @@ class TestNotes:
         api_client.force_authenticate(user=player2)
         res = api_client.get(f'/api/sessions/{session.id}/notes/')
         assert res.status_code == status.HTTP_200_OK
-        notes = res.data.get('results', res.data)
+        notes = res.data
         assert all(n['author']['id'] != player1.id or not n['is_private'] for n in notes)
 
     def test_author_sees_own_private_note(self, api_client, db):
@@ -191,7 +191,7 @@ class TestNotes:
 
         api_client.force_authenticate(user=player)
         res = api_client.get(f'/api/sessions/{session.id}/notes/')
-        notes = res.data.get('results', res.data)
+        notes = res.data
         assert any(n['id'] == note.id for n in notes)
 
 
@@ -226,13 +226,13 @@ class TestCardTransfer:
 
         # player1 більше не бачить картку
         res1 = api_client.get(f'/api/sessions/{session.id}/cards/')
-        cards1 = res1.data.get('results', res1.data)
+        cards1 = res1.data
         assert not any(c['id'] == card.id for c in cards1)
 
         # player2 тепер бачить картку
         api_client.force_authenticate(user=player2)
         res2 = api_client.get(f'/api/sessions/{session.id}/cards/')
-        cards2 = res2.data.get('results', res2.data)
+        cards2 = res2.data
         assert any(c['id'] == card.id for c in cards2)
 
     def test_cannot_transfer_public_card(self, api_client, db):
@@ -288,17 +288,15 @@ class TestCardTransfer:
         session.players.add(player1, player2)
         card = CardFactory(session=session, created_by=session.master, owner=player1, is_public=False)
 
-        mock_layer = MagicMock()
-        with patch('apps.game_sessions.views.get_channel_layer', return_value=mock_layer):
-            with patch('apps.game_sessions.views.async_to_sync') as mock_sync:
-                api_client.force_authenticate(user=player1)
-                api_client.post(self._url(session.id, card.id), {'target_user_id': player2.id})
+        with patch('apps.game_sessions.views.broadcast') as mock_broadcast:
+            api_client.force_authenticate(user=player1)
+            api_client.post(self._url(session.id, card.id), {'target_user_id': player2.id})
 
-        # broadcast мав бути викликаний
-        mock_sync.assert_called()
-        call_args = mock_sync.call_args_list
-        # перевіряємо що викликали group_send
-        assert any('group_send' in str(c) for c in call_args)
+        mock_broadcast.assert_called_once()
+        session_id, message = mock_broadcast.call_args[0]
+        assert session_id == session.id
+        assert message['type'] == 'card.transferred'
+        assert message['from_user_id'] == player1.id
 
 
 @pytest.mark.django_db

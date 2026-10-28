@@ -377,7 +377,19 @@ export default function TablePage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [notepadOpen])
 
+  // Every connect after the first is a reconnect — whatever happened on the
+  // board while the socket was down never reached us, so reload it.
+  const wsConnectedOnce = useRef(false)
   const onWsConnected = useCallback(() => {
+    if (wsConnectedOnce.current) {
+      Promise.all([getCards(id), getThreads(id)])
+        .then(([cardsRes, threadsRes]) => {
+          setCards(cardsRes.data.results ?? cardsRes.data)
+          setThreads(threadsRes.data.results ?? threadsRes.data)
+        })
+        .catch(() => {})
+    }
+    wsConnectedOnce.current = true
     getSession(id)
       .then((res) => {
         setSession(res.data)
@@ -386,6 +398,14 @@ export default function TablePage() {
       })
       .catch(() => {})
   }, [id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show the master's own roll straight from the REST response, so it never
+  // depends on the WebSocket being connected at that exact moment
+  const onLocalRoll = useCallback((roll) => {
+    if (useTableStore.getState().hasDiceRoll(roll.roll_id)) return
+    useTableStore.getState().addDiceLog(roll)
+    addDiceToast(roll)
+  }, [addDiceToast])
 
   const wsRef = useWebSocket(id, user?.id, addDiceToast, onDrawingStroke, addCardToast, onWsConnected, onCursorPing)
 
@@ -531,6 +551,7 @@ export default function TablePage() {
           connectedUsers={connectedUsers}
           sessionName={session?.name ?? ''}
           wsRef={wsRef}
+          onLocalRoll={onLocalRoll}
           drawingStrokeHandlerRef={drawingStrokeHandlerRef}
           cursorPingHandlerRef={cursorPingHandlerRef}
           tab={boardTab}

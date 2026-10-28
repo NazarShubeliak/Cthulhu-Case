@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
-import useAuthStore from '../store/authStore'
+import { getFreshAccessToken } from '../api/client'
 import useTableStore from '../store/tableStore'
 
 const RECONNECT_BASE_MS = 1_000
@@ -11,16 +11,8 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
   const retryTimer = useRef(null)
   const mountedRef = useRef(false)
   const connectRef = useRef(null)
-  const accessToken = useAuthStore((s) => s.accessToken)
-
-  const {
-    addCard, moveCard, removeCard,
-    addThread, removeThread,
-    addNote, updateNote, removeNote,
-    addConnectedUser, removeConnectedUser,
-    replaceCard,
-    addDiceLog,
-  } = useTableStore()
+  const connectingRef = useRef(false)
+  const forceRefreshRef = useRef(false)
 
   // Volatile props → refs so connect() doesn't need them as deps
   const onDiceRolledRef = useRef(onDiceRolled)
@@ -41,15 +33,45 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
   const currentUserIdRef = useRef(currentUserId)
   useEffect(() => { currentUserIdRef.current = currentUserId }, [currentUserId])
 
-  const connect = useCallback(() => {
-    if (!mountedRef.current || !sessionId || !accessToken) return
+  const scheduleReconnect = useCallback(() => {
+    clearTimeout(retryTimer.current)
+    retryTimer.current = setTimeout(() => {
+      retryDelay.current = Math.min(retryDelay.current * 2, RECONNECT_MAX_MS)
+      connectRef.current?.()
+    }, retryDelay.current)
+  }, [])
+
+  const connect = useCallback(async () => {
+    if (!mountedRef.current || !sessionId || connectingRef.current) return
 
     // Guard: don't open a second connection if one is already alive
-    const existing = wsRef.current
-    if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) return
+    const isAlive = () => {
+      const existing = wsRef.current
+      return existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)
+    }
+    if (isAlive()) return
+
+    // The token rides in the URL, so it has to be valid *now* — an expired one
+    // gets the socket closed with 4001 and the table silently stops updating.
+    connectingRef.current = true
+    let token
+    try {
+      token = await getFreshAccessToken({ force: forceRefreshRef.current })
+      forceRefreshRef.current = false
+    } catch {
+      token = undefined
+    } finally {
+      connectingRef.current = false
+    }
+    if (!mountedRef.current || isAlive()) return
+    if (token === null) return            // logged out
+    if (token === undefined) {            // refresh failed (network) — try later
+      scheduleReconnect()
+      return
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/ws/session/${sessionId}/?token=${accessToken}`
+    const wsUrl = `${protocol}//${window.location.host}/ws/session/${sessionId}/?token=${token}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 
@@ -64,6 +86,15 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
       try { msg = JSON.parse(e.data) } catch { return }
 
       const userId = currentUserIdRef.current
+      // Read actions off the store instead of subscribing: a subscription here
+      // would re-render the whole table page on every incoming card.moving.
+      const {
+        addCard, moveCard, removeCard,
+        addThread, removeThread,
+        addNote, updateNote, removeNote,
+        addConnectedUser, removeConnectedUser,
+        replaceCard, addDiceLog, hasDiceRoll,
+      } = useTableStore.getState()
 
       switch (msg.type) {
         case 'card.created':
@@ -122,6 +153,8 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
           removeConnectedUser(msg.user_id)
           break
         case 'dice.rolled':
+          // Already shown from our own REST response
+          if (hasDiceRoll(msg.roll_id)) break
           addDiceLog(msg)
           onDiceRolledRef.current?.(msg)
           break
@@ -143,20 +176,13 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
       // a reconnect may have already put a new socket there
       if (wsRef.current === ws) wsRef.current = null
       if (!mountedRef.current) return
-      if (e.code === 1000 || e.code === 4001 || e.code === 4003) return
+      if (e.code === 1000 || e.code === 4003) return
+      // Token rejected — get a new one before the next attempt
+      if (e.code === 4001) forceRefreshRef.current = true
 
-      retryTimer.current = setTimeout(() => {
-        retryDelay.current = Math.min(retryDelay.current * 2, RECONNECT_MAX_MS)
-        connectRef.current?.()
-      }, retryDelay.current)
+      scheduleReconnect()
     }
-  }, [
-    sessionId, accessToken,
-    addCard, moveCard, removeCard,
-    addThread, removeThread,
-    addNote, updateNote, removeNote,
-    addConnectedUser, removeConnectedUser, replaceCard, addDiceLog,
-  ])
+  }, [sessionId, scheduleReconnect])
 
   connectRef.current = connect
 
@@ -164,8 +190,22 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
     mountedRef.current = true
     retryDelay.current = RECONNECT_BASE_MS
     connect()
+
+    // Back from sleep / a dropped Wi-Fi: reconnect now instead of waiting
+    // out a backoff that may have grown to 30s
+    const reconnectNow = () => {
+      if (document.visibilityState === 'hidden' || wsRef.current) return
+      clearTimeout(retryTimer.current)
+      retryDelay.current = RECONNECT_BASE_MS
+      connect()
+    }
+    window.addEventListener('online', reconnectNow)
+    document.addEventListener('visibilitychange', reconnectNow)
+
     return () => {
       mountedRef.current = false
+      window.removeEventListener('online', reconnectNow)
+      document.removeEventListener('visibilitychange', reconnectNow)
       clearTimeout(retryTimer.current)
       const ws = wsRef.current
       if (ws) {

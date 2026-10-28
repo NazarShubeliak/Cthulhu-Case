@@ -413,6 +413,7 @@
     "diceTitle": "Кубик · Alea",
     "diceCount": "Кількість:",
     "diceRoll": "Кинути {{count}}{{type}}",
+    "diceError": "Не вдалося кинути кубики",
     "addCard": "Додати картку",
     "rollDice": "🎲 Кинути кубик",
     "view": "Переглянути",

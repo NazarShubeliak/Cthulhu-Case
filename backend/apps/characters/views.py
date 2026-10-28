@@ -146,7 +146,13 @@ class CharacterViewSet(viewsets.ModelViewSet):
     def roll(self, request, pk=None):
         character = self.get_object()
         dice_type = request.data.get('dice_type', 'd100')
-        dice_count = int(request.data.get('dice_count', 1))
+        try:
+            dice_count = int(request.data.get('dice_count', 1))
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'Кількість кубиків має бути числом.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         skill_id = request.data.get('skill_id')
         raw_visible = request.data.get('visible_to_all', True)
         visible_to_all = raw_visible not in (False, 'false', '0', 'no', 0)
@@ -205,20 +211,21 @@ class CharacterViewSet(viewsets.ModelViewSet):
 
         data = DiceRollSerializer(dice_roll).data
         data['tier'] = tier
+        roll_id = f'char-{dice_roll.id}'
+        data['roll_id'] = roll_id
 
         # Broadcast to all active sessions where the user is a participant
         try:
             from apps.game_sessions.models import Session
             from django.db.models import Q
-            from asgiref.sync import async_to_sync
-            from channels.layers import get_channel_layer
+            from apps.game_sessions.views import broadcast
             active_sessions = Session.objects.filter(
                 Q(master=request.user) | Q(players=request.user),
                 status='active',
-            )
-            channel_layer = get_channel_layer()
+            ).distinct()
             payload = {
                 'type': 'dice.rolled',
+                'roll_id': roll_id,
                 'dice_type': dice_type,
                 'count': dice_count,
                 'results': results,
@@ -231,7 +238,7 @@ class CharacterViewSet(viewsets.ModelViewSet):
                 'visible_to_all': bool(visible_to_all),
             }
             for session in active_sessions:
-                async_to_sync(channel_layer.group_send)(f'session_{session.id}', payload)
+                broadcast(session.id, payload)
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning('dice broadcast failed: %s', e)

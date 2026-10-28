@@ -1,16 +1,17 @@
 from rest_framework import serializers
+from apps.images import ResizedImagesModelSerializer
 from apps.users.serializers import UserSerializer
 from .models import Campaign, Act, Scene, NPC, CampaignAsset
 
 
-class CampaignAssetSerializer(serializers.ModelSerializer):
+class CampaignAssetSerializer(ResizedImagesModelSerializer):
     class Meta:
         model = CampaignAsset
         fields = ['id', 'campaign', 'type', 'title', 'content', 'image', 'order']
         read_only_fields = ['campaign']
 
 
-class NPCSerializer(serializers.ModelSerializer):
+class NPCSerializer(ResizedImagesModelSerializer):
     class Meta:
         model = NPC
         fields = ['id', 'campaign', 'name', 'age', 'occupation', 'appearance', 'status',

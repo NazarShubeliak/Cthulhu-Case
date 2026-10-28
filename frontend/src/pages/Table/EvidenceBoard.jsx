@@ -1298,18 +1298,23 @@ const diceCountBtn = {
   fontFamily: 'var(--font-mono)', fontSize: 14, lineHeight: 1,
 }
 
-function DicePopup({ sessionId, onClose }) {
+function DicePopup({ sessionId, onRolled, onClose }) {
   const { t } = useTranslation()
   const [diceType, setDiceType] = useState('d100')
   const [count, setCount] = useState(1)
   const [rolling, setRolling] = useState(false)
+  const [error, setError] = useState(null)
 
   async function handleRoll() {
     setRolling(true)
+    setError(null)
     try {
-      await rollDice(sessionId, { dice_type: diceType, count })
+      const { data } = await rollDice(sessionId, { dice_type: diceType, count })
+      onRolled?.(data)
       onClose()
-    } catch {} finally { setRolling(false) }
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || t('board.diceError'))
+    } finally { setRolling(false) }
   }
 
   return (
@@ -1342,6 +1347,9 @@ function DicePopup({ sessionId, onClose }) {
         <button className="btn btn--primary" style={{ width: '100%', fontSize: 11 }} onClick={handleRoll} disabled={rolling}>
           {rolling ? '...' : t('board.diceRoll', { count, type: diceType })}
         </button>
+        {error && (
+          <div style={{ marginTop: 10, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--blood-bright)' }}>{error}</div>
+        )}
       </div>
     </>
   )
@@ -1528,7 +1536,7 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
-export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, players, connectedUsers, sessionName, wsRef, drawingStrokeHandlerRef, cursorPingHandlerRef, onBoardCreate, tab, onTabChange }) {
+export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, players, connectedUsers, sessionName, wsRef, onLocalRoll, drawingStrokeHandlerRef, cursorPingHandlerRef, onBoardCreate, tab, onTabChange }) {
   const { t } = useTranslation()
   // Granular selectors so an unrelated store change (a dice roll, a note,
   // a player joining) doesn't force this whole board to re-render.
@@ -1652,7 +1660,9 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     }
     const onUp = (e) => {
       const card = useTableStore.getState().cards.find((c) => c.id === dragging.id)
-      if (card) {
+      // A plain click (select / open) doesn't move anything — don't save or broadcast it
+      const moved = card && (card.pos_x !== dragging.startX || card.pos_y !== dragging.startY)
+      if (moved) {
         clearTimeout(moveTimer.current)
         moveTimer.current = setTimeout(() => {
           apiMoveCard(sessionId, dragging.id, card.pos_x, card.pos_y).catch(() => {})
@@ -2122,6 +2132,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
             position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
             fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.28em',
             textTransform: 'uppercase', color: 'var(--moss)', textAlign: 'center',
+            // Let right-click / pan reach the stage underneath the label
+            pointerEvents: 'none',
           }}>
             {tab === 'public' ? t('board.emptyPublic') : t('board.emptyPersonal')}
           </div>
@@ -2170,7 +2182,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
 
       {/* ── Dice popup ── */}
       {diceOpen && isMaster && createPortal(
-        <DicePopup sessionId={sessionId} onClose={() => setDiceOpen(false)} />,
+        <DicePopup sessionId={sessionId} onRolled={onLocalRoll} onClose={() => setDiceOpen(false)} />,
         document.body
       )}
 

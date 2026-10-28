@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from rest_framework import status
 
 from apps.users.tests.factories import UserFactory
@@ -187,15 +187,14 @@ class TestDiceBroadcast:
         session.players.add(player)
         char = CharacterFactory(user=player)
 
-        # get_channel_layer імпортується локально всередині функції → патчимо по модулю channels
-        mock_layer = MagicMock()
-        with patch('channels.layers.get_channel_layer', return_value=mock_layer):
-            with patch('asgiref.sync.async_to_sync') as mock_sync:
-                api_client.force_authenticate(user=player)
-                api_client.post(f'/api/characters/{char.id}/roll/', {
-                    'dice_type': 'd100', 'dice_count': 1,
-                })
-        mock_sync.assert_called()
+        # broadcast імпортується локально всередині функції → патчимо по модулю game_sessions.views
+        with patch('apps.game_sessions.views.broadcast') as mock_broadcast:
+            api_client.force_authenticate(user=player)
+            api_client.post(f'/api/characters/{char.id}/roll/', {
+                'dice_type': 'd100', 'dice_count': 1,
+            })
+        mock_broadcast.assert_called_once()
+        assert mock_broadcast.call_args[0][0] == session.id
 
     def test_roll_not_broadcast_to_closed_session(self, api_client, db):
         """Кидок не транслюється до закритих сесій."""
