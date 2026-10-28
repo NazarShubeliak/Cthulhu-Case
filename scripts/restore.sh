@@ -61,4 +61,9 @@ docker compose exec -T db psql -U "$DB_USER" -c "DROP DATABASE IF EXISTS $DB_NAM
 docker compose exec -T db psql -U "$DB_USER" -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" postgres
 docker compose exec -T db psql -U "$DB_USER" "$DB_NAME" < "$BACKUP_FILE"
 
+# The backup may predate the current code — bring its schema up to date.
+# web only migrates on container start, so it won't notice the swapped DB.
+echo -e "${CYAN}Applying migrations...${NC}"
+docker compose exec -T web python manage.py migrate --noinput
+
 echo -e "${GREEN}Restore complete.${NC}"
