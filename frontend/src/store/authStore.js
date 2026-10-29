@@ -17,4 +17,14 @@ const useAuthStore = create(
   ),
 )
 
+// Refresh tokens are rotated and the old one is blacklisted, so a tab that
+// keeps its own in-memory copy gets logged out the moment another tab (e.g. the
+// table's WebSocket) refreshes. Adopt whatever another tab writes — new tokens
+// or a logout.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'auth-storage') useAuthStore.persist.rehydrate()
+  })
+}
+
 export default useAuthStore

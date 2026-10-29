@@ -26,28 +26,50 @@ function logout() {
 // Exchanges the refresh token for a new access token and stores it.
 // Logs the user out when the refresh token itself is gone or rejected.
 export async function refreshAccessToken() {
-  const { refreshToken } = useAuthStore.getState()
-  if (!refreshToken) {
+  if (!useAuthStore.getState().refreshToken) {
     logout()
     throw new Error('No refresh token')
   }
   if (!refreshPromise) {
-    // Raw axios so this request does NOT go through our interceptor
-    refreshPromise = axios
-      .post('/api/auth/token/refresh/', { refresh: refreshToken })
-      .then(({ data }) => {
-        const { user, setAuth } = useAuthStore.getState()
-        setAuth(user, data.access, data.refresh ?? refreshToken)
-        return data.access
-      })
-      .catch((err) => {
-        // A network hiccup is not a reason to log out — only a rejected token is
-        if (err.response?.status === 401 || err.response?.status === 400) logout()
-        throw err
-      })
-      .finally(() => { refreshPromise = null })
+    const staleAccess = useAuthStore.getState().accessToken
+    // Serialize refreshes across tabs: two tabs spending the same rotating
+    // refresh token at once would get the loser blacklisted and logged out.
+    refreshPromise = (navigator.locks
+      ? navigator.locks.request('cthulhu-auth-refresh', () => doRefresh(staleAccess))
+      : doRefresh(staleAccess)
+    ).finally(() => { refreshPromise = null })
   }
   return refreshPromise
+}
+
+async function doRefresh(staleAccess) {
+  // Another tab may have refreshed already — its tokens are in localStorage
+  await useAuthStore.persist.rehydrate()
+  const { accessToken, refreshToken } = useAuthStore.getState()
+  if (accessToken && accessToken !== staleAccess && tokenExpiresAt(accessToken) - Date.now() > 60_000) {
+    return accessToken
+  }
+  if (!refreshToken) {
+    logout()
+    throw new Error('No refresh token')
+  }
+  try {
+    // Raw axios so this request does NOT go through our interceptor
+    const { data } = await axios.post('/api/auth/token/refresh/', { refresh: refreshToken })
+    const { user, setAuth } = useAuthStore.getState()
+    setAuth(user, data.access, data.refresh ?? refreshToken)
+    return data.access
+  } catch (err) {
+    // A network hiccup is not a reason to log out — only a rejected token is
+    if (err.response?.status === 401 || err.response?.status === 400) {
+      // Rejected because another tab rotated it meanwhile? Then use its tokens.
+      await useAuthStore.persist.rehydrate()
+      const current = useAuthStore.getState()
+      if (current.refreshToken && current.refreshToken !== refreshToken) return current.accessToken
+      logout()
+    }
+    throw err
+  }
 }
 
 function tokenExpiresAt(token) {

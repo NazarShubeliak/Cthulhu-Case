@@ -40,6 +40,32 @@ describe('getFreshAccessToken — токен для WebSocket', () => {
     expect(await getFreshAccessToken({ force: true })).toBe('forced')
   })
 
+  it('друга вкладка вже оновила токен — бере його з localStorage без запиту', async () => {
+    useAuthStore.getState().setAuth({ id: 1 }, jwt(-10), 'old-refresh')
+    // Інша вкладка (стіл) записала свіжі токени у сховище
+    const fresh = jwt(1800)
+    localStorage.setItem('auth-storage', JSON.stringify({
+      state: { user: { id: 1 }, accessToken: fresh, refreshToken: 'new-refresh' }, version: 0,
+    }))
+    const post = vi.spyOn(axios, 'post')
+    expect(await getFreshAccessToken()).toBe(fresh)
+    expect(post).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().refreshToken).toBe('new-refresh')
+  })
+
+  it('refresh відхилено, бо інша вкладка встигла ротувати — не розлогінює', async () => {
+    useAuthStore.getState().setAuth({ id: 1 }, jwt(-10), 'old-refresh')
+    vi.spyOn(axios, 'post').mockImplementation(async () => {
+      // Поки йшов запит, інша вкладка ротувала токен
+      localStorage.setItem('auth-storage', JSON.stringify({
+        state: { user: { id: 1 }, accessToken: 'other-tab-access', refreshToken: 'other-tab-refresh' }, version: 0,
+      }))
+      throw Object.assign(new Error('blacklisted'), { response: { status: 401 } })
+    })
+    expect(await getFreshAccessToken()).toBe('other-tab-access')
+    expect(useAuthStore.getState().refreshToken).toBe('other-tab-refresh')
+  })
+
   it('мережева помилка при оновленні не розлогінює', async () => {
     useAuthStore.getState().setAuth({ id: 1 }, jwt(-10), 'refresh')
     vi.spyOn(axios, 'post').mockRejectedValue(new Error('Network Error'))
