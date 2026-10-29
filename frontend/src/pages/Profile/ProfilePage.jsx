@@ -32,7 +32,7 @@ export default function ProfilePage() {
   const [charCount, setCharCount] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const fileRef = useRef(null)
-  const { lamp, grain, glitchText, showLatin, lang, theme, fontSize, setLamp, setGrain, setGlitchText, setShowLatin, setLang, setTheme, setFontSize } = useUIStore()
+  const { lamp, grain, glitchText, showLatin, lang, theme, design, fontSize, setLamp, setGrain, setGlitchText, setShowLatin, setLang, setTheme, setDesign, setFontSize } = useUIStore()
 
   useEffect(() => {
     getMe()
@@ -373,6 +373,37 @@ export default function ProfilePage() {
                     borderColor: theme === value ? 'var(--ochre)' : 'var(--ochre-deep)',
                     background: theme === value ? 'var(--ochre)' : 'transparent',
                     color: theme === value ? 'var(--ink-0)' : 'var(--moss-pale)',
+                    fontFamily: 'var(--font-mono)', fontSize: 10,
+                    letterSpacing: '0.14em', textTransform: 'uppercase',
+                    cursor: 'pointer', transition: 'all .15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Design */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--ochre-deep)' }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-body)', fontSize: 15, color: 'var(--cream)' }}>{t('profile.designLabel')}</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.16em', color: 'var(--moss-pale)', marginTop: 2 }}>{t('profile.designSub')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[
+                { value: 'bureau', label: t('profile.designBureau') },
+                { value: 'classic', label: t('profile.designClassic') },
+              ].map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setDesign(value)}
+                  style={{
+                    padding: '4px 12px',
+                    border: '1px solid',
+                    borderColor: design === value ? 'var(--ochre)' : 'var(--ochre-deep)',
+                    background: design === value ? 'var(--ochre)' : 'transparent',
+                    color: design === value ? 'var(--ink-0)' : 'var(--moss-pale)',
                     fontFamily: 'var(--font-mono)', fontSize: 10,
                     letterSpacing: '0.14em', textTransform: 'uppercase',
                     cursor: 'pointer', transition: 'all .15s',

@@ -349,7 +349,11 @@
       "player": "Player",
       "master": "Master",
       "admin": "Administrator"
-    }
+    },
+    "designLabel": "Design",
+    "designSub": "Bureau — pages as documents on a desk. Classic — the previous design",
+    "designBureau": "Bureau",
+    "designClassic": "Classic"
   },
   "notFound": {
     "code": "404",
@@ -643,5 +647,47 @@
         ]
       ]
     }
+  },
+  "bureau": {
+    "back": "Card index",
+    "folderTab": "Case",
+    "letterhead": "Bureau of Special Investigations",
+    "letterheadSub": "Arkham, Massachusetts · Investigator personnel file",
+    "photoHint": "Click to paste in a photo",
+    "stampSecret": "Top secret",
+    "stampInsane": "Insane",
+    "stampDying": "Dying",
+    "vitals": "Condition",
+    "start": "starting:",
+    "skillsTitle": "Register of skills",
+    "filter": "Find a skill…",
+    "rollSkill": "Roll d100 against this skill",
+    "diceTray": "Dice",
+    "diceHint": "Pick dice or click the die next to a skill",
+    "rollError": "Could not roll the dice.",
+    "improve": "Improve marked skills",
+    "inventory": "Inventory of personal effects",
+    "medical": "Psychiatric assessment",
+    "medicalNone": "No abnormalities found. Yet.",
+    "backstoryPlaceholder": "Start typing your investigator's story…",
+    "whispers": [
+      "It knows your name",
+      "Don't turn around",
+      "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn",
+      "You have seen this before",
+      "The door was locked",
+      "Who else is reading this file?",
+      "They are under the floor",
+      "Don't count the steps",
+      "The water is rising",
+      "Iä! Iä!"
+    ]
+  },
+  "typewriter": {
+    "modeMachine": "Typewriter",
+    "modeSheet": "Plain sheet",
+    "soundOn": "Sound: on",
+    "soundOff": "Sound: off",
+    "soundHint": "Key clacks and the margin bell"
   }
 }

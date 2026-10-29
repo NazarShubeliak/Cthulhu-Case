@@ -5,6 +5,7 @@ import useAuthStore from '../../store/authStore.js'
 import useUIStore from '../../store/uiStore.js'
 import CursorLamp from '../UI/CursorLamp.jsx'
 import GlitchText from '../UI/GlitchText.jsx'
+import BureauDread from '../Bureau/BureauDread.jsx'
 
 function getNavItems(t) {
   return [
@@ -45,7 +46,13 @@ export default function AppLayout() {
   const { t, i18n } = useTranslation()
   const user = useAuthStore((s) => s.user)
   const crumbs = getBreadcrumb(location.pathname, t)
-  const { grain, showLatin, lang, theme, fontSize, sidebarHidden, toggleSidebar } = useUIStore()
+  const { grain, glitchText, showLatin, lang, theme, design, fontSize, sidebarHidden, toggleSidebar } = useUIStore()
+  // The shared desk (fog, hallucinations) on every bureau page — except the
+  // table, where nothing should distract from the board, and the character
+  // sheet, which brings its own desk tied to the character's sanity.
+  const desk = design === 'bureau'
+    && !location.pathname.startsWith('/table/')
+    && !/^\/characters\/[^/]+/.test(location.pathname)
 
   useEffect(() => {
     document.documentElement.style.setProperty('--grain-opacity', grain ? '0.07' : '0')
@@ -118,7 +125,8 @@ export default function AppLayout() {
         </nav>
         )}
 
-        <div className="main">
+        <div className={desk ? 'main main--desk' : 'main'}>
+          {desk && <BureauDread level={1} effects={glitchText} />}
           <header className="topbar">
             <div className="topbar__crumb">
               <span style={{ color: 'var(--ochre-dim)' }}>{t('breadcrumb.arkham')}</span>

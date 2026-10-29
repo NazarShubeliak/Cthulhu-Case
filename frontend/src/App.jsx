@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore.js'
+import useUIStore from './store/uiStore.js'
 import AppLayout from './components/Layout/AppLayout.jsx'
 import LoginPage from './pages/Auth/LoginPage.jsx'
 import RegisterPage from './pages/Auth/RegisterPage.jsx'
@@ -27,7 +29,17 @@ function ProtectedLayout() {
 }
 
 export default function App() {
+  const design = useUIStore((s) => s.design)
+  const bureau = design === 'bureau'
+
+  // body-level, so public pages (landing, login) get the design too
+  useEffect(() => {
+    document.body.classList.toggle('design-bureau', bureau)
+  }, [bureau])
+
   return (
+    <>
+    {bureau && <div className="bu-desk-surface" aria-hidden="true" />}
     <Routes>
       <Route path="/" element={<PublicRoute element={<LandingPage />} />} />
       <Route path="/about" element={<AboutPage />} />
@@ -44,5 +56,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </>
   )
 }

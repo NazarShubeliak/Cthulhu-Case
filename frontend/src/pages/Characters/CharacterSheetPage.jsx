@@ -1,34 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { getCharacter, updateCharacter, updateSkill, createSkill, deleteSkill, rollDice, improveSkills, createEquipmentItem, updateEquipmentItem, deleteEquipmentItem, createMentalScar, deleteMentalScar } from '../../api/characters.js'
-import useDebounce from '../../hooks/useDebounce.js'
-
-// ── Stat definitions ─────────────────────────────────────────────────────────
-
-const STAT_DEFS = [
-  { key: 'str_stat', abbr: 'STR', tKey: 'stats.str', lat: 'Vis' },
-  { key: 'con_stat', abbr: 'CON', tKey: 'stats.con', lat: 'Soma' },
-  { key: 'siz_stat', abbr: 'SIZ', tKey: 'stats.siz', lat: 'Statura' },
-  { key: 'dex_stat', abbr: 'DEX', tKey: 'stats.dex', lat: 'Manus' },
-  { key: 'app_stat', abbr: 'APP', tKey: 'stats.app', lat: 'Forma' },
-  { key: 'int_stat', abbr: 'INT', tKey: 'stats.int', lat: 'Mens' },
-  { key: 'pow_stat', abbr: 'POW', tKey: 'stats.pow', lat: 'Voluntas' },
-  { key: 'edu_stat', abbr: 'EDU', tKey: 'stats.edu', lat: 'Doctrina' },
-]
-
-const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100']
+import { rollDice } from '../../api/characters.js'
+import useCharacterSheet from '../../hooks/useCharacterSheet.js'
+import useUIStore from '../../store/uiStore.js'
+import BureauCharacterSheet from './bureau/BureauCharacterSheet.jsx'
+import { STAT_DEFS, DICE_TYPES } from './characterDefs.js'
 
 // TIER_LABELS are built per-component using t() to support i18n
-
-// ── Helper: derive frontend stats from raw ───────────────────────────────────
-
-function derivedFromChar(ch) {
-  return {
-    hp_max: Math.max(1, Math.floor((ch.con_stat + ch.siz_stat) / 10)),
-    mp_max: Math.max(1, Math.floor(ch.pow_stat / 5)),
-  }
-}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -535,174 +514,60 @@ function DicePanel({ characterId, skills }) {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+// The bureau dossier is the default look; the original sheet stays one
+// toggle away in the profile (uiStore.design)
 export default function CharacterSheetPage() {
+  const design = useUIStore((s) => s.design)
+  return design === 'classic' ? <ClassicCharacterSheet /> : <BureauCharacterSheet />
+}
+
+function ClassicCharacterSheet() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const [char, setChar] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [saveStatus, setSaveStatus] = useState('') // 'saving' | 'saved' | ''
-  const pendingRef = useRef({})
-  const [improving, setImproving] = useState(false)
-  const [improvementResults, setImprovementResults] = useState(null)
-  const [improveError, setImproveError] = useState('')
-  const [equipment, setEquipment] = useState([])
+  const {
+    char, loading, saveStatus, handleChange,
+    handleSkillChange, addSkill, handleDeleteSkill,
+    improving, improvementResults, setImprovementResults, improveError, handleImproveSkills,
+    equipment, addItem, handleDeleteItem, handleUpdateItemNotes,
+    mentalScars, addScar, handleDeleteScar,
+  } = useCharacterSheet(id, { onNotFound: () => navigate('/characters') })
+
   const [newItemName, setNewItemName] = useState('')
   const [newItemNotes, setNewItemNotes] = useState('')
   const [addingItem, setAddingItem] = useState(false)
   const [newSkillName, setNewSkillName] = useState('')
   const [addingSkill, setAddingSkill] = useState(false)
-  const [mentalScars, setMentalScars] = useState([])
   const [newScarName, setNewScarName] = useState('')
   const [newScarType, setNewScarType] = useState('phobia')
   const [addingScar, setAddingScar] = useState(false)
-
-  // Load character
-  useEffect(() => {
-    getCharacter(id)
-      .then((res) => {
-        setChar(res.data)
-        setEquipment(res.data.equipment ?? [])
-        setMentalScars(res.data.mental_scars ?? [])
-      })
-      .catch(() => navigate('/characters'))
-      .finally(() => setLoading(false))
-  }, [id])
-
-  // Debounced auto-save
-  const doSave = useCallback(
-    async (patch) => {
-      setSaveStatus('saving')
-      try {
-        const res = await updateCharacter(id, patch)
-        setChar(res.data)
-        setSaveStatus('saved')
-        setTimeout(() => setSaveStatus(''), 2000)
-      } catch {
-        setSaveStatus('')
-      }
-    },
-    [id],
-  )
-
-  const debouncedSave = useDebounce(doSave, 800)
-
-  // Field change handler — merges into state and schedules save
-  const handleChange = (field, value) => {
-    setChar((prev) => {
-      const next = { ...prev, [field]: value }
-      // Derive frontend hp/mp max for display
-      if (['con_stat', 'siz_stat', 'pow_stat'].includes(field)) {
-        const derived = derivedFromChar(next)
-        Object.assign(next, derived)
-      }
-      pendingRef.current = { ...pendingRef.current, [field]: value }
-      debouncedSave(pendingRef.current)
-      return next
-    })
-  }
-
-  const handleSkillChange = (updatedSkill) => {
-    setChar((prev) => ({
-      ...prev,
-      skills: prev.skills.map((s) => (s.id === updatedSkill.id ? updatedSkill : s)),
-    }))
-    updateSkill(id, updatedSkill.id, {
-      current_value: updatedSkill.current_value,
-      checked: updatedSkill.checked,
-    }).catch(() => {})
-  }
 
   const handleAddSkill = async (e) => {
     e.preventDefault()
     if (!newSkillName.trim()) return
     setAddingSkill(true)
-    try {
-      const res = await createSkill(id, { name: newSkillName.trim() })
-      setChar((prev) => ({ ...prev, skills: [...(prev.skills ?? []), res.data] }))
-      setNewSkillName('')
-    } catch {
-      // ignore
-    } finally {
-      setAddingSkill(false)
-    }
-  }
-
-  const handleDeleteSkill = (skillId) => {
-    setChar((prev) => ({ ...prev, skills: prev.skills.filter((s) => s.id !== skillId) }))
-    deleteSkill(id, skillId).catch(() => {})
-  }
-
-  const handleImproveSkills = async () => {
-    setImproving(true)
-    setImproveError('')
-    try {
-      const res = await improveSkills(id)
-      const results = res.data.results
-      setChar((prev) => ({
-        ...prev,
-        skills: prev.skills.map((s) => {
-          const r = results.find((r) => r.skill_id === s.id)
-          return r ? { ...s, current_value: r.new_value, checked: false } : s
-        }),
-      }))
-      setImprovementResults(results)
-    } catch (err) {
-      setImproveError(err?.response?.data?.error ?? 'Помилка підвищення навичок.')
-    } finally {
-      setImproving(false)
-    }
+    if (await addSkill(newSkillName)) setNewSkillName('')
+    setAddingSkill(false)
   }
 
   const handleAddItem = async (e) => {
     e.preventDefault()
     if (!newItemName.trim()) return
     setAddingItem(true)
-    try {
-      const res = await createEquipmentItem(id, {
-        name: newItemName.trim(),
-        notes: newItemNotes.trim(),
-        order: equipment.length,
-      })
-      setEquipment((prev) => [...prev, res.data])
+    if (await addItem(newItemName, newItemNotes)) {
       setNewItemName('')
       setNewItemNotes('')
-    } catch {
-      // ignore
-    } finally {
-      setAddingItem(false)
     }
-  }
-
-  const handleDeleteItem = async (itemId) => {
-    setEquipment((prev) => prev.filter((i) => i.id !== itemId))
-    deleteEquipmentItem(id, itemId).catch(() => {})
-  }
-
-  const handleUpdateItemNotes = (itemId, notes) => {
-    setEquipment((prev) => prev.map((i) => i.id === itemId ? { ...i, notes } : i))
-    updateEquipmentItem(id, itemId, { notes }).catch(() => {})
+    setAddingItem(false)
   }
 
   const handleAddScar = async (e) => {
     e.preventDefault()
     if (!newScarName.trim()) return
     setAddingScar(true)
-    try {
-      const res = await createMentalScar(id, { name: newScarName.trim(), scar_type: newScarType })
-      setMentalScars((prev) => [...prev, res.data])
-      setNewScarName('')
-    } catch {
-      // ignore
-    } finally {
-      setAddingScar(false)
-    }
-  }
-
-  const handleDeleteScar = (scarId) => {
-    setMentalScars((prev) => prev.filter((s) => s.id !== scarId))
-    deleteMentalScar(id, scarId).catch(() => {})
+    if (await addScar(newScarName, newScarType)) setNewScarName('')
+    setAddingScar(false)
   }
 
   if (loading) {

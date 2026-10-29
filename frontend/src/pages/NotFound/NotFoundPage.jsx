@@ -57,7 +57,7 @@ export default function NotFoundPage() {
   const handleBack = () => navigate(accessToken ? '/sessions' : '/')
 
   return (
-    <div style={{
+    <div className="bu-page-root" style={{
       minHeight: '100vh',
       background: 'var(--ink-0)',
       display: 'flex', flexDirection: 'column',

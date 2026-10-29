@@ -116,7 +116,7 @@ export default function LandingPage() {
   }, [grain])
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--ink-1)' }}>
+    <div className="bu-page-root" style={{ minHeight: '100vh', background: 'var(--ink-1)' }}>
       {lamp && <CursorLamp />}
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 28px' }}>

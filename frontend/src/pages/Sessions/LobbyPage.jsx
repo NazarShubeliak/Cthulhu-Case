@@ -26,7 +26,7 @@ function ConfirmModal({ message, onConfirm, onClose }) {
       background: 'rgba(0,0,0,0.55)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
     }}>
-      <div ref={inputRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} style={{
+      <div ref={inputRef} tabIndex={-1} className="bu-paper-doc" onClick={(e) => e.stopPropagation()} style={{
         background: 'var(--ink-1)', border: '1px solid var(--ochre-deep)',
         padding: '24px 28px', minWidth: 280,
         boxShadow: '0 8px 32px rgba(0,0,0,0.7)', outline: 'none',
@@ -240,8 +240,8 @@ export default function LobbyPage() {
 
   return (
     <div className="lobby-layout">
-      {/* Left panel */}
-      <div>
+      {/* Left panel — a sheet of paper in the bureau design */}
+      <div className="lobby-main">
         {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
         {showSettings && (
           <TableSettingsModal
@@ -390,7 +390,7 @@ export default function LobbyPage() {
         </div>
 
         {showCampaignPicker && campaigns.length > 0 && (
-          <div style={{
+          <div className="bu-paper-doc" style={{
             marginTop: 16,
             border: '1px solid var(--ochre-deep)',
             background: 'var(--ink-2)',
@@ -482,6 +482,7 @@ export default function LobbyPage() {
         </div>
 
         <div
+          className="bu-paper-doc"
           style={{
             background: 'var(--ink-2)',
             border: '1px solid var(--ochre-deep)',

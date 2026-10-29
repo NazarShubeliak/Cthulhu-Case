@@ -1,0 +1,257 @@
+/* ── Bureau design for the whole site ───────────────────────────────────────
+   Everything here is scoped to body.design-bureau (uiStore.design), so the
+   classic design is untouched. Most pages colour themselves through the
+   tokens from index.css — often in inline styles — so the bulk of the work is
+   re-mapping those tokens:
+   - on the desk (dark wood, cold moonlight) they become cold, dim greys;
+   - inside a paper document (cards, modals, forms) they are re-mapped again
+     to print ink on paper, so inline styles inside turn dark-on-paper too.
+   The wood is a baked texture on a fixed layer (.bu-desk-surface, cheap to
+   scroll); the fog and the hallucinations come from <BureauDread>. */
+
+body.design-bureau {
+  --ink-0: #0b0e0f;
+  --ink-1: #111516;
+  --ink-2: #181d1e;
+  --ink-3: #1f2526;
+  --ochre: #aaa792;
+  --ochre-bright: #d2cdb6;
+  --ochre-deep: #2b302e;
+  --ochre-dim: #80837a;
+  --moss: #5d6d68;
+  --moss-pale: #7f8c86;
+  --cream: #d4d1c3;
+  --cream-soft: #a9a698;
+  --blood: #6e2620;
+  --blood-bright: #b4513f;
+  --board-public: #14181a;
+  --board-personal: #0e1613;
+  --font-display: 'Old Standard TT', Georgia, serif;
+  --font-body: 'Old Standard TT', Georgia, serif;
+  --font-mono: 'PT Mono', 'Courier New', monospace;
+  --font-hand: 'Bad Script', 'Segoe Script', cursive;
+
+  --bu-paper-bg:
+    url('../components/Bureau/textures/grain.webp') 0 0 / 240px 240px,
+    url('../components/Bureau/textures/mottle.webp') 0 0 / 600px 600px,
+    radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(70, 78, 55, 0.3) 100%),
+    #d8d2bd;
+
+  background: #0e1011;
+}
+
+body.design-bureau.theme-light {
+  /* overcast: bleached grey boards, never the warm newsprint of the classic theme */
+  --ink-0: #b5b2a6;
+  --ink-1: #c3c0b4;
+  --ink-2: #cfccc0;
+  --ink-3: #d9d6cb;
+  --ochre: #3b3a33;
+  --ochre-bright: #22221e;
+  --ochre-deep: #97948a;
+  --ochre-dim: #3f3d36;
+  --moss: #4a5550;
+  --moss-pale: #2f3732;
+  --cream: #1d1e1b;
+  --cream-soft: #3e3f39;
+  --blood: #6e2620;
+  --blood-bright: #7d2a20;
+  --board-public: #9a978c;
+  --board-personal: #8b938a;
+  background: #75736b;
+}
+
+/* The desk: one viewport-sized fixed layer behind everything (rendered by
+   App). background-attachment:fixed would repaint on every scroll instead. */
+.bu-desk-surface {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none; will-change: transform;
+  background:
+    radial-gradient(ellipse 70% 40% at 88% 0%, rgba(150, 178, 190, 0.12), transparent 70%),
+    radial-gradient(ellipse at 50% 30%, transparent 35%, rgba(0, 0, 0, 0.55) 100%),
+    url('../components/Bureau/textures/wood.webp') 0 0 / 900px 500px,
+    linear-gradient(180deg, #171a1b 0%, #0e1011 100%);
+}
+body.theme-light .bu-desk-surface {
+  background:
+    radial-gradient(ellipse 70% 40% at 88% 0%, rgba(235, 242, 245, 0.35), transparent 70%),
+    radial-gradient(ellipse at 50% 30%, transparent 40%, rgba(20, 25, 25, 0.35) 100%),
+    url('../components/Bureau/textures/wood.webp') 0 0 / 900px 500px,
+    linear-gradient(180deg, #8c8576 0%, #736c5d 100%);
+}
+
+/* Grain overlay: a baked bitmap without blending — the classic SVG filter with
+   mix-blend-mode over the whole screen is costly on every repaint. */
+body.design-bureau::before {
+  background-image: url('../components/Bureau/textures/grain.webp');
+  background-size: 240px 240px;
+  mix-blend-mode: normal;
+  opacity: calc(var(--grain-opacity, 0.07) * 1.4);
+}
+body.design-bureau::after {
+  background:
+    radial-gradient(110% 80% at 50% 0%, transparent 45%, rgba(0, 0, 0, 0.45) 100%),
+    radial-gradient(80% 60% at 50% 110%, transparent 40%, rgba(0, 0, 0, 0.35) 100%);
+}
+body.design-bureau.theme-light::after {
+  background:
+    radial-gradient(110% 80% at 50% 0%, transparent 50%, rgba(30, 35, 35, 0.22) 100%),
+    radial-gradient(80% 60% at 50% 110%, transparent 40%, rgba(30, 35, 35, 0.18) 100%);
+}
+/* the cursor lamp is a cold torch here */
+body.design-bureau .lamp-layer {
+  background:
+    radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgba(170, 195, 205, 0.10) 0%, rgba(170, 195, 205, 0.04) 30%, transparent 65%),
+    radial-gradient(800px circle at var(--mx, 50%) var(--my, 50%), transparent 0%, rgba(0, 0, 0, 0.18) 60%, rgba(0, 0, 0, 0.32) 100%);
+}
+
+/* ── Shell ── */
+body.design-bureau .main { background: transparent; }
+/* pages with the shared desk layer (AppLayout mounts <BureauDread>) */
+body.design-bureau .main--desk { position: relative; isolation: isolate; }
+body.design-bureau .main--desk > :not(.bu-dread) { position: relative; z-index: 1; }
+
+body.design-bureau .nav {
+  background:
+    url('../components/Bureau/textures/grain.webp') 0 0 / 240px 240px,
+    linear-gradient(90deg, #0a0c0d, #101415);
+  border-right: 1px solid #000;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04), 6px 0 18px rgba(0, 0, 0, 0.45);
+  position: relative; z-index: 2;
+}
+body.design-bureau.theme-light .nav {
+  background:
+    url('../components/Bureau/textures/grain.webp') 0 0 / 240px 240px,
+    linear-gradient(90deg, #a9a69a, #b8b5a9);
+  border-right-color: #6f6c62;
+}
+body.design-bureau .nav__brand,
+body.design-bureau .nav__foot { border-color: rgba(255, 255, 255, 0.06); }
+body.design-bureau.theme-light .nav__brand,
+body.design-bureau.theme-light .nav__foot { border-color: rgba(0, 0, 0, 0.12); }
+body.design-bureau .nav__brand-title { letter-spacing: 0.02em; }
+body.design-bureau .nav__item:hover { background: rgba(200, 205, 190, 0.05); }
+/* the open section is an index tab of paper sticking out of the drawer */
+body.design-bureau .nav__item--active {
+  --cream: #24231f; --ochre: #24231f; --ochre-dim: #66645a; --moss-pale: #55594f;
+  background: var(--bu-paper-bg);
+  color: #24231f;
+  margin-right: -1px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+body.design-bureau .topbar {
+  background: rgba(8, 10, 11, 0.82);
+  border-bottom: 1px solid #000;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+body.design-bureau.theme-light .topbar { background: rgba(190, 187, 177, 0.9); border-bottom-color: #8a877d; }
+
+/* ── Type ── */
+body.design-bureau .page-header__eyebrow { letter-spacing: 0.32em; }
+body.design-bureau .page-header__title { font-style: normal; font-weight: 700; letter-spacing: 0.04em; }
+body.design-bureau .page-header__sub { font-style: italic; }
+
+/* ── Paper documents ── */
+body.design-bureau :is(.card, .card--paper, .char-card, .session-card, .modal-box, .auth-box, .copy-box, .lobby-main, .bu-paper-doc) {
+  --ink-0: #cec8b2;
+  --ink-1: #d3cdb8;
+  --ink-2: #c8c2ac;
+  --ink-3: #a9a38d;   /* also the off-state of toggles: must read on paper */
+  --ochre: #3d3c33;
+  --ochre-bright: #1d1d19;
+  --ochre-deep: rgba(80, 78, 66, 0.45);
+  --ochre-dim: #66645a;
+  --moss: #6f7366;
+  --moss-pale: #55594f;
+  --cream: #24231f;
+  --cream-soft: #4d4b40;
+  --blood: #76271f;
+  --blood-bright: #8a2f26;
+  color: var(--cream);
+  background: var(--bu-paper-bg);
+  border: none;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px rgba(60, 60, 45, 0.2), 0 1px 1px rgba(0, 0, 0, 0.35), 0 12px 26px rgba(0, 0, 0, 0.55);
+}
+/* panels that paint themselves in inline styles */
+body.design-bureau .bu-paper-doc { background: var(--bu-paper-bg) !important; border: none !important; }
+body.design-bureau .lobby-main { padding: 30px 34px 26px; align-self: start; }
+body.design-bureau .copy-box { color: #24231f; }
+body.design-bureau :is(.char-card, .session-card) {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+/* lying on the desk a little crooked; straightens when you reach for it */
+body.design-bureau :is(.char-card, .session-card):nth-child(3n+1) { transform: rotate(-0.5deg); }
+body.design-bureau :is(.char-card, .session-card):nth-child(3n+2) { transform: rotate(0.4deg); }
+body.design-bureau :is(.char-card, .session-card):hover {
+  transform: translateY(-3px);
+  background: var(--bu-paper-bg);
+  box-shadow: inset 0 0 0 1px rgba(60, 60, 45, 0.25), 0 2px 2px rgba(0, 0, 0, 0.35), 0 18px 32px rgba(0, 0, 0, 0.6);
+}
+body.design-bureau .char-card__name,
+body.design-bureau .session-card__name { color: var(--cream); font-family: var(--font-hand); font-style: normal; font-size: 26px; line-height: 1.2; color: #1f2533; }
+body.design-bureau .session-card__desc { color: var(--cream-soft); }
+
+/* forms on paper: blanks to fill, not boxes */
+body.design-bureau :is(.card, .card--paper, .char-card, .session-card, .modal-box, .auth-box, .lobby-main, .bu-paper-doc) :is(.form-input, input:not([type=checkbox]):not([type=radio]):not([type=range]), textarea, select) {
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  border-bottom: 1px solid rgba(60, 58, 48, 0.55);
+  color: #1f2533;
+  border-radius: 0;
+}
+body.design-bureau :is(.card, .card--paper, .modal-box, .auth-box, .lobby-main, .bu-paper-doc) :is(.form-input, input, textarea):focus {
+  background: rgba(255, 255, 255, 0.3);
+  border-bottom-color: #1f2533;
+}
+body.design-bureau :is(.card, .card--paper, .modal-box, .auth-box, .lobby-main, .bu-paper-doc) :is(.form-input, input, textarea)::placeholder { color: rgba(80, 78, 66, 0.55); }
+
+body.design-bureau .modal-overlay { background: rgba(4, 6, 6, 0.82); }
+body.design-bureau.theme-light .modal-overlay { background: rgba(40, 42, 40, 0.55); }
+body.design-bureau .modal-title,
+body.design-bureau .auth-title { font-style: normal; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; font-size: 21px; }
+body.design-bureau .auth-page { background: transparent; }
+body.design-bureau .auth-box { padding: 44px 46px 40px; }
+
+/* ── Controls ── */
+body.design-bureau .btn { border-radius: 0; }
+body.design-bureau .btn:hover { background: rgba(200, 205, 190, 0.08); }
+/* the main action looks like a rubber stamp frame */
+body.design-bureau .btn--primary { background: transparent; border: 2px solid var(--ochre); color: var(--ochre-bright); font-weight: 700; }
+body.design-bureau .btn--primary:hover { background: rgba(200, 205, 190, 0.1); }
+body.design-bureau .btn--danger { border-color: var(--blood-bright); }
+body.design-bureau .form-input { border-radius: 0; }
+body.design-bureau .chip,
+body.design-bureau .status-chip { border-radius: 0; }
+body.design-bureau .status-chip { font-weight: 700; border-width: 1.5px; }
+body.design-bureau .status-chip--active { color: #8fb39a; border-color: #4e6b58; }
+body.design-bureau .toggle__track { border-radius: 2px; }
+body.design-bureau .toggle__thumb { border-radius: 1px; }
+body.design-bureau .filter-tab--active { background: rgba(200, 205, 190, 0.08); }
+
+/* ── Table ── */
+body.design-bureau .evidence-card { background: var(--bu-paper-bg); color: #24231f; border-radius: 1px; }
+body.design-bureau .evidence-card--private { background: url('../components/Bureau/textures/grain.webp') 0 0 / 240px 240px, #c9c6b4; }
+body.design-bureau .evidence-card__title { font-style: normal; font-weight: 700; color: #1d1d19; }
+body.design-bureau .evidence-card__body { color: #34332c; }
+body.design-bureau .evidence-card__type,
+body.design-bureau .evidence-card__footer { color: #66645a; border-color: #8a877a; }
+
+body.design-bureau .form-input::placeholder { color: var(--ochre-dim); }
+body.design-bureau .nav__section-label { color: var(--ochre-dim); }
+body.design-bureau .nav__item-latin { color: var(--ochre-dim); opacity: 0.85; }
+/* on paper the status stamps are inked, not glowing */
+body.design-bureau :is(.session-card, .lobby-main, .bu-paper-doc) .status-chip--active { color: #2f5a3c; border-color: #2f5a3c; }
+body.design-bureau :is(.session-card, .lobby-main, .bu-paper-doc) .status-chip--lobby { color: #3d3c33; border-color: #3d3c33; }
+body.design-bureau :is(.session-card, .lobby-main, .bu-paper-doc) .status-chip--closed { color: #6a675b; border-color: #6a675b; }
+
+/* public pages paint a flat page colour inline; let the desk show through */
+body.design-bureau .bu-page-root { background: transparent !important; }
+
+/* ── Story editor: dark filing cabinet, the scene page is a sheet of paper ── */
+body.design-bureau .se-workspace { background: var(--ink-1); box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5); }
+body.design-bureau .se-page {
+  background: var(--bu-paper-bg);
+  color: #24231f;
+  box-shadow: inset 0 0 0 1px rgba(60, 60, 45, 0.2), 0 12px 26px rgba(0, 0, 0, 0.55);
+}

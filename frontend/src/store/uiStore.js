@@ -10,6 +10,7 @@ const useUIStore = create(
       showLatin: true,
       lang: 'en',
       theme: 'dark',   // 'dark' (default) | 'light' (aged newspaper)
+      design: 'classic', // 'classic' (original design, default) | 'bureau' (desk & dossier pages)
       fontSize: 'md',  // 'sm' | 'md' | 'lg'
       sidebarHidden: false,
 
@@ -19,6 +20,7 @@ const useUIStore = create(
       setShowLatin: (v) => set({ showLatin: v }),
       setLang: (v) => set({ lang: v }),
       setTheme: (v) => set({ theme: v }),
+      setDesign: (v) => set({ design: v }),
       setFontSize: (v) => set({ fontSize: v }),
       toggleSidebar: () => set((s) => ({ sidebarHidden: !s.sidebarHidden })),
     }),

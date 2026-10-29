@@ -40,7 +40,7 @@ export default function AboutPage() {
   }, [grain])
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--ink-1)' }}>
+    <div className="bu-page-root" style={{ minHeight: '100vh', background: 'var(--ink-1)' }}>
       {lamp && <CursorLamp />}
 
       {/* top bar */}

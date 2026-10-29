@@ -1,0 +1,98 @@
+/* Shared bureau desk: the wood surface and the things that live on it.
+   Used by the bureau character sheet and by every page in the bureau design. */
+
+/* ── Dread: fog, the eye, whispers, the reaching shadow, the lamp ──
+   Both layers are fixed to the visible part of the desk (BureauDread.jsx).
+   The lower layer sits under the papers; the upper one only ever holds a
+   faint shadow or a dim flash, never anything opaque. */
+.bu-dread { position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 0; overflow: hidden; pointer-events: none; will-change: transform; }
+/* The desk surface lives here, not on .bu-desk: a viewport-sized fixed layer
+   is painted once, while a page-tall background is re-painted strip by strip
+   on every scroll. Black, damp wood; the only light is moonlight from a window. */
+.bu-dread:not(.bu-dread--over) {
+  background:
+    radial-gradient(ellipse 70% 40% at 88% 0%, rgba(150, 178, 190, 0.13), transparent 70%),
+    radial-gradient(ellipse at 50% 30%, transparent 35%, rgba(0, 0, 0, 0.55) 100%),
+    url('./textures/wood.webp'),
+    linear-gradient(180deg, #171a1b 0%, #0e1011 100%);
+  background-size: auto, auto, 900px 500px, auto;
+}
+.bu-dread--over { z-index: 6; }
+.bu-dread::after {
+  /* the dark at the edges breathes */
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(0, 0, 0, 0.5) 100%);
+  opacity: 0.75;
+}
+.bu-dread.is-active::after { animation: bu-breathe 9s ease-in-out infinite alternate; }
+.bu-dread--over::after { display: none; }
+@keyframes bu-breathe { from { opacity: 0.55; } to { opacity: 1; } }
+.bu-dread__fog {
+  position: absolute; inset: -25%;
+  background: url('./textures/fog.webp');
+  background-size: 900px 900px; opacity: 0.32;
+}
+.bu-dread__fog.is-moving { will-change: transform; animation: bu-fog 80s ease-in-out infinite alternate; }
+@keyframes bu-fog { to { transform: translate(260px, -140px); } }
+body.theme-light .bu-dread__fog { opacity: 0.45; }
+
+.bu-eye { position: absolute; width: 70px; height: 36px; animation: bu-eye 4.2s ease-in-out forwards; filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.9)); }
+.bu-eye svg { display: block; width: 100%; height: 100%; }
+.bu-eye__white { fill: #b9b394; }
+.bu-eye__iris { fill: #3c4a2c; }
+.bu-eye__pupil { fill: #050505; }
+.bu-eye.is-shut { animation: bu-eye-shut 160ms ease-in forwards; }
+@keyframes bu-eye {
+  0% { transform: scaleY(0); opacity: 0; }
+  18% { transform: scaleY(1); opacity: 0.8; }
+  52% { transform: scaleY(1); }
+  55% { transform: scaleY(0.08); }
+  58% { transform: scaleY(1); }
+  85% { transform: scaleY(1); opacity: 0.8; }
+  100% { transform: scaleY(0); opacity: 0; }
+}
+@keyframes bu-eye-shut { to { transform: scaleY(0); opacity: 0; } }
+
+.bu-whisper {
+  position: absolute; white-space: nowrap;
+  font-family: 'Bad Script', 'Segoe Script', cursive; font-size: 24px; color: #7a2a22; letter-spacing: 0.04em;
+  text-shadow: 0 0 6px rgba(120, 30, 20, 0.4);
+  opacity: 0; animation: bu-whisper 7s ease-in-out forwards;
+}
+@keyframes bu-whisper {
+  0% { opacity: 0; filter: blur(4px); }
+  35% { opacity: 0.55; filter: blur(0.4px); }
+  65% { opacity: 0.5; filter: blur(0.6px); }
+  100% { opacity: 0; filter: blur(3px); }
+}
+
+/* the shadow is drawn growing upwards; left/right turn the whole box */
+.bu-reach { position: absolute; width: 260px; height: 420px; }
+.bu-reach--bottom { bottom: 0; margin-left: -130px; }
+.bu-reach--left { left: 0; margin-top: -130px; transform-origin: 0 0; transform: translateX(420px) rotate(90deg); }
+.bu-reach--right { left: 100%; margin-top: -130px; transform-origin: 0 0; transform: translate(-420px, 260px) rotate(-90deg); }
+.bu-reach__arm { width: 100%; height: 100%; animation: bu-reach 9s ease-in-out forwards; }
+.bu-reach svg { display: block; width: 100%; height: 100%; fill: #030505; filter: blur(9px); opacity: 0.42; mix-blend-mode: multiply; }
+.bu-reach__writhe { transform-origin: 50% 100%; transform-box: fill-box; animation: bu-writhe 2.8s ease-in-out infinite alternate; }
+@keyframes bu-reach {
+  0% { transform: translateY(105%); }
+  40% { transform: translateY(35%); }
+  60% { transform: translateY(42%); }
+  100% { transform: translateY(105%); }
+}
+@keyframes bu-writhe { from { transform: skewX(-5deg); } to { transform: skewX(6deg) scaleY(1.03); } }
+
+.bu-dread__flicker { position: absolute; inset: 0; background: #000; opacity: 0; animation: bu-flicker 700ms steps(1, end) forwards; }
+@keyframes bu-flicker {
+  0% { opacity: 0.5; } 12% { opacity: 0.05; } 22% { opacity: 0.4; } 30% { opacity: 0; }
+  55% { opacity: 0.25; } 62% { opacity: 0; } 100% { opacity: 0; }
+}
+body.theme-light .bu-dread:not(.bu-dread--over) {
+  /* light theme: weathered grey boards under an overcast sky */
+  background:
+    radial-gradient(ellipse 70% 40% at 88% 0%, rgba(235, 242, 245, 0.35), transparent 70%),
+    radial-gradient(ellipse at 50% 30%, transparent 40%, rgba(20, 25, 25, 0.35) 100%),
+    url('./textures/wood.webp'),
+    linear-gradient(180deg, #8d8b83 0%, #75736b 100%);
+  background-size: auto, auto, 900px 500px, auto;
+}
