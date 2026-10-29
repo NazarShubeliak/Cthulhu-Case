@@ -5,6 +5,17 @@ from django.db import models, IntegrityError
 from django.conf import settings
 
 
+# What players may do at the table — the master toggles these per session.
+# Players may always delete and edit their own cards; master's cards are never
+# deletable by players.
+TABLE_SETTINGS_DEFAULTS = {
+    'players_delete_others': False,  # delete other players' cards and threads
+    'players_take_cards': True,      # take their own cards back off the shared table
+    'players_transfer': True,        # hand personal cards to other players
+    'board_locked': False,           # freeze the shared table for players
+}
+
+
 def _generate_join_code():
     chars = string.ascii_uppercase + string.digits
     return ''.join(random.choices(chars, k=6))
@@ -27,6 +38,11 @@ class Session(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='lobby')
     description = models.TextField(blank=True)
     join_code = models.CharField(max_length=6, unique=True, blank=True)
+    # The master's table music: {tracks, current, playing, offset, updated_at}.
+    # Playback position = offset (+ time since updated_at while playing).
+    music = models.JSONField(default=dict, blank=True)
+    # Overrides of TABLE_SETTINGS_DEFAULTS; read through .settings
+    table_settings = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
@@ -49,6 +65,10 @@ class Session(models.Model):
 
     def is_participant(self, user):
         return self.master == user or self.players.filter(pk=user.pk).exists()
+
+    @property
+    def settings(self):
+        return {**TABLE_SETTINGS_DEFAULTS, **(self.table_settings or {})}
 
 
 class Card(models.Model):

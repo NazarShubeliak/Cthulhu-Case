@@ -155,3 +155,27 @@ describe('tableStore — diceLog', () => {
     expect(useTableStore.getState().diceLog).toHaveLength(100)
   })
 })
+
+describe('cardHolds — хто зараз тягне картку', () => {
+  it('ставить і знімає замок', () => {
+    useTableStore.getState().setCardHold(7, { user_id: 2, username: 'bob' })
+    expect(useTableStore.getState().cardHolds[7].username).toBe('bob')
+    useTableStore.getState().clearCardHold(7, 2)
+    expect(useTableStore.getState().cardHolds[7]).toBeUndefined()
+  })
+
+  it('release від іншого гравця не знімає чужий замок', () => {
+    useTableStore.getState().setCardHold(7, { user_id: 2, username: 'bob' })
+    useTableStore.getState().clearCardHold(7, 3)
+    expect(useTableStore.getState().cardHolds[7].user_id).toBe(2)
+  })
+})
+
+describe('setMusic', () => {
+  it('ігнорує застаріле оновлення, що прийшло пізніше', () => {
+    const { setMusic } = useTableStore.getState()
+    setMusic({ music: { current: 'b', updated_at: 20 }, server_now: 20 })
+    setMusic({ music: { current: 'a', updated_at: 10 }, server_now: 21 })
+    expect(useTableStore.getState().music.current).toBe('b')
+  })
+})

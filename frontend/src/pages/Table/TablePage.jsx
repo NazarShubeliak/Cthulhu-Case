@@ -9,6 +9,8 @@ import useDebounce from '../../hooks/useDebounce.js'
 import { getSession, getCards, getThreads, createCard, getMySessionCharacter, getNotes, createNote, updateNote } from '../../api/sessions.js'
 import EvidenceBoard from './EvidenceBoard.jsx'
 import MusicPlayer from '../../components/MusicPlayer/MusicPlayer.jsx'
+import TableSettingsModal from '../../components/TableSettings/TableSettingsModal.jsx'
+import TableHelp from '../../components/TableHelp/TableHelp.jsx'
 
 // ── Constants ──
 
@@ -266,6 +268,9 @@ export default function TablePage() {
   const [diceLogOpen, setDiceLogOpen] = useState(false)
   const [musicOpen, setMusicOpen] = useState(false)
   const [notepadOpen, setNotepadOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const tableSettings = useTableStore((s) => s.tableSettings)
   const [notepadContent, setNotepadContent] = useState('')
   const [notepadStatus, setNotepadStatus] = useState('') // 'saving' | 'saved' | ''
   const [boundChar, setBoundChar] = useState(null)
@@ -352,6 +357,24 @@ export default function TablePage() {
   useEffect(() => {
     if (notepadOpen) focusNotepadEnd()
   }, [notepadOpen])
+
+  // Every session (re)load carries the master's current table settings
+  useEffect(() => {
+    if (session) useTableStore.getState().setTableSettings(session.table_settings)
+  }, [session])
+
+  // ── "H" opens the cheat sheet — same layout-independent trick as "N" below ──
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.code !== 'KeyH') return
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return
+      e.preventDefault()
+      setHelpOpen((v) => !v)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // ── "N" shortcut toggles the notepad, ignored while typing anywhere.
   // Uses e.code (physical key position) so it works under any keyboard layout/language. ──
@@ -538,7 +561,33 @@ export default function TablePage() {
         >
           {t('table.notepad')}
         </button>
+        {isMaster && (
+          <button
+            className="btn btn--ghost"
+            style={{ padding: '4px 10px', fontSize: 10, borderColor: tableSettings?.board_locked ? 'var(--blood)' : undefined }}
+            onClick={() => setSettingsOpen(true)}
+          >
+            {tableSettings?.board_locked ? '❄ ' : ''}{t('tableSettings.open')}
+          </button>
+        )}
+        <button
+          className="btn btn--ghost"
+          style={{ padding: '4px 10px', fontSize: 10, minWidth: 28 }}
+          title={t('tableHelp.buttonHint')}
+          onClick={() => setHelpOpen(true)}
+        >
+          ?
+        </button>
       </div>
+      {settingsOpen && tableSettings && (
+        <TableSettingsModal
+          sessionId={id}
+          settings={tableSettings}
+          onSaved={(s) => useTableStore.getState().setTableSettings(s)}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {helpOpen && <TableHelp isMaster={isMaster} onClose={() => setHelpOpen(false)} />}
 
       {/* Board */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -714,7 +763,7 @@ export default function TablePage() {
         document.body
       )}
 
-      <MusicPlayer sessionId={id} open={musicOpen} onClose={() => setMusicOpen(false)} />
+      <MusicPlayer sessionId={id} isMaster={isMaster} open={musicOpen} onClose={() => setMusicOpen(false)} />
 
       {/* Dice roll toasts */}
       {createPortal(

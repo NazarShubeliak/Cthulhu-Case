@@ -29,11 +29,12 @@ class SessionDetailSerializer(serializers.ModelSerializer):
     players = UserSerializer(many=True, read_only=True)
     is_master = serializers.SerializerMethodField()
     is_participant = serializers.SerializerMethodField()
+    table_settings = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
         fields = ['id', 'name', 'description', 'status', 'master', 'players',
-                  'is_master', 'is_participant', 'join_code', 'created_at']
+                  'is_master', 'is_participant', 'join_code', 'table_settings', 'created_at']
         # Status moves only through the start/close actions
         read_only_fields = ['status', 'join_code']
 
@@ -44,6 +45,9 @@ class SessionDetailSerializer(serializers.ModelSerializer):
     def get_is_participant(self, obj):
         request = self.context.get('request')
         return request and obj.is_participant(request.user)
+
+    def get_table_settings(self, obj):
+        return obj.settings
 
 
 class SessionCreateSerializer(serializers.ModelSerializer):

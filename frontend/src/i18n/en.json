@@ -235,7 +235,13 @@
     "musicPause": "Pause",
     "musicVolume": "Volume",
     "musicRemove": "Remove from playlist",
-    "musicPersonalHint": "Playlist and playback are local to you — other players can't hear it.",
+    "musicPersonalHint": "Everyone at the table hears this music. Volume is up to each player.",
+    "musicEmptyPlayer": "The Keeper hasn't added any music yet.",
+    "musicPlayerHint": "The Keeper controls the music. You can change the volume or mute it.",
+    "musicMute": "Mute",
+    "musicUnmute": "Unmute",
+    "musicUnlock": "🔊 Turn on music",
+    "musicSaveError": "Couldn't save. Please try again.",
     "notepad": "Notepad",
     "notepadHint": "N to open, Esc to close",
     "notepadTitle": "Personal Notes",
@@ -437,7 +443,9 @@
     "tabPersonal": "Personal",
     "resetZoom": "Reset",
     "emptyPublic": "Public table empty · Mensa Vacua",
-    "emptyPersonal": "No personal cards · Nullae Chartae"
+    "emptyPersonal": "No personal cards · Nullae Chartae",
+    "take": "Take back",
+    "takeMaster": "Remove from table"
   },
   "se": {
     "eyebrow": "№ iv · archive · archivum",
@@ -492,5 +500,148 @@
     "statusSuspect": "Suspect",
     "deleteLabel": "Delete {{label}}?",
     "secret": "secret"
+  },
+  "tableSettings": {
+    "title": "Table settings",
+    "open": "Table settings",
+    "subtitle": "What players are allowed to do. Changes apply immediately, even mid-game.",
+    "board_locked": "Freeze the shared table",
+    "board_lockedHint": "Players see the table but can't change anything on it. Personal boards work as usual.",
+    "players_delete_others": "Delete other players' cards and threads",
+    "players_delete_othersHint": "Other players' cards and threads. Your own can always be deleted.",
+    "players_take_cards": "Take own cards off the table",
+    "players_take_cardsHint": "A player can move a card they created from the shared table back to their personal board.",
+    "players_transfer": "Hand cards to other players",
+    "players_transferHint": "From a personal board to another player's personal board.",
+    "alwaysNote": "Players can never delete the Keeper's cards and threads.",
+    "saveError": "Couldn't save. Please try again.",
+    "lockedBanner": "The Keeper has frozen the shared table"
+  },
+  "tableHelp": {
+    "title": "How to use the table",
+    "buttonHint": "Cheat sheet (H)",
+    "sections": [
+      {
+        "title": "Board",
+        "items": [
+          [
+            "Drag (LMB)",
+            "Move a card"
+          ],
+          [
+            "LMB on background",
+            "Pan the board (or hold the wheel)"
+          ],
+          [
+            "Wheel",
+            "Zoom"
+          ],
+          [
+            "RMB on background",
+            "Create a card here"
+          ],
+          [
+            "RMB on a card",
+            "All card actions: reveal, pass, lock, thread, delete"
+          ],
+          [
+            "Alt",
+            "Quick view of the card under the cursor"
+          ],
+          [
+            "Tab",
+            "Ping the spot under your cursor for everyone"
+          ]
+        ]
+      },
+      {
+        "title": "Threads & maps",
+        "items": [
+          [
+            "New thread",
+            "RMB on a card → \"+ Thread\", then click another card"
+          ],
+          [
+            "Pin on a map",
+            "In thread mode click anywhere on a map — a red pin appears there and the thread goes to it. A map can hold any number of pins"
+          ],
+          [
+            "Click a thread",
+            "Delete the thread"
+          ],
+          [
+            "Esc",
+            "Cancel thread mode"
+          ],
+          [
+            "Name tag",
+            "Another player is dragging this card — wait until they let go"
+          ]
+        ]
+      },
+      {
+        "title": "Personal",
+        "items": [
+          [
+            "Tabs",
+            "\"Public Table\" is seen by everyone, \"Personal\" only by you"
+          ],
+          [
+            "RMB → reveal",
+            "Put your card on the shared table"
+          ],
+          [
+            "RMB → take back",
+            "Move your card from the table back to personal"
+          ],
+          [
+            "N",
+            "Notepad (Esc closes)"
+          ],
+          [
+            "H",
+            "This cheat sheet"
+          ]
+        ]
+      },
+      {
+        "title": "Dice & music",
+        "items": [
+          [
+            "Character sheet",
+            "Click a skill to roll"
+          ],
+          [
+            "Dice log",
+            "Button in the top bar"
+          ],
+          [
+            "Music",
+            "The Keeper plays it; you control volume and mute"
+          ]
+        ]
+      }
+    ],
+    "master": {
+      "title": "For the Keeper",
+      "items": [
+        [
+          "Settings",
+          "What players may do; ❄ freezes the shared table"
+        ],
+        [
+          "RMB → remove",
+          "Take any card off the table to yourself"
+        ],
+        [
+          "RMB → pass",
+          "Send a card to a player's personal board"
+        ],
+        [
+          "RMB on background",
+          "Also the Keeper's dice roll"
+        ]
+      ]
+    }
   }
 }

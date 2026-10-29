@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import useTableStore from '../../store/tableStore'
-import { moveCard as apiMoveCard, createCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing, transferCard } from '../../api/sessions'
+import { moveCard as apiMoveCard, createCard, createThread, deleteThread, publishCard, deleteCard, updateCard as apiUpdateCard, pinCard, rollDice, saveDrawingStrokes, clearDrawing as apiClearDrawing, transferCard, takeCard } from '../../api/sessions'
 
 // ── Constants ──
 
@@ -165,7 +165,7 @@ function cardDims(card) {
   return { w: CARD_W, h: CARD_H }
 }
 
-function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, currentUserId, masterId, sessionId }) {
+function ThreadsLayer({ cards, threads, onDeleteThread, canDeleteThread, isMaster, currentUserId, masterId, sessionId }) {
   return (
     <svg
       style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 5 }}
@@ -228,8 +228,7 @@ function ThreadsLayer({ cards, threads, onDeleteThread, isMaster, currentUserId,
               strokeWidth={14}
               fill="none"
               onClick={() => {
-                const canDelete = isMaster || (t.created_by?.id !== masterId)
-                if (canDelete) onDeleteThread(t.id)
+                if (canDeleteThread(t)) onDeleteThread(t.id)
               }}
             />
           </g>
@@ -939,7 +938,7 @@ function SketchFullView({ card, isMaster, sessionId, currentUserId, onClose, wsR
 // references (useCallback in EvidenceBoard) and `card` keeps its identity
 // for every card the store didn't just touch (see tableStore.moveCard) —
 // don't wrap these props in fresh inline closures at the call site.
-const CorkCard = memo(function CorkCard({ card, selected, connectMode, isMaster, onCardMouseDown, onCardClick, onOpenContextMenu, onHoverEnter, onHoverLeave, onResizeMouseDown }) {
+const CorkCard = memo(function CorkCard({ card, selected, heldBy, gliding, connectMode, isMaster, onCardMouseDown, onCardClick, onOpenContextMenu, onHoverEnter, onHoverLeave, onResizeMouseDown }) {
   const rot = KIND_ROT[card.type] ?? 0
   const dims = cardDims(card)
   const sharedProps = { card, selected, connectMode, isMaster }
@@ -958,12 +957,26 @@ const CorkCard = memo(function CorkCard({ card, selected, connectMode, isMaster,
         top: card.pos_y,
         width: dims.w,
         height: isMap ? dims.h : undefined,
-        cursor: (card.is_pinned || card.type === 'pin') ? 'default' : connectMode ? 'crosshair' : 'grab',
-        zIndex: isMap ? 1 : (selected ? 50 : 10),
+        cursor: (card.is_pinned || card.type === 'pin') ? 'default' : heldBy ? 'not-allowed' : connectMode ? 'crosshair' : 'grab',
+        zIndex: isMap ? 1 : (heldBy ? 40 : selected ? 50 : 10),
         transform: `rotate(${rot}deg)`,
-        transition: selected ? 'none' : 'box-shadow .2s',
+        // Someone else's drag arrives ~30 times a second with network jitter —
+        // glide between the updates instead of jumping from one to the next
+        transition: gliding ? 'left 90ms linear, top 90ms linear' : selected ? 'none' : 'box-shadow .2s',
+        outline: heldBy ? '2px dashed var(--ochre)' : undefined,
+        outlineOffset: 4,
       }}
     >
+      {heldBy && (
+        <div style={{
+          position: 'absolute', bottom: '100%', left: 0, marginBottom: 6,
+          padding: '2px 6px', background: 'var(--ink-0)', border: '1px solid var(--ochre-deep)',
+          fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.1em',
+          color: 'var(--ochre)', whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 3,
+        }}>
+          {heldBy}
+        </div>
+      )}
       {/* Pin indicator — only shown when card is pinned */}
       {card.is_pinned && (
         <div style={{
@@ -1416,11 +1429,15 @@ function CtxItem({ label, onClick, danger }) {
   )
 }
 
-function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, currentUserId, players, onFullView, onPin, onPublish, onConnect, onDelete, onTransfer, onClose }) {
+function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, currentUserId, players, settings, frozen, canDelete, onFullView, onPin, onPublish, onTake, onConnect, onDelete, onTransfer, onClose }) {
   const { t } = useTranslation()
   const [transferOpen, setTransferOpen] = useState(false)
 
-  const canTransfer = !card.is_public && (isOwn || isMaster)
+  const canTransfer = !card.is_public && (isMaster || (isOwn && settings.players_transfer))
+  // Frozen shared table: players can still look, nothing else
+  const locked = frozen && card.is_public
+  const canTake = card.is_public && card.type !== 'pin'
+    && (isMaster || (isCreator && settings.players_take_cards && !frozen))
   const transferTargets = (players ?? []).filter((p) => p.id !== currentUserId && p.id !== card.owner?.id)
 
   return (
@@ -1439,10 +1456,10 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, current
         overflow: 'visible',
       }}>
         <CtxItem label={t('board.view')} onClick={() => { onFullView(); onClose() }} />
-        {card.type !== 'pin' && (
+        {card.type !== 'pin' && !locked && (
           <CtxItem label={card.is_pinned ? t('board.unpin') : t('board.pin')} onClick={() => { onPin(); onClose() }} />
         )}
-        {(isMaster || isOwn) && !card.is_public && (
+        {(isMaster || isOwn) && !card.is_public && !frozen && (
           <CtxItem label={isMaster ? t('board.toTable') : t('board.reveal')} onClick={() => { onPublish(); onClose() }} />
         )}
         {canTransfer && transferTargets.length > 0 && (
@@ -1471,8 +1488,11 @@ function ContextMenu({ x, y, card, isMaster, isOwn, isCreator, masterId, current
             )}
           </div>
         )}
-        <CtxItem label={t('board.thread')} onClick={() => { onConnect(); onClose() }} />
-        {(isMaster || card.created_by?.id !== masterId) && (
+        {canTake && (
+          <CtxItem label={isMaster ? t('board.takeMaster') : t('board.take')} onClick={() => { onTake(); onClose() }} />
+        )}
+        {!locked && <CtxItem label={t('board.thread')} onClick={() => { onConnect(); onClose() }} />}
+        {canDelete(card) && (
           <CtxItem label={t('board.delete')} onClick={onDelete} danger />
         )}
       </div>
@@ -1536,12 +1556,26 @@ const railStyle = {
 
 // ── Main EvidenceBoard ──
 
+// Until the session loads — same as the server defaults
+const DEFAULT_TABLE_SETTINGS = {
+  players_delete_others: false,
+  players_take_cards: true,
+  players_transfer: true,
+  board_locked: false,
+}
+
 export default function EvidenceBoard({ sessionId, isMaster, currentUserId, masterId, players, connectedUsers, sessionName, wsRef, onLocalRoll, drawingStrokeHandlerRef, cursorPingHandlerRef, onBoardCreate, tab, onTabChange }) {
   const { t } = useTranslation()
   // Granular selectors so an unrelated store change (a dice roll, a note,
   // a player joining) doesn't force this whole board to re-render.
   const cards = useTableStore((s) => s.cards)
   const threads = useTableStore((s) => s.threads)
+  const cardHolds = useTableStore((s) => s.cardHolds)
+  const settings = useTableStore((s) => s.tableSettings) ?? DEFAULT_TABLE_SETTINGS
+  // The master froze the shared table: players may only look at it
+  const frozen = !isMaster && settings.board_locked
+  const frozenRef = useRef(frozen)
+  useEffect(() => { frozenRef.current = frozen }, [frozen])
   const [selectedId, setSelectedId] = useState(null)
   const [dragging, setDragging] = useState(null)
   const lastMoveSendRef = useRef(0)
@@ -1614,6 +1648,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     setSelectedId(cardId)
     const card = useTableStore.getState().cards.find((c) => c.id === cardId)
     if (!card || card.is_pinned || card.type === 'pin') return  // pinned cards, and map pins, can be selected but not dragged
+    if (useTableStore.getState().cardHolds[cardId]) return  // someone else is dragging it
+    if (frozenRef.current && card.is_public) return
     // Dragging a map carries its pins along with it — snapshot them so we can
     // apply the same delta as the map moves, instead of leaving them behind.
     const childPins = card.type === 'map'
@@ -1628,8 +1664,22 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       startX: card.pos_x,
       startY: card.pos_y,
       childPins,
+      grabbed: false,  // the lock is requested on the first real move, not on a plain click
     })
   }, [zoom, connectMode])
+
+  const sendWs = useCallback((msg) => {
+    if (wsRef?.current?.readyState === 1) wsRef.current.send(JSON.stringify(msg))
+  }, [wsRef])
+
+  // Someone else won the grab race for the card we're dragging — put it back
+  useEffect(() => {
+    if (!dragging || !cardHolds[dragging.id]) return
+    const { moveCard } = useTableStore.getState()
+    moveCard(dragging.id, dragging.startX, dragging.startY)
+    dragging.childPins?.forEach((p) => moveCard(p.id, p.startX, p.startY))
+    setDragging(null)
+  }, [cardHolds, dragging])
 
   useEffect(() => {
     if (!dragging) return
@@ -1637,6 +1687,11 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       const pos_x = e.clientX / zoom - dragging.offsetX
       const pos_y = e.clientY / zoom - dragging.offsetY
       useTableStore.getState().moveCard(dragging.id, pos_x, pos_y)
+
+      if (!dragging.grabbed) {
+        dragging.grabbed = true
+        sendWs({ type: 'card.grab', card_id: dragging.id, extra_ids: dragging.childPins?.map((p) => p.id) ?? [] })
+      }
 
       const now = Date.now()
       const sendLive = now - lastMoveSendRef.current > 33 && wsRef?.current?.readyState === 1
@@ -1662,6 +1717,16 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       const card = useTableStore.getState().cards.find((c) => c.id === dragging.id)
       // A plain click (select / open) doesn't move anything — don't save or broadcast it
       const moved = card && (card.pos_x !== dragging.startX || card.pos_y !== dragging.startY)
+      if (dragging.grabbed) {
+        // The throttle may have swallowed the last few moves — send where it
+        // actually landed before letting go, so others don't see it jump later
+        if (card) sendWs({ type: 'card.moving', card_id: card.id, pos_x: card.pos_x, pos_y: card.pos_y })
+        dragging.childPins?.forEach((p) => {
+          const pin = useTableStore.getState().cards.find((c) => c.id === p.id)
+          if (pin) sendWs({ type: 'card.moving', card_id: pin.id, pos_x: pin.pos_x, pos_y: pin.pos_y })
+        })
+        sendWs({ type: 'card.release', card_id: dragging.id })
+      }
       if (moved) {
         clearTimeout(moveTimer.current)
         moveTimer.current = setTimeout(() => {
@@ -1682,7 +1747,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [dragging, zoom, sessionId])
+  }, [dragging, zoom, sessionId, sendWs])
 
   // ── Resize a map card (corner handle drag) ──
   const [resizing, setResizing] = useState(null)
@@ -1869,6 +1934,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
     e.stopPropagation()
     const fromId = selectedId
     const targetCard = useTableStore.getState().cards.find((c) => c.id === cardId)
+    if (frozenRef.current && targetCard?.is_public) return
 
     // Clicking a spot on a map instead connects to a fresh pin dropped right there —
     // no need to place the pin first and thread it separately.
@@ -1911,6 +1977,32 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
   }, [])
 
   const closeContextMenu = useCallback(() => setContextMenu(null), [])
+
+  // Mirrors the server rules (deny_foreign_delete / deny_if_board_locked)
+  const mayDelete = useCallback((createdById, touchesPublic) => {
+    if (isMaster) return true
+    if (frozen && touchesPublic) return false
+    if (createdById === currentUserId) return true
+    return createdById !== masterId && settings.players_delete_others
+  }, [isMaster, frozen, currentUserId, masterId, settings.players_delete_others])
+
+  const canDeleteCard = useCallback((card) => mayDelete(card.created_by?.id, card.is_public), [mayDelete])
+
+  const canDeleteThread = useCallback((thread) => {
+    const byId = (id) => useTableStore.getState().cards.find((c) => c.id === id)
+    const from = byId(thread.card_from?.id ?? thread.card_from)
+    const to = byId(thread.card_to?.id ?? thread.card_to)
+    return mayDelete(thread.created_by?.id, !!(from?.is_public || to?.is_public))
+  }, [mayDelete])
+
+  function handleCtxTake() {
+    const card = contextMenu?.card
+    if (!card) return
+    // The server answers with card.updated / card.deleted for everyone, us included
+    takeCard(sessionId, card.id)
+      .then((res) => useTableStore.getState().replaceCard(res.data))
+      .catch(() => {})
+  }
 
   // Pin/publish/delete apply to the store immediately (optimistic) instead of
   // waiting on the round-trip, then reconcile with the server response — and
@@ -2014,6 +2106,17 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
         </div>
       </div>
 
+      {frozen && tab === 'public' && (
+        <div style={{
+          padding: '6px 24px', flexShrink: 0, textAlign: 'center',
+          background: 'rgba(122,42,37,0.18)', borderBottom: '1px solid var(--blood)',
+          fontFamily: 'var(--font-mono)', fontSize: 9, letterSpacing: '0.22em',
+          textTransform: 'uppercase', color: '#c87070',
+        }}>
+          ❄ {t('tableSettings.lockedBanner')}
+        </div>
+      )}
+
       {/* ── Stage ── */}
       <div
         ref={stageRef}
@@ -2021,6 +2124,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
         onContextMenu={(e) => {
           e.preventDefault()
           if (e.target !== stageRef.current && !e.target.classList.contains('board-inner')) return
+          if (frozen && tab === 'public') return
           const rect = stageRef.current.getBoundingClientRect()
           const boardX = (e.clientX - rect.left - panRef.current.x) / zoomRef.current
           const boardY = (e.clientY - rect.top - panRef.current.y) / zoomRef.current
@@ -2075,6 +2179,7 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
                 })
               },
             })}
+            canDeleteThread={canDeleteThread}
             isMaster={isMaster}
             currentUserId={currentUserId}
             masterId={masterId}
@@ -2085,6 +2190,8 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
               key={card.id}
               card={card}
               selected={selectedId === card.id}
+              heldBy={cardHolds[card.id]?.username ?? null}
+              gliding={!!(cardHolds[card.id] || (card.type === 'pin' && cardHolds[card.parent_map]))}
               connectMode={connectMode && selectedId !== null && selectedId !== card.id}
               isMaster={isMaster}
               onCardMouseDown={onCardMouseDown}
@@ -2210,9 +2317,13 @@ export default function EvidenceBoard({ sessionId, isMaster, currentUserId, mast
           masterId={masterId}
           currentUserId={currentUserId}
           players={players}
+          settings={settings}
+          frozen={frozen}
+          canDelete={canDeleteCard}
           onFullView={() => { setFullViewCard(contextMenu.card) }}
           onPin={handleCtxPin}
           onPublish={handleCtxPublish}
+          onTake={handleCtxTake}
           onConnect={() => { setSelectedId(contextMenu.card.id); setConnectMode(true) }}
           onDelete={handleCtxDelete}
           onTransfer={handleCtxTransfer}

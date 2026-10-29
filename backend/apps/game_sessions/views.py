@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import random
+import re
+import time
 import uuid
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -13,7 +15,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 
-from .models import Session, Card, Note, Thread, SessionCharacter
+from .models import Session, Card, Note, Thread, SessionCharacter, TABLE_SETTINGS_DEFAULTS
 from .serializers import (
     SessionListSerializer, SessionDetailSerializer, SessionCreateSerializer,
     CardSerializer, NoteSerializer, ThreadSerializer, SessionCharacterSerializer,
@@ -24,6 +26,61 @@ logger = logging.getLogger(__name__)
 
 BROADCAST_TIMEOUT_S = 3
 MAX_SKETCH_POINTS = 20_000
+MAX_MUSIC_TRACKS = 100
+YOUTUBE_ID_RE = re.compile(r'^[A-Za-z0-9_-]{6,20}$')
+
+
+def clean_music(data):
+    """Validate a music state posted by the master; raises ValidationError."""
+    tracks = data.get('tracks')
+    if not isinstance(tracks, list) or len(tracks) > MAX_MUSIC_TRACKS:
+        raise ValidationError({'tracks': f'Expected a list of at most {MAX_MUSIC_TRACKS} tracks.'})
+    clean_tracks = []
+    for tr in tracks:
+        video_id = tr.get('videoId') if isinstance(tr, dict) else None
+        if not isinstance(video_id, str) or not YOUTUBE_ID_RE.match(video_id):
+            raise ValidationError({'tracks': 'Invalid YouTube video id.'})
+        if any(t['videoId'] == video_id for t in clean_tracks):
+            continue
+        title = tr.get('title')
+        clean_tracks.append({'videoId': video_id, 'title': str(title)[:200] if title else video_id})
+
+    current = data.get('current')
+    if current is not None and current not in {t['videoId'] for t in clean_tracks}:
+        raise ValidationError({'current': 'The current track must be in the playlist.'})
+    try:
+        offset = max(0.0, float(data.get('offset') or 0))
+    except (TypeError, ValueError):
+        raise ValidationError({'offset': 'Must be a number of seconds.'})
+    return {
+        'tracks': clean_tracks,
+        'current': current,
+        'playing': bool(data.get('playing')) and current is not None,
+        'offset': offset,
+        'updated_at': time.time(),
+    }
+
+
+def deny_if_board_locked(session, user, *touches_public):
+    """A frozen shared table is read-only for players — the master is never blocked."""
+    if session.master_id != user.id and session.settings['board_locked'] and any(touches_public):
+        raise PermissionDenied(_('Майстер заморозив загальний стіл.'))
+
+
+def deny_foreign_delete(session, user, created_by_id):
+    """Players always may delete their own things, never the master's, and
+    other players' only if the master allowed it."""
+    if session.master_id == user.id or created_by_id == user.id:
+        return
+    if created_by_id == session.master_id:
+        raise PermissionDenied(_('Не можна видалити картку майстра.'))
+    if not session.settings['players_delete_others']:
+        raise PermissionDenied(_('Майстер заборонив видаляти чуже.'))
+
+
+def music_payload(music):
+    # server_now lets each client place the track position without trusting its own clock
+    return {'music': music or {}, 'server_now': time.time()}
 
 
 def broadcast(session_id, message):
@@ -142,6 +199,32 @@ class SessionViewSet(viewsets.ModelViewSet):
         session.status = 'closed'
         session.save()
         return Response(SessionDetailSerializer(session, context={'request': request}).data)
+
+    @action(detail=True, methods=['get', 'post'])
+    def music(self, request, pk=None):
+        session = self.get_object()
+        if request.method == 'GET':
+            return Response(music_payload(session.music))
+        if session.master != request.user:
+            raise PermissionDenied(_('Тільки майстер керує музикою.'))
+        session.music = clean_music(request.data)
+        session.save(update_fields=['music'])
+        payload = music_payload(session.music)
+        broadcast(session.id, {'type': 'music.updated', **payload})
+        return Response(payload)
+
+    @action(detail=True, methods=['post'], url_path='table-settings')
+    def table_settings(self, request, pk=None):
+        session = self.get_object()
+        if session.master != request.user:
+            raise PermissionDenied(_('Тільки майстер змінює налаштування столу.'))
+        changes = {k: v for k, v in request.data.items() if k in TABLE_SETTINGS_DEFAULTS}
+        if not all(isinstance(v, bool) for v in changes.values()):
+            raise ValidationError({'detail': 'Settings must be true or false.'})
+        session.table_settings = {**session.settings, **changes}
+        session.save(update_fields=['table_settings'])
+        broadcast(session.id, {'type': 'session.settings', 'table_settings': session.settings})
+        return Response(session.settings)
 
     @action(detail=True, methods=['post'], url_path='set-character')
     def set_character(self, request, pk=None):
@@ -306,6 +389,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         session = self.get_session()
         self.validate_relations(serializer, session)
+        deny_if_board_locked(session, self.request.user, serializer.validated_data.get('is_public', False))
         card = serializer.save(session=session, created_by=self.request.user)
         if card.is_public or card.owner_id:
             broadcast(session.id, {
@@ -321,6 +405,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
             and session.master != self.request.user
         ):
             raise PermissionDenied(_('Недостатньо прав для редагування цієї картки.'))
+        deny_if_board_locked(session, self.request.user, serializer.instance.is_public)
         self.validate_relations(serializer, session)
         card = serializer.save()
         if position_only:
@@ -339,8 +424,8 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         session = self.get_session()
-        if session.master != self.request.user and instance.created_by == session.master:
-            raise PermissionDenied(_('Не можна видалити картку майстра.'))
+        deny_foreign_delete(session, self.request.user, instance.created_by_id)
+        deny_if_board_locked(session, self.request.user, instance.is_public)
         session_id = instance.session_id
         card_id = instance.id
         # Pins cascade-delete in the DB with their parent map, but that doesn't
@@ -357,11 +442,39 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
         session = self.get_session()
         if request.user != session.master and request.user != card.owner:
             return Response({'error': _('Недостатньо прав.')}, status=status.HTTP_403_FORBIDDEN)
+        deny_if_board_locked(session, request.user, True)
         card.is_public = True
         card.save()
         data = CardSerializer(card, context={'request': request}).data
         broadcast(session.id, {'type': 'card.published', 'card': data})
         return Response(data)
+
+    @action(detail=True, methods=['post'])
+    def take(self, request, session_pk=None, pk=None):
+        """Take a card off the shared table: a player into their personal space
+        (only cards they made), the master into theirs (any card)."""
+        card = self.get_object()
+        session = self.get_session()
+        user = request.user
+        if not card.is_public or card.type == 'pin':
+            return Response({'error': _('Цю картку не можна забрати.')}, status=status.HTTP_400_BAD_REQUEST)
+        if session.master != user:
+            if card.created_by != user:
+                raise PermissionDenied(_('Забрати можна тільки свою картку.'))
+            if not session.settings['players_take_cards']:
+                raise PermissionDenied(_('Майстер заборонив забирати картки зі столу.'))
+            deny_if_board_locked(session, user, True)
+        # A map's pins go wherever the map goes
+        moved = [card, *card.pins.all()] if card.type == 'map' else [card]
+        for c in moved:
+            c.is_public = False
+            c.owner = user
+            c.save(update_fields=['is_public', 'owner'])
+            broadcast(session.id, {
+                'type': 'card.unpublished',
+                'card': CardSerializer(c, context={'request': request}).data,
+            })
+        return Response(CardSerializer(card, context={'request': request}).data)
 
     @action(detail=True, methods=['patch'])
     def drawing(self, request, session_pk=None, pk=None):
@@ -393,6 +506,7 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
         session = self.get_session()
         if request.user != session.master and request.user != card.created_by:
             return Response({'error': _('Недостатньо прав.')}, status=status.HTTP_403_FORBIDDEN)
+        deny_if_board_locked(session, request.user, card.is_public)
         card.is_pinned = not card.is_pinned
         card.save(update_fields=['is_pinned'])
         data = CardSerializer(card, context={'request': request}).data
@@ -405,6 +519,8 @@ class CardViewSet(SessionMixin, viewsets.ModelViewSet):
         session = self.get_session()
         if request.user != card.owner and session.master != request.user:
             return Response({'error': _('Недостатньо прав.')}, status=status.HTTP_403_FORBIDDEN)
+        if session.master != request.user and not session.settings['players_transfer']:
+            raise PermissionDenied(_('Майстер заборонив передавати картки.'))
         if card.is_public:
             return Response({'error': _('Публічну картку не можна передати.')}, status=status.HTTP_400_BAD_REQUEST)
         target_user_id = request.data.get('target_user_id')
@@ -443,6 +559,10 @@ class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
         for field in ('card_from', 'card_to'):
             if serializer.validated_data[field].session_id != session.id:
                 raise ValidationError({f'{field}_id': _('Картку не знайдено в цій сесії.')})
+        deny_if_board_locked(
+            session, self.request.user,
+            serializer.validated_data['card_from'].is_public, serializer.validated_data['card_to'].is_public,
+        )
         try:
             thread = serializer.save(session=session, created_by=self.request.user)
         except IntegrityError:
@@ -453,6 +573,9 @@ class ThreadViewSet(SessionMixin, viewsets.ModelViewSet):
         })
 
     def perform_destroy(self, instance):
+        session = self.get_session()
+        deny_foreign_delete(session, self.request.user, instance.created_by_id)
+        deny_if_board_locked(session, self.request.user, instance.card_from.is_public, instance.card_to.is_public)
         session_id = instance.session_id
         thread_id = instance.id
         card_from = instance.card_from

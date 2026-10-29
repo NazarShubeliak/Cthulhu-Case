@@ -77,6 +77,8 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
 
     ws.onopen = () => {
       retryDelay.current = RECONNECT_BASE_MS
+      // Releases that happened while we were offline never reached us
+      useTableStore.getState().clearCardHolds()
       onConnectedRef.current?.()
     }
 
@@ -94,6 +96,7 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
         addNote, updateNote, removeNote,
         addConnectedUser, removeConnectedUser,
         replaceCard, addDiceLog, hasDiceRoll,
+        setCardHold, clearCardHold, setMusic, setTableSettings,
       } = useTableStore.getState()
 
       switch (msg.type) {
@@ -108,6 +111,20 @@ export default function useWebSocket(sessionId, currentUserId, onDiceRolled, onD
           break
         case 'card.moved':
           if (msg.moved_by !== userId) moveCard(msg.card_id, msg.pos_x, msg.pos_y)
+          break
+        case 'card.grabbed':
+        case 'card.grab_denied':
+          // A denial means someone else won the grab — the board cancels our drag
+          if (msg.user_id !== userId) setCardHold(msg.card_id, { user_id: msg.user_id, username: msg.username })
+          break
+        case 'session.settings':
+          setTableSettings(msg.table_settings)
+          break
+        case 'music.updated':
+          setMusic(msg)
+          break
+        case 'card.released':
+          clearCardHold(msg.card_id, msg.user_id)
           break
         case 'card.published':
           addCard(msg.card)

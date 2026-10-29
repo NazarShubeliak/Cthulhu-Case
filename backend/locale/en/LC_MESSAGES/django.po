@@ -47,6 +47,9 @@ msgstr "Only the master can start the session."
 msgid "Тільки майстер може закрити сесію."
 msgstr "Only the master can close the session."
 
+msgid "Тільки майстер керує музикою."
+msgstr "Only the master controls the music."
+
 msgid "Майстер не вибирає персонажа."
 msgstr "The master does not select a character."
 
@@ -109,3 +112,24 @@ msgstr "Player not found."
 
 msgid "Гравець не є учасником цієї сесії."
 msgstr "Player is not a participant of this session."
+
+msgid "Тільки майстер змінює налаштування столу."
+msgstr "Only the master can change the table settings."
+
+msgid "Майстер заморозив загальний стіл."
+msgstr "The master has frozen the shared table."
+
+msgid "Майстер заборонив видаляти чуже."
+msgstr "The master does not allow deleting other players' things."
+
+msgid "Цю картку не можна забрати."
+msgstr "This card cannot be taken."
+
+msgid "Забрати можна тільки свою картку."
+msgstr "You can only take your own card."
+
+msgid "Майстер заборонив забирати картки зі столу."
+msgstr "The master does not allow taking cards off the table."
+
+msgid "Майстер заборонив передавати картки."
+msgstr "The master does not allow handing cards over."

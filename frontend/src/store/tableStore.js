@@ -6,6 +6,13 @@ const useTableStore = create((set, get) => ({
   notes: [],
   connectedUsers: [],
   diceLog: [],
+  // card_id → { user_id, username } of whoever else is dragging it right now
+  cardHolds: {},
+  // The master's music as last heard from the server, plus when we heard it
+  // (local clock) so the playback position can be extrapolated
+  music: null,
+  // What the master lets players do (session.table_settings)
+  tableSettings: null,
 
   setCards: (cards) => set({ cards }),
   setThreads: (threads) => set({ threads }),
@@ -29,6 +36,22 @@ const useTableStore = create((set, get) => ({
   resizeCard: (cardId, width, height) =>
     set((s) => ({ cards: s.cards.map((c) => (c.id === cardId ? { ...c, width, height } : c)) })),
   removeCard: (cardId) => set((s) => ({ cards: s.cards.filter((c) => c.id !== cardId) })),
+
+  setCardHold: (cardId, holder) => set((s) => ({ cardHolds: { ...s.cardHolds, [cardId]: holder } })),
+  clearCardHold: (cardId, userId) => set((s) => {
+    const hold = s.cardHolds[cardId]
+    if (!hold || (userId !== undefined && hold.user_id !== userId)) return s
+    const { [cardId]: _, ...rest } = s.cardHolds
+    return { cardHolds: rest }
+  }),
+  clearCardHolds: () => set({ cardHolds: {} }),
+  setTableSettings: (tableSettings) => set({ tableSettings }),
+
+  // Ignores out-of-order updates: a WS echo can arrive after a newer REST reply
+  setMusic: ({ music, server_now }) => set((s) => {
+    if (s.music && (music.updated_at ?? 0) < (s.music.updated_at ?? 0)) return s
+    return { music: { ...music, server_now, receivedAt: Date.now() } }
+  }),
 
   addThread: (thread) => set((s) => ({
     threads: s.threads.find((t) => t.id === thread.id) ? s.threads : [...s.threads, thread],
@@ -68,7 +91,7 @@ const useTableStore = create((set, get) => ({
       return { diceLog: [{ ...entry, ts }, ...s.diceLog].slice(0, 100) }
     }),
 
-  reset: () => set({ cards: [], threads: [], notes: [], connectedUsers: [], diceLog: [] }),
+  reset: () => set({ cards: [], threads: [], notes: [], connectedUsers: [], diceLog: [], cardHolds: {}, music: null, tableSettings: null }),
 }))
 
 export default useTableStore

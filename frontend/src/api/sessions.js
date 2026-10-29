@@ -10,6 +10,10 @@ export const joinByCode = (code) => api.post('/sessions/join-by-code/', { code }
 export const startSession = (id) => api.post(`/sessions/${id}/start/`)
 export const closeSession = (id) => api.post(`/sessions/${id}/close/`)
 export const rollDice = (id, data) => api.post(`/sessions/${id}/roll/`, data)
+export const getMusic = (id) => api.get(`/sessions/${id}/music/`)
+export const setMusic = (id, music) => api.post(`/sessions/${id}/music/`, music)
+export const setTableSettings = (id, settings) => api.post(`/sessions/${id}/table-settings/`, settings)
+export const takeCard = (sessionId, cardId) => api.post(`/sessions/${sessionId}/cards/${cardId}/take/`)
 
 export const getCards = (sessionId) => api.get(`/sessions/${sessionId}/cards/`)
 export const createCard = (sessionId, data) => {

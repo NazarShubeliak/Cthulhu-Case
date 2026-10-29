@@ -5,6 +5,7 @@ import useAuthStore from '../../store/authStore.js'
 import { getSession, startSession, deleteSession, leaveSession, setSessionCharacter, getMySessionCharacter, loadCampaign } from '../../api/sessions.js'
 import { getCharacters } from '../../api/characters.js'
 import { getCampaigns } from '../../api/campaigns.js'
+import TableSettingsModal from '../../components/TableSettings/TableSettingsModal.jsx'
 
 function ConfirmModal({ message, onConfirm, onClose }) {
   const { t } = useTranslation()
@@ -92,6 +93,7 @@ export default function LobbyPage() {
   const [charLoading, setCharLoading] = useState(false)
   const [campaigns, setCampaigns] = useState([])
   const [showCampaignPicker, setShowCampaignPicker] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [loadingCampaign, setLoadingCampaign] = useState(false)
   const [loadSuccess, setLoadSuccess] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null)
@@ -241,6 +243,14 @@ export default function LobbyPage() {
       {/* Left panel */}
       <div>
         {error && <div className="auth-error" style={{ marginBottom: 16 }}>{error}</div>}
+        {showSettings && (
+          <TableSettingsModal
+            sessionId={id}
+            settings={session.table_settings}
+            onSaved={(table_settings) => setSession((s) => ({ ...s, table_settings }))}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 }}>
           <h1
@@ -335,6 +345,11 @@ export default function LobbyPage() {
                   onClick={() => navigate(`/table/${id}`)}
                 >
                   {t('lobby.openTable')}
+                </button>
+              )}
+              {session?.status !== 'closed' && (
+                <button className="btn btn--ghost" onClick={() => setShowSettings(true)}>
+                  {t('tableSettings.open')}
                 </button>
               )}
               {session?.status !== 'closed' && campaigns.length > 0 && (
